@@ -73,4 +73,5 @@ recordings/
 screenshots/
 checkpoints/
 rust/jarvis_vision/target/
+artifacts/
 

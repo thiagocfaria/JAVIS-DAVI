@@ -37,6 +37,12 @@ except ImportError:
     build_embedder = None
     Embedder = None
 
+try:
+    from .remote_client import RemoteMemoryClient, RemoteMemoryItem
+except ImportError:  # pragma: no cover - defensive
+    RemoteMemoryClient = None  # type: ignore
+    RemoteMemoryItem = None  # type: ignore
+
 
 # ============================================================================
 # DATA CLASSES
@@ -639,12 +645,14 @@ class HybridMemoryStore:
         self,
         local_cache: LocalMemoryCache,
         cloud_store: SupabaseMemoryStore | None = None,
+        remote_client: RemoteMemoryClient | None = None,
         embedder: Embedder | None = None,
         embed_dim: int | None = None,
         embed_episodes: bool = False,
     ) -> None:
         self.local = local_cache
         self.cloud = cloud_store
+        self.remote = remote_client
         self.embedder = embedder
         self.embed_dim = embed_dim
         self.embed_episodes = embed_episodes
@@ -660,7 +668,7 @@ class HybridMemoryStore:
         metadata: dict[str, Any] | None = None,
         layer: str = "warm",
         dedup: bool = False,
-    ) -> str:
+        ) -> str:
         """Add a memory item."""
         meta = dict(metadata or {})
         text_hash = _hash_text(text) if text else ""
@@ -684,6 +692,13 @@ class HybridMemoryStore:
 
         # Always add to local cache
         item_id = self.local.add(item)
+
+        # Opportunistically push to remote store
+        if self.remote:
+            try:
+                self.remote.add(kind=kind, text=text, metadata=meta)
+            except Exception:
+                pass
 
         # Add to hot cache if procedure
         if kind == "procedure":
@@ -709,6 +724,25 @@ class HybridMemoryStore:
             return results
 
         results = self.local.search(query, kind, limit)
+        remote_results: list[MemoryItem] = []
+        if self.remote:
+            try:
+                remote_items = self.remote.search(query, kind=kind, limit=limit)
+                remote_results = [
+                    MemoryItem(
+                        id=item.id,
+                        kind=item.kind,
+                        text=item.text,
+                        metadata=item.metadata,
+                        ts=item.ts,
+                        layer="warm",
+                    )
+                    for item in remote_items
+                ]
+            except Exception:
+                remote_results = []
+
+        results = self._merge_results(results, remote_results, limit)
         self._record_access(results)
         self._query_cache.set(cache_key, results)
         return results
@@ -831,6 +865,24 @@ class HybridMemoryStore:
 
         return deleted_local
 
+    @staticmethod
+    def _merge_results(
+        local_results: list[MemoryItem], remote_results: list[MemoryItem], limit: int
+    ) -> list[MemoryItem]:
+        """Merge and deduplicate results preferring local freshness."""
+
+        seen = set()
+        merged: list[MemoryItem] = []
+        for item in local_results + remote_results:
+            key = (item.kind, _normalize_text(item.text))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+            if len(merged) >= limit:
+                break
+        return merged
+
 
 # ============================================================================
 # FACTORY FUNCTION
@@ -841,6 +893,15 @@ def build_memory_store(
 ) -> HybridMemoryStore:
     """Build local memory store."""
     local = LocalMemoryCache(db_path)
+
+    remote_client = None
+    remote_url = os.environ.get("JARVIS_REMOTE_MEMORY_URL")
+    remote_token = os.environ.get("JARVIS_REMOTE_MEMORY_TOKEN")
+    if remote_url and RemoteMemoryClient:
+        try:
+            remote_client = RemoteMemoryClient(base_url=remote_url, token=remote_token)
+        except Exception:
+            remote_client = None
 
     embed_dim_env = os.environ.get("JARVIS_EMBED_DIM")
     embed_dim = int(embed_dim_env) if embed_dim_env and embed_dim_env.isdigit() else 384
@@ -862,6 +923,7 @@ def build_memory_store(
 
     return HybridMemoryStore(
         local_cache=local,
+        remote_client=remote_client,
         embedder=embedder,
         embed_dim=embed_dim,
         embed_episodes=embed_episodes,

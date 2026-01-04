@@ -139,8 +139,8 @@ Quando nao for aplicavel, documentar o motivo no PLANO_UNICO.md.
 - [ ] Revisar todos os planos e travar decisoes principais.
 - [ ] Definir metas de latencia, custo e peso (pior caso). (registradas abaixo)
 - [ ] Diagrama atualizado para refletir o estado atual (ultimo update registrado).
-- [ ] Registro de implementacao existe (Documentos/REGISTRO_IMPLEMENTACAO.md).
-- [ ] Manter REGISTRO_IMPLEMENTACAO.md atualizado a cada mudanca. (ultimo update: 03/01/2026)
+- [x] Registro de implementacao existe (Documentos/REGISTRO_IMPLEMENTACAO.md).
+- [x] Manter REGISTRO_IMPLEMENTACAO.md atualizado a cada mudanca. (ultimo update: 05/01/2026)
 - [ ] Atualizar README quando algo mudar. (ultimo update: demonstracao)
 
 Metas definidas (pior caso, antes do VPS):
@@ -475,7 +475,7 @@ Metas definidas (pior caso, antes do VPS):
 
 ### Estado atual (codigo)
 - [x] Roteamento LLM local + MockLLM fallback + guidance manual via navegador (sem cloud automatica).
-- [ ] Budget diario de chamadas/caracteres integrado ao fluxo (orcamento.py existe, mas nao e usado).
+- [x] Budget diario de chamadas/caracteres integrado ao fluxo (orcamento.py utilizado via BudgetedLLMClient com telemetria local).
 - [x] Gate de confianca heuristico (schema/warnings).
 - [ ] Self-score do modelo e penalidades de risco/volume.
 **(removido: nao usamos APIs externas)**
@@ -536,6 +536,7 @@ Metas definidas (pior caso, antes do VPS):
 ### Estado atual (codigo)
 - [x] Fluxo local: comando -> plano -> policy -> execucao -> validacao.
 - [x] Protocolo VPS <-> PC existe em codigo (validacao basica).
+- [x] Cliente HTTP de memoria remota leve (fallback local) com servidor minimo para VPS/local.
 - [ ] Cliente/servidor do protocolo integrado ao fluxo principal.
 
 ### Entregaveis da fase

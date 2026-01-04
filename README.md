@@ -4,6 +4,13 @@ A ideia e que ele seja um orquestrador capaz de fazer tudo em um computador, mex
 
 Jarvis vive na sua maquina e no VPS que voce controla. Nao usamos API paga ou gratuita externa: o cerebro e um modelo open-source (Qwen2.5-7B-Instruct + LoRA) que voce organiza por conta propria. Este repositorio mantem o orquestrador python, a validacao local e o plano que descreve como quantizar, treinar incrementalmente e aplicar LoRA sem depender de terceiros.
 
+## Status rapido
+- Testes unitarios atuais: `python -m pytest -q` (28/28 passando).
+- Projeto **nao terminou**: faltam portal Wayland + ponte Rust para acoes, deploy do VPS com modelo self-hosted, memoria remota robusta e telemetria de custo (detalhado em `Documentos/PLANO_UNICO.md`).
+- Orquestrador agora aplica limite diario de chamadas/caracteres do cerebro via `JARVIS_BUDGET_MAX_CALLS`/`JARVIS_BUDGET_MAX_CHARS` (registra blocos/consumo em `~/.jarvis/events.jsonl`).
+- Ponte de memoria remota adicionada: configure `JARVIS_REMOTE_MEMORY_URL`/`JARVIS_REMOTE_MEMORY_TOKEN` para enviar e consultar memórias num serviço HTTP leve (fallback local quando indisponível).
+ - Para subir rapidamente o serviço de memória remota, use `./scripts/start_remote_memory_server.sh --host 0.0.0.0 --port 8000` (wrapper para `python -m jarvis.memoria.remote_service`).
+
 ## O que ja funciona hoje
 - CLI de texto/voz (`python3 -m jarvis.app --loop`, `--text`, `--voice`).
  - Painel flutuante (`python3 -m jarvis.app --gui-panel`) abre uma janela suspensa com campo de texto e botao de envio; os comandos ainda usam o mesmo orquestrador e gravam os eventos em `~/.jarvis/events.jsonl`.
@@ -23,6 +30,7 @@ Jarvis vive na sua maquina e no VPS que voce controla. Nao usamos API paga ou gr
 3. Configure `.env` a partir de `.env.example` (use apenas variaveis self-hosted: `JARVIS_LOCAL_LLM_BASE_URL`, `JARVIS_LOCAL_LLM_MODEL`, `JARVIS_BROWSER_AI_URL`, `JARVIS_STT_MODE=local` etc.).
 4. Defina o cerebro no VPS (veja `Documentos/PLANO_UNICO.md`) e execute `python3 -m jarvis.app --loop`.
 5. Use `python3 -m jarvis.app --preflight` para validar o ambiente e `scripts/run_benchmarks.sh` (agora salvando em `Documentos/archive/benchmarks/`) para medir peso.
+6. Opcional: levante o serviço mínimo de memória remota com `./scripts/start_remote_memory_server.sh --host 0.0.0.0 --port 8000` para compartilhar memórias com um VPS ou outra máquina.
 
 ## Agent S3 (GUI)
 - Execute `python3 -m jarvis.app --s3 "sua tarefa aqui"`.

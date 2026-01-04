@@ -14,6 +14,7 @@ Este diretório concentra apenas o que importa agora:
 
 ## Arquivos-chave
 - `PLANO_UNICO.md`: visão estratégica, checklist, e roteiro da quantização/LoRA/treino incremental.
+- `REGISTRO_IMPLEMENTACAO.md`: log vivo das entregas e testes executados (ultima entrada: 2026-01-07, pytest 32/32 passando).
 - `DIAGRAMA_ARQUITETURA.svg`: mostra a separação entre a máquina local, o VPS e o servidor GPU (sem nenhuma nuvem externa).
 - `archive/`: contém o plano anterior, o plano pessoal e o histórico de benchmarks. Consulte apenas se precisar relembrar decisões antigas.
 

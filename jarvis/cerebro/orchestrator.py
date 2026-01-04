@@ -41,11 +41,8 @@ from ..validacao.validator import Validator
 from ..voz.tts import TextToSpeech
 from .actions import Action, ActionPlan
 from .config import Config
-from .llm import (
-    LLMClient,
-    _safe_json_loads,
-    build_local_llm_client,
-)
+from .llm import BudgetedLLMClient, LLMClient, _safe_json_loads, build_local_llm_client
+from .orcamento import OrcamentoDiario
 
 # Try to import new automation module
 try:
@@ -93,6 +90,9 @@ class Orchestrator:
 
         # Initialize telemetry (local only)
         self.telemetry = Telemetry(config.log_path)
+        self.budget = OrcamentoDiario(
+            config.budget_path, config.budget_max_calls, config.budget_max_chars
+        )
         self.chat = ChatLog(
             config.chat_log_path,
             auto_open=config.chat_auto_open,
@@ -106,13 +106,18 @@ class Orchestrator:
         )
 
         # Initialize local brain (no paid API)
-        self.llm_local = build_local_llm_client(
-            config.local_llm_base_url,
-            config.local_llm_api_key,
-            config.local_llm_model,
-            config.local_llm_timeout_s,
-            config.llm_confidence_min,
-            config.local_llm_cooldown_s,
+        self.llm_local = BudgetedLLMClient(
+            build_local_llm_client(
+                config.local_llm_base_url,
+                config.local_llm_api_key,
+                config.local_llm_model,
+                config.local_llm_timeout_s,
+                config.llm_confidence_min,
+                config.local_llm_cooldown_s,
+            ),
+            budget=self.budget,
+            telemetry=self.telemetry,
+            name="local",
         )
 
         # Initialize automation (separated desktop/web)
