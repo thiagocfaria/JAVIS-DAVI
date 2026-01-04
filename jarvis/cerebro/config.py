@@ -152,6 +152,11 @@ class Config:
     # Privacy
     mask_screenshots: bool
 
+    # Budget
+    budget_path: Path
+    budget_max_calls: int
+    budget_max_chars: int
+
     # Agent S3 (GUI agent)
     s3_worker_engine_type: str
     s3_worker_base_url: str | None
@@ -187,6 +192,7 @@ def load_config() -> Config:
     stop_file_path = Path(_env("JARVIS_STOP_FILE_PATH", str(data_dir / "STOP")))
     chat_log_path = Path(_env("JARVIS_CHAT_LOG_PATH", str(data_dir / "chat.log")))
     chat_inbox_path = Path(_env("JARVIS_CHAT_INBOX_PATH", str(data_dir / "chat_inbox.txt")))
+    budget_path = Path(_env("JARVIS_BUDGET_PATH", str(data_dir / "orcamento.json")))
 
     # Legacy passphrase support
     legacy_passphrase = _env("JARVIS_APPROVAL_PASSPHRASE")
@@ -249,6 +255,11 @@ def load_config() -> Config:
 
         # Privacy
         mask_screenshots=_env_bool("JARVIS_MASK_SCREENSHOTS", True),
+
+        # Budget
+        budget_path=budget_path,
+        budget_max_calls=_env_int("JARVIS_BUDGET_MAX_CALLS", 0),
+        budget_max_chars=_env_int("JARVIS_BUDGET_MAX_CHARS", 0),
 
         # Agent S3
         s3_worker_engine_type=_env("JARVIS_S3_WORKER_ENGINE_TYPE", "openai_compat"),
@@ -390,6 +401,13 @@ JARVIS_BLACKLISTED_APPS=1password,bitwarden,keepass
 
 # Local data directory
 JARVIS_DATA_DIR=~/.jarvis
+
+# ============================================================================
+# DAILY BUDGET (LLM calls)
+# ============================================================================
+JARVIS_BUDGET_PATH=~/.jarvis/orcamento.json
+JARVIS_BUDGET_MAX_CALLS=0
+JARVIS_BUDGET_MAX_CHARS=0
 
 # ============================================================================
 # DEBUGGING

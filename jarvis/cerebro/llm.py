@@ -14,8 +14,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 from urllib import request
 
+from ..telemetria.telemetry import Telemetry
 from ..validacao.plano import validar_plano
 from .actions import Action, ActionPlan
+from .orcamento import OrcamentoDiario
 
 # ============================================================================
 # RESPONSE CACHE (for rate limiting and performance)
@@ -83,6 +85,61 @@ class LLMClient:
     def is_available(self) -> bool:
         """Check if this LLM is available."""
         return True
+
+
+class BudgetedLLMClient(LLMClient):
+    """LLM client wrapper that enforces a daily budget before invoking the model."""
+
+    def __init__(
+        self,
+        wrapped: LLMClient,
+        budget: OrcamentoDiario | None,
+        telemetry: Telemetry | None,
+        name: str = "llm",
+    ) -> None:
+        self._wrapped = wrapped
+        self._budget = budget
+        self._telemetry = telemetry
+        self._name = name
+
+    def plan(self, text: str) -> ActionPlan:
+        characters = len(text.strip())
+        if self._budget and not self._budget.pode_gastar(1, characters):
+            if self._telemetry:
+                self._telemetry.log_event(
+                    "budget.block",
+                    {
+                        "source": self._name,
+                        "chars": characters,
+                    },
+                )
+            raise RuntimeError("orcamento_diario_excedido")
+
+        plan = self._wrapped.plan(text)
+
+        if self._budget:
+            try:
+                self._budget.consumir(1, characters)
+                if self._telemetry:
+                    self._telemetry.log_event(
+                        "budget.consume",
+                        {
+                            "source": self._name,
+                            "chars": characters,
+                        },
+                    )
+            except Exception:
+                # Budget errors should not break the plan flow
+                if self._telemetry:
+                    self._telemetry.log_event(
+                        "budget.error",
+                        {"source": self._name, "chars": characters},
+                    )
+
+        return plan
+
+    def is_available(self) -> bool:
+        return self._wrapped.is_available()
 
 
 def _normalize_confidence(value: float | None) -> float | None:

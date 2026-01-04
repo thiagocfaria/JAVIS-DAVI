@@ -21,10 +21,12 @@ import time
 from pathlib import Path
 from typing import Optional
 
+# pyautogui/mouseinfo falham em ambientes sem DISPLAY; tratamos amplo para
+# permitir execucao headless (preflight/smoke) sem quebrar import.
 try:
     import pyautogui  # type: ignore
     pyautogui.FAILSAFE = True
-except (ImportError, OSError, SystemExit):
+except Exception:  # pragma: no cover - fallback defensivo
     pyautogui = None
 
 try:
