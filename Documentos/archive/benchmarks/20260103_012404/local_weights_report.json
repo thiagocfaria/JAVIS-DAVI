@@ -1,0 +1,38 @@
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+{
+  "latency": {
+    "policy_check": 1.870874002634082,
+    "sanitizacao": 8.73778800087166,
+    "chat_log_append": 8.052420998865273,
+    "procedures_match": 162.7573059995484,
+    "memory_add_search": 159.78043300128775,
+    "orchestrator_dry_run": 49.15264100054628,
+    "validator_check": 0.05159799911780283
+  },
+  "cpu": {
+    "policy_check": 99.57608903379467,
+    "sanitizacao": 31.525405200064565,
+    "chat_log_append": 23.97541062833192,
+    "procedures_match": 9.854572839254669,
+    "memory_add_search": 14.355881380555772,
+    "orchestrator_dry_run": 17.291006824222805,
+    "validator_check": 93.40090860887992
+  },
+  "memory": {
+    "policy_check": 30.90625,
+    "sanitizacao": 30.90625,
+    "chat_log_append": 30.91015625,
+    "procedures_match": 31.53125,
+    "memory_add_search": 31.67578125,
+    "orchestrator_dry_run": 31.703125,
+    "validator_check": 31.7109375
+  }
+}

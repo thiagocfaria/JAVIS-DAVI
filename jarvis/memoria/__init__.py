@@ -1,0 +1,1 @@
+"""Memoria: armazenamento e procedimentos."""

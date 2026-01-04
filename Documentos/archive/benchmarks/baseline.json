@@ -1,0 +1,92 @@
+{
+  "version": "1.0",
+  "created_at": "2026-01-03T01:25:00-03:00",
+  "description": "Baseline de métricas de performance do Jarvis MVP (local)",
+  "system": {
+    "platform": "linux",
+    "python_version": "3.11+"
+  },
+  "metrics": {
+    "weight": {
+      "description": "Peso de 1-100 baseado em latencia (median_s * 20). Placeholder ate OCR real.",
+      "baseline": {
+        "validator_default": 20,
+        "validator_nocache": 40,
+        "validator_full_ocr": 60
+      }
+    },
+    "latency": {
+      "description": "Latencia em milissegundos (mediana)",
+      "baseline": {
+        "policy_check": 1.63,
+        "sanitizacao": 1.62,
+        "chat_log_append": 1.27,
+        "procedures_match": 144.49,
+        "memory_add_search": 208.33,
+        "orchestrator_dry_run": 61.7,
+        "validator_check": 0.04,
+        "automation_click": 0.12,
+        "automation_type_text": 0.1,
+        "automation_open_url": 0.21,
+        "automation_open_app": 0.1
+      }
+    },
+    "cpu": {
+      "description": "Uso de CPU em percentual",
+      "baseline": {
+        "policy_check": 94.87,
+        "sanitizacao": 99.62,
+        "chat_log_append": 99.71,
+        "procedures_match": 10.46,
+        "memory_add_search": 11.96,
+        "orchestrator_dry_run": 18.32,
+        "validator_check": 91.57,
+        "automation_click": 93.37,
+        "automation_type_text": 94.71,
+        "automation_open_url": 94.49,
+        "automation_open_app": 94.32
+      }
+    },
+    "memory": {
+      "description": "Uso de memória RSS em MB",
+      "baseline": {
+        "policy_check": 30.86,
+        "sanitizacao": 30.86,
+        "chat_log_append": 30.86,
+        "procedures_match": 31.48,
+        "memory_add_search": 31.64,
+        "orchestrator_dry_run": 31.71,
+        "validator_check": 31.71,
+        "automation_click": 31.85,
+        "automation_type_text": 31.85,
+        "automation_open_url": 31.85,
+        "automation_open_app": 31.85
+      }
+    }
+  },
+  "scenarios": {
+    "worst_case": {
+      "description": "Cenários de pior caso para validação",
+      "ocr_full": {
+        "max_dim": 0,
+        "cache": false,
+        "expected_weight": 60
+      },
+      "automation": {
+        "description": "Acoes de automacao desktop/web (dry-run por padrao)",
+        "expected_latency_ms": 0.5
+      },
+      "stt_tts": {
+        "description": "Speech-to-text e text-to-speech",
+        "expected_latency_ms": 2000.0
+      }
+    }
+  },
+  "regression_threshold": {
+    "description": "Limite de regressão (bloquear se piorar mais que isso)",
+    "latency_pct": 3.0,
+    "cpu_pct": 5.0,
+    "memory_pct": 10.0
+  }
+}
+

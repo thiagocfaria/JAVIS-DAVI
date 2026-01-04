@@ -1,0 +1,19 @@
+# Jarvis Python dependencies (self-hosted, no external APIs)
+# Core automation + validation
+playwright>=1.40
+Pillow>=10.0
+pytesseract>=0.3.10
+pynput>=1.7.6
+pyautogui>=0.9.54
+
+# Speech-to-text (local)
+sounddevice>=0.4.6
+numpy>=1.24
+faster-whisper>=1.0.0
+webrtcvad>=2.0.10
+
+# Local embeddings (optional but supported)
+sentence-transformers>=2.2.2
+
+# Tests
+pytest>=7.4

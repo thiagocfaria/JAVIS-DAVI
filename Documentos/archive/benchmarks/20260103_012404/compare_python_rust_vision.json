@@ -1,0 +1,40 @@
+{
+  "python": {
+    "latency": {
+      "automation_click": 0.1818569980969187,
+      "automation_type_text": 0.08973099829745479,
+      "automation_open_url": 0.09811700147110969,
+      "automation_open_app": 0.09209700147039257
+    },
+    "cpu": {
+      "automation_click": 94.34885750646936,
+      "automation_type_text": 94.55007785277701,
+      "automation_open_url": 94.80232590249824,
+      "automation_open_app": 94.56415452732776
+    },
+    "memory": {
+      "automation_click": 31.859375,
+      "automation_type_text": 31.859375,
+      "automation_open_url": 31.859375,
+      "automation_open_app": 31.859375
+    },
+    "meta": {
+      "timestamp": "2026-01-03T01:24:15-0300",
+      "backend": "python",
+      "dry_run_actions": true,
+      "vision_backend": "none"
+    },
+    "skipped": {
+      "screenshot_capture": "screenshot_unavailable",
+      "ocr_fast": "no_image_available",
+      "ocr_full": "no_image_available",
+      "validator_full_ocr": "ocr_backend_unavailable"
+    },
+    "checks": {}
+  },
+  "rust": {
+    "error": "Traceback (most recent call last):\n  File \"/home/u/Documentos/Jarvis/scripts/bench_vision_actions.py\", line 298, in <module>\n    main()\n  File \"/home/u/Documentos/Jarvis/scripts/bench_vision_actions.py\", line 276, in main\n    orchestrator = _build_orchestrator(dry_run=not args.real_actions)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/u/Documentos/Jarvis/scripts/bench_vision_actions.py\", line 143, in _build_orchestrator\n    return Orchestrator(config)\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/home/u/Documentos/Jarvis/jarvis/cerebro/orchestrator.py\", line 151, in __init__\n    self.validator = Validator(\n                     ^^^^^^^^^^\n  File \"/home/u/Documentos/Jarvis/jarvis/validacao/validator.py\", line 146, in __init__\n    raise RuntimeError(\"Rust vision requerido, mas jarvis_vision nao esta disponivel.\")\nRuntimeError: Rust vision requerido, mas jarvis_vision nao esta disponivel.",
+    "backend": "rust"
+  },
+  "comparisons": []
+}

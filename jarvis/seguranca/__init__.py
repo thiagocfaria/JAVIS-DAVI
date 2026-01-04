@@ -1,0 +1,1 @@
+"""Seguranca: politicas e privacidade."""

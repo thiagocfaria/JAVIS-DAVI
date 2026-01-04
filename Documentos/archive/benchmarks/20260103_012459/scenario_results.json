@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-01-03T01:25:13-0300",
+  "dry_run": true,
+  "scenarios": [
+    {
+      "name": "abrir_site_exemplo",
+      "commands": [
+        {
+          "command": "abrir example.com",
+          "duration_ms": 76.13,
+          "success": true,
+          "error": null
+        },
+        {
+          "command": "aguardar 2 segundos",
+          "duration_ms": 22.63,
+          "success": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "digitar_texto_simples",
+      "commands": [
+        {
+          "command": "digitar teste",
+          "duration_ms": 13.26,
+          "success": true,
+          "error": null
+        },
+        {
+          "command": "digitar outro teste",
+          "duration_ms": 48.98,
+          "success": true,
+          "error": null
+        }
+      ]
+    }
+  ]
+}

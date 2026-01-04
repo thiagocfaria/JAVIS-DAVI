@@ -1,0 +1,46 @@
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+DRY_RUN: Action(action_type='type_text', params={'text': 'teste'})
+{
+  "policy_check": {
+    "latency_ms": 1.8035890007013222,
+    "cpu_pct": 99.7004860475854,
+    "rss_mb": 31.59765625
+  },
+  "sanitizacao": {
+    "latency_ms": 2.2312180008157156,
+    "cpu_pct": 99.58101232711411,
+    "rss_mb": 31.6015625
+  },
+  "chat_log_append": {
+    "latency_ms": 1.701350000075763,
+    "cpu_pct": 99.54395038790236,
+    "rss_mb": 31.609375
+  },
+  "procedures_match": {
+    "latency_ms": 174.7219850003603,
+    "cpu_pct": 10.410547155985803,
+    "rss_mb": 32.01953125
+  },
+  "memory_add_search": {
+    "latency_ms": 35.02758700051345,
+    "cpu_pct": 49.392785191587805,
+    "rss_mb": 32.01953125
+  },
+  "orchestrator_dry_run": {
+    "latency_ms": 84.63637000022572,
+    "cpu_pct": 10.723645018873858,
+    "rss_mb": 32.03515625
+  },
+  "validator_check": {
+    "latency_ms": 0.03471899981377646,
+    "cpu_pct": 90.82316032258197,
+    "rss_mb": 32.03515625
+  }
+}

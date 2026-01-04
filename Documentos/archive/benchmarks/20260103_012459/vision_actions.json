@@ -1,0 +1,33 @@
+{
+  "latency": {
+    "automation_click": 0.1236260031873826,
+    "automation_type_text": 0.09585299994796515,
+    "automation_open_url": 0.21141099932719953,
+    "automation_open_app": 0.09898699863697402
+  },
+  "cpu": {
+    "automation_click": 93.37495332561787,
+    "automation_type_text": 94.706477678655,
+    "automation_open_url": 94.4922012112349,
+    "automation_open_app": 94.32135293963321
+  },
+  "memory": {
+    "automation_click": 31.8515625,
+    "automation_type_text": 31.8515625,
+    "automation_open_url": 31.8515625,
+    "automation_open_app": 31.8515625
+  },
+  "meta": {
+    "timestamp": "2026-01-03T01:25:05-0300",
+    "backend": "auto",
+    "dry_run_actions": true,
+    "vision_backend": "none"
+  },
+  "skipped": {
+    "screenshot_capture": "screenshot_unavailable",
+    "ocr_fast": "no_image_available",
+    "ocr_full": "no_image_available",
+    "validator_full_ocr": "ocr_backend_unavailable"
+  },
+  "checks": {}
+}

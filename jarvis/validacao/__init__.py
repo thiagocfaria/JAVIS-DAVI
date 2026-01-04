@@ -1,0 +1,1 @@
+"""Validacao: checagens e visao."""

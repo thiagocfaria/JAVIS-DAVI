@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "description": "Cenarios basicos para testes E2E (executar em maquina com GUI)",
+  "scenarios": [
+    {
+      "name": "abrir_site_exemplo",
+      "commands": [
+        "abrir example.com",
+        "aguardar 2 segundos"
+      ]
+    },
+    {
+      "name": "digitar_texto_simples",
+      "commands": [
+        "digitar teste",
+        "digitar outro teste"
+      ]
+    }
+  ]
+}

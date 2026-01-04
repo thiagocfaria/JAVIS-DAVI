@@ -1,0 +1,35 @@
+============================================================
+COMPARAÇÃO PYTHON vs RUST
+============================================================
+
+[1/4] Medindo Python (com cache)...
+[2/4] Medindo Python (sem cache)...
+[3/4] Medindo Rust (com cache)...
+[4/4] Medindo Rust (sem cache)...
+
+============================================================
+RESULTADOS
+============================================================
+
+✓ Python (cache):
+   Mediana: 0.0000s
+   Peso sugerido: 1
+
+✓ Python (no cache):
+   Mediana: 0.0000s
+   Peso sugerido: 1
+
+✓ Rust (cache):
+   Mediana: 0.0000s
+   Peso sugerido: 1
+
+✓ Rust (no cache):
+   Mediana: 0.0000s
+   Peso sugerido: 1
+
+============================================================
+ANÁLISE
+============================================================
+
+🚀 Speedup Rust vs Python: 0.00x
+   ⚠️  Python é mais rápido (verificar configuração)

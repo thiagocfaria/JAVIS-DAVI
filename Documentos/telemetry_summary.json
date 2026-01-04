@@ -1,0 +1,36 @@
+{
+  "commands": {
+    "eec7dababd9a4e1daa55e26ca1dfd559": {
+      "text": "abrir navegador",
+      "status": "started",
+      "duration": null,
+      "error": null,
+      "events": [
+        {
+          "type": "command.start",
+          "timestamp": 1767458244.126525,
+          "payload": {
+            "command_id": "eec7dababd9a4e1daa55e26ca1dfd559",
+            "text": "abrir navegador",
+            "timestamp": 1767458244.1265142,
+            "source": "text",
+            "session": "local"
+          }
+        },
+        {
+          "type": "plan.validated",
+          "timestamp": 1767458244.1294577,
+          "payload": {
+            "command_id": "eec7dababd9a4e1daa55e26ca1dfd559",
+            "text": "abrir navegador",
+            "timestamp": 1767458244.1265142,
+            "source": "local",
+            "actions": 1,
+            "risk_level": "low"
+          }
+        }
+      ],
+      "plans": []
+    }
+  }
+}

@@ -1,0 +1,428 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1680" height="1250" viewBox="0 0 1680 1250" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+      <polygon points="0 0, 10 3.5, 0 7" fill="context-stroke"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 22px; font-weight: 700; fill: #1b1b1b; }
+      .subtitle { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; fill: #444444; }
+      .region-local { fill: #e9f1ff; stroke: #9fb4d8; stroke-width: 1.4; rx: 16; }
+      .region-vps { fill: #e9f7ef; stroke: #9bc6a8; stroke-width: 1.4; rx: 16; }
+      .region-cloud { fill: #fff1d6; stroke: #e1b86b; stroke-width: 1.4; rx: 16; }
+      .region-title { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #4a4a4a; }
+      .card { filter: url(#shadow); }
+      .box-user { fill: #d7f5e2; stroke: #1b8f3a; stroke-width: 1.6; rx: 12; }
+      .box-input { fill: #ffe2c7; stroke: #f57c00; stroke-width: 1.6; rx: 12; }
+      .box-brain { fill: #cfe5ff; stroke: #0d47a1; stroke-width: 1.6; rx: 12; }
+      .box-safety { fill: #ffd6d1; stroke: #b71c1c; stroke-width: 1.6; rx: 12; }
+      .box-action { fill: #bfeff4; stroke: #006064; stroke-width: 1.6; rx: 12; }
+      .box-vision { fill: #b7efe6; stroke: #00796b; stroke-width: 1.6; rx: 12; }
+      .box-store { fill: #dff2c6; stroke: #33691e; stroke-width: 1.6; rx: 12; }
+      .box-system { fill: #dce5ef; stroke: #37474f; stroke-width: 1.6; rx: 12; }
+      .box-cloud { fill: #ffefad; stroke: #f57f17; stroke-width: 1.6; rx: 12; }
+      .box-future { fill: #f4f4f4; stroke: #8d8d8d; stroke-width: 1.6; rx: 12; stroke-dasharray: 6 4; }
+      .box-total { fill: #ffe7b3; stroke: #ff8f00; stroke-width: 1.6; rx: 12; }
+      .label { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 13px; font-weight: 700; fill: #111111; }
+      .small { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; fill: #2b2b2b; }
+      .tiny { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9px; fill: #444444; }
+      .icon { fill: none; stroke: #1f2937; stroke-width: 1.2; }
+      .icon-fill { fill: #1f2937; stroke: none; }
+      .arrow-local { stroke: #1e40af; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .arrow-vps { stroke: #1b5e20; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .arrow-cross { stroke: #6a1b9a; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .arrow-cross-dash { stroke: #6a1b9a; stroke-width: 1.4; fill: none; marker-end: url(#arrow); stroke-dasharray: 5 4; }
+    </style>
+    <!-- Icons -->
+    <g id="icon-user" class="icon">
+      <circle cx="8" cy="4.5" r="3"/>
+      <rect x="4" y="8" width="8" height="6" rx="3"/>
+    </g>
+    <g id="icon-mic" class="icon">
+      <rect x="6" y="3" width="4" height="8" rx="2"/>
+      <line x1="8" y1="11" x2="8" y2="14"/>
+      <line x1="5" y1="14" x2="11" y2="14"/>
+    </g>
+    <g id="icon-gear" class="icon">
+      <circle cx="8" cy="8" r="3.2"/>
+      <line x1="8" y1="1" x2="8" y2="4"/>
+      <line x1="8" y1="12" x2="8" y2="15"/>
+      <line x1="1" y1="8" x2="4" y2="8"/>
+      <line x1="12" y1="8" x2="15" y2="8"/>
+    </g>
+    <g id="icon-shield" class="icon">
+      <path d="M8 1 L14 3 V7 C14 10 11 13 8 15 C5 13 2 10 2 7 V3 Z"/>
+    </g>
+    <g id="icon-check" class="icon">
+      <path d="M3 8 L7 12 L13 4"/>
+    </g>
+    <g id="icon-clipboard" class="icon">
+      <rect x="3" y="4" width="10" height="11" rx="1.5"/>
+      <rect x="6" y="1" width="4" height="3" rx="1"/>
+      <line x1="5" y1="8" x2="11" y2="8"/>
+      <line x1="5" y1="11" x2="11" y2="11"/>
+    </g>
+    <g id="icon-mask" class="icon">
+      <rect x="2" y="5" width="12" height="7" rx="2"/>
+      <circle cx="6" cy="8.5" r="1.2"/>
+      <circle cx="10" cy="8.5" r="1.2"/>
+    </g>
+    <g id="icon-cursor" class="icon">
+      <path d="M3 2 L12 9 L8 10 L10 14 L7 15 L5 11 L3 13 Z"/>
+    </g>
+    <g id="icon-eye" class="icon">
+      <ellipse cx="8" cy="8" rx="6" ry="3.5"/>
+      <circle cx="8" cy="8" r="1.5"/>
+    </g>
+    <g id="icon-monitor" class="icon">
+      <rect x="2" y="3" width="12" height="8" rx="1.5"/>
+      <line x1="8" y1="11" x2="8" y2="14"/>
+      <line x1="5" y1="14" x2="11" y2="14"/>
+    </g>
+    <g id="icon-db" class="icon">
+      <ellipse cx="8" cy="3.5" rx="5.5" ry="2.5"/>
+      <rect x="2.5" y="3.5" width="11" height="9"/>
+      <ellipse cx="8" cy="12.5" rx="5.5" ry="2.5"/>
+    </g>
+    <g id="icon-server" class="icon">
+      <rect x="2" y="3" width="12" height="4" rx="1"/>
+      <rect x="2" y="9" width="12" height="4" rx="1"/>
+      <circle cx="5" cy="5" r="0.8" class="icon-fill"/>
+      <circle cx="5" cy="11" r="0.8" class="icon-fill"/>
+    </g>
+    <g id="icon-chip" class="icon">
+      <rect x="4" y="4" width="8" height="8" rx="1.5"/>
+      <line x1="1" y1="6" x2="4" y2="6"/>
+      <line x1="1" y1="10" x2="4" y2="10"/>
+      <line x1="12" y1="6" x2="15" y2="6"/>
+      <line x1="12" y1="10" x2="15" y2="10"/>
+    </g>
+    <g id="icon-funnel" class="icon">
+      <path d="M2 3 H14 L9 8 V13 L7 15 V8 Z"/>
+    </g>
+    <g id="icon-search" class="icon">
+      <circle cx="7" cy="7" r="4"/>
+      <line x1="10.5" y1="10.5" x2="14" y2="14"/>
+    </g>
+    <g id="icon-chart" class="icon">
+      <line x1="2" y1="14" x2="14" y2="14"/>
+      <polyline points="3,12 6,9 9,11 13,6"/>
+    </g>
+    <g id="icon-folder" class="icon">
+      <path d="M2 5 H7 L9 7 H14 V13 H2 Z"/>
+    </g>
+    <g id="icon-flask" class="icon">
+      <path d="M6 2 H10 M7 2 V7 L3 14 H13 L9 7 V2"/>
+    </g>
+    <g id="icon-cloud" class="icon">
+      <path d="M4 12 H12 a3 3 0 0 0 0-6 a4 4 0 0 0-7 -2 a3 3 0 0 0-1 8 Z"/>
+    </g>
+    <g id="icon-boltcloud" class="icon">
+      <path d="M4 12 H12 a3 3 0 0 0 0-6 a4 4 0 0 0-7 -2 a3 3 0 0 0-1 8 Z"/>
+      <path d="M8 6 L6 10 H9 L7 14" />
+    </g>
+    <g id="icon-gpu" class="icon">
+      <rect x="2" y="4" width="12" height="8" rx="1.5"/>
+      <circle cx="6" cy="8" r="1.5"/>
+      <line x1="14" y1="6" x2="15" y2="6"/>
+      <line x1="14" y1="8" x2="15" y2="8"/>
+    </g>
+  </defs>
+
+  <text x="30" y="40" class="title">Jarvis MVP - arquitetura honesta (hoje + futuro)</text>
+  <text x="30" y="60" class="subtitle">Cores = existe hoje. Cinza claro = vai ser criado. Setas tracejadas = opcional/condicional.</text>
+
+  <!-- Regions -->
+  <rect x="20" y="70" width="520" height="1000" class="region-local"/>
+  <text x="40" y="92" class="region-title">LOCAL (PC)</text>
+
+  <rect x="580" y="70" width="520" height="1000" class="region-vps"/>
+  <text x="600" y="92" class="region-title">VPS (CPU) - SELF-HOSTED</text>
+
+  <rect x="1140" y="70" width="520" height="1000" class="region-cloud"/>
+  <text x="1160" y="92" class="region-title">VPS/GPU SELF-HOSTED (SEM APIS)</text>
+
+  <!-- LOCAL (PC) -->
+  <rect x="40" y="120" width="160" height="70" class="box-user card"/>
+  <use href="#icon-user" x="176" y="130"/>
+  <text x="55" y="145" class="label">Voce</text>
+  <text x="55" y="162" class="small">pede algo</text>
+  <text x="55" y="176" class="tiny">Lat: humana</text>
+
+  <rect x="220" y="120" width="300" height="90" class="box-input card"/>
+  <use href="#icon-mic" x="496" y="130"/>
+  <text x="235" y="145" class="label">Interface (entrada/saida)</text>
+  <text x="235" y="162" class="small">texto e voz (STT/TTS)</text>
+  <text x="235" y="178" class="tiny">codigo: jarvis/entrada/app.py + stt.py + voz/tts.py + chat_log.py + chat_ui.py</text>
+  <text x="235" y="192" class="tiny">Painel Tkinter (--gui-panel) + telemetria em ~/.jarvis/events.jsonl</text>
+  <text x="235" y="206" class="tiny">CPU 2-30%, RAM 120-600MB, Disk 50-200MB (+log 1-10MB), Lat 0.2-1.2s</text>
+
+  <rect x="40" y="230" width="480" height="100" class="box-brain card"/>
+  <use href="#icon-gear" x="496" y="240"/>
+  <text x="55" y="255" class="label">Executor local (gatekeeper)</text>
+  <text x="55" y="272" class="small">junta tudo, pede confirmacao</text>
+  <text x="55" y="288" class="small">gate + budget + kill switch; inclui loop S3 (GUI)</text>
+  <text x="55" y="304" class="tiny">codigo: jarvis/cerebro/orchestrator.py + jarvis/agent_s3/*</text>
+  <text x="55" y="318" class="tiny">CPU 5-15%, RAM 200-500MB, Lat 20-80ms</text>
+
+  <rect x="40" y="350" width="230" height="85" class="box-safety card"/>
+  <use href="#icon-shield" x="246" y="360"/>
+  <text x="55" y="372" class="label">Regras de seguranca</text>
+  <text x="55" y="388" class="small">bloqueia apps/dados + classifica texto</text>
+  <text x="55" y="402" class="tiny">codigo: jarvis/seguranca/*</text>
+  <text x="55" y="416" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat &lt;10ms</text>
+
+  <rect x="290" y="350" width="230" height="85" class="box-safety card"/>
+  <use href="#icon-check" x="496" y="360"/>
+  <text x="305" y="372" class="label">Confirmacao humana</text>
+  <text x="305" y="388" class="small">voz/tecla antes de agir</text>
+  <text x="305" y="402" class="tiny">codigo: jarvis/cerebro/orchestrator.py</text>
+  <text x="305" y="416" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat: humana</text>
+
+  <rect x="40" y="450" width="230" height="85" class="box-safety card"/>
+  <use href="#icon-clipboard" x="246" y="460"/>
+  <text x="55" y="472" class="label">Validacao de saida</text>
+  <text x="55" y="488" class="small">validacao visual/OCR da tela</text>
+  <text x="55" y="502" class="tiny">codigo: jarvis/validacao/validator.py</text>
+  <text x="55" y="516" class="tiny">CPU 2-8%, RAM 50-120MB, Lat 0.05-6s (Wayland sem portal)</text>
+
+  <rect x="290" y="450" width="230" height="85" class="box-safety card"/>
+  <use href="#icon-mask" x="496" y="460"/>
+  <text x="305" y="472" class="label">Mascara de privacidade</text>
+  <text x="305" y="488" class="small">remove dados sensiveis</text>
+  <text x="305" y="502" class="tiny">codigo: jarvis/seguranca/privacy.py</text>
+  <text x="305" y="516" class="tiny">CPU 5-25%, RAM 80-200MB, Lat 50-200ms</text>
+
+  <rect x="40" y="550" width="230" height="95" class="box-action card"/>
+  <use href="#icon-cursor" x="246" y="560"/>
+  <text x="55" y="574" class="label">Maos (acoes) - hoje</text>
+  <text x="55" y="590" class="small">mouse/teclado/web + drag/overwrite (S3)</text>
+  <text x="55" y="604" class="tiny">hoje: Python em jarvis/acoes/desktop.py + web.py (S3 usa)</text>
+  <text x="55" y="618" class="tiny">CPU 5-20%, RAM 80-200MB, Lat 50-200ms</text>
+
+  <rect x="290" y="550" width="230" height="95" class="box-vision card"/>
+  <use href="#icon-eye" x="496" y="560"/>
+  <text x="305" y="574" class="label">Olhos (vision/OCR)</text>
+  <text x="305" y="590" class="small">confere tela + grounding S3</text>
+  <text x="305" y="604" class="tiny">hoje: rust/jarvis_vision + jarvis/agent_s3/grounding.py</text>
+  <text x="305" y="618" class="tiny">CPU 30-80%, RAM 300-800MB</text>
+  <text x="305" y="632" class="tiny">Disk 200-600MB, Lat 0.3-1.2s</text>
+
+  <rect x="40" y="660" width="230" height="85" class="box-system card"/>
+  <use href="#icon-monitor" x="246" y="670"/>
+  <text x="55" y="682" class="label">Tela e apps</text>
+  <text x="55" y="698" class="small">onde o Jarvis clica</text>
+  <text x="55" y="712" class="tiny">CPU/RAM/GPU: n/a, Lat: depende app</text>
+
+  <rect x="290" y="660" width="230" height="85" class="box-store card"/>
+  <use href="#icon-db" x="496" y="670"/>
+  <text x="305" y="682" class="label">Cache local + memoria</text>
+  <text x="305" y="698" class="small">episodios + conhecimento + procedures</text>
+  <text x="305" y="712" class="tiny">procedures.db + memory.sqlite3 (FTS + embeddings BLOB)</text>
+  <text x="305" y="726" class="tiny">codigo: jarvis/memoria/* (dedup hash + cache LRU)</text>
+  <text x="305" y="740" class="tiny">CPU &lt;2%, RAM 30-80MB, Disk 50MB-2GB</text>
+
+  <rect x="40" y="760" width="230" height="80" class="box-brain card"/>
+  <use href="#icon-chip" x="246" y="770"/>
+  <text x="55" y="782" class="label">Cerebro local (LLM)</text>
+  <text x="55" y="798" class="small">endpoint OpenAI-compat self-hosted (LLM + grounding S3)</text>
+  <text x="55" y="812" class="tiny">codigo: jarvis/cerebro/llm.py</text>
+  <text x="55" y="826" class="tiny">CPU 200-350%, RAM 6-10GB, Disk 6-12GB, Lat 2-8s</text>
+
+  <rect x="290" y="760" width="230" height="80" class="box-input card"/>
+  <use href="#icon-cursor" x="496" y="770"/>
+  <text x="305" y="782" class="label">Guidance humano (manual)</text>
+  <text x="305" y="798" class="small">Navegador: copia/cola se usuario quiser</text>
+  <text x="305" y="812" class="tiny">sem API externa; so apoio humano opcional</text>
+  <text x="305" y="826" class="tiny">CPU 2-10%, RAM 200-600MB, Lat humana</text>
+
+  <rect x="40" y="850" width="230" height="80" class="box-future card"/>
+  <use href="#icon-gear" x="246" y="860"/>
+  <text x="55" y="872" class="label">Bridge Rust (futuro)</text>
+  <text x="55" y="888" class="small">daemon JSON-RPC local</text>
+  <text x="55" y="902" class="tiny">futuro: rust/jarvis_bridge</text>
+  <text x="55" y="916" class="tiny">CPU 1-5%, RAM 30-100MB, Lat 1-5ms</text>
+
+  <rect x="290" y="850" width="230" height="80" class="box-future card"/>
+  <use href="#icon-cursor" x="496" y="860"/>
+  <text x="305" y="872" class="label">Maos Rust (futuro)</text>
+  <text x="305" y="888" class="small">input Wayland + AT-SPI</text>
+  <text x="305" y="902" class="tiny">futuro: rust/jarvis_actions</text>
+  <text x="305" y="916" class="tiny">CPU 5-15%, RAM 50-150MB, Lat 20-80ms</text>
+
+  <rect x="40" y="945" width="480" height="90" class="box-total card"/>
+  <text x="55" y="970" class="label">Total PC (estimado + capacidade)</text>
+  <text x="55" y="986" class="small">Base: CPU 40-120%, RAM 1.2-2.2GB</text>
+  <text x="55" y="1002" class="small">Com LLM local: CPU 200-350%, RAM 6-10GB</text>
+  <text x="55" y="1018" class="tiny">Disk 0.5-2GB (+6-12GB com LLM), Lat 0.2-8s</text>
+  <text x="55" y="1032" class="tiny">Capacidade atual (medir): CPU ___, RAM ___GB, GPU ___GB, Disk ___GB</text>
+
+  <!-- VPS (CPU) -->
+  <rect x="600" y="120" width="480" height="90" class="box-future card"/>
+  <use href="#icon-server" x="1056" y="130"/>
+  <text x="615" y="145" class="label">Orquestrador no VPS (futuro)</text>
+  <text x="615" y="162" class="small">recebe pedido do PC e planeja</text>
+  <text x="615" y="178" class="tiny">codigo: jarvis/cerebro/orchestrator.py (vai rodar no VPS)</text>
+  <text x="615" y="192" class="tiny">CPU 10-40%, RAM 300-800MB, Lat 20-100ms</text>
+
+  <rect x="600" y="220" width="480" height="90" class="box-future card"/>
+  <use href="#icon-chip" x="1056" y="230"/>
+  <text x="615" y="245" class="label">LLM base Qwen2.5-7B-Instruct (futuro)</text>
+  <text x="615" y="262" class="small">servico llama.cpp + GGUF Q4</text>
+  <text x="615" y="278" class="tiny">CPU 200-350% (4 vCPU), RAM 6-10GB</text>
+  <text x="615" y="292" class="tiny">Disk 6-12GB, Lat 2-8s por plano</text>
+
+  <rect x="600" y="320" width="480" height="80" class="box-future card"/>
+  <use href="#icon-funnel" x="1056" y="330"/>
+  <text x="615" y="342" class="label">Gate de confianca + escada</text>
+  <text x="615" y="358" class="small">escolhe: Qwen2.5 local (Mock fallback)</text>
+  <text x="615" y="372" class="tiny">futuro: jarvis/cerebro/llm.py</text>
+  <text x="615" y="386" class="tiny">CPU 5-15%, RAM 100-300MB, Lat 20-100ms</text>
+
+  <rect x="600" y="410" width="480" height="90" class="box-future card"/>
+  <use href="#icon-db" x="1056" y="420"/>
+  <text x="615" y="435" class="label">Memoria principal (futuro)</text>
+  <text x="615" y="452" class="small">SQLite + FTS + vetores (384)</text>
+  <text x="615" y="468" class="tiny">hoje: local FTS+vetores; VPS futuro</text>
+  <text x="615" y="482" class="tiny">CPU 5-20%, RAM 200-600MB, Disk 1-10GB</text>
+  <text x="615" y="496" class="tiny">Lat 20-200ms</text>
+
+  <rect x="600" y="510" width="480" height="80" class="box-future card"/>
+  <use href="#icon-search" x="1056" y="520"/>
+  <text x="615" y="532" class="label">RAG + resumo (futuro)</text>
+  <text x="615" y="548" class="small">busca lembrancas antes de responder</text>
+  <text x="615" y="562" class="tiny">futuro: jarvis/memoria/*</text>
+  <text x="615" y="576" class="tiny">CPU 10-40%, RAM 300-800MB, Lat 0.1-0.8s</text>
+
+  <rect x="600" y="600" width="480" height="80" class="box-future card"/>
+  <use href="#icon-chart" x="1056" y="610"/>
+  <text x="615" y="622" class="label">Telemetria + budget diario</text>
+  <text x="615" y="638" class="small">corta gasto ao passar limite</text>
+  <text x="615" y="652" class="tiny">futuro: jarvis/telemetria/*</text>
+  <text x="615" y="666" class="tiny">CPU &lt;5%, RAM 50-150MB, Disk 100MB-1GB</text>
+
+  <rect x="600" y="690" width="480" height="80" class="box-future card"/>
+  <use href="#icon-folder" x="1056" y="700"/>
+  <text x="615" y="712" class="label">Exportacao para Drive (futuro)</text>
+  <text x="615" y="728" class="small">jsonl.zst + manifesto via rclone</text>
+  <text x="615" y="742" class="tiny">CPU &lt;10% (batch), RAM 50-200MB</text>
+  <text x="615" y="756" class="tiny">Disk temp 1-5GB, Lat: batch (min)</text>
+
+  <rect x="600" y="780" width="480" height="80" class="box-future card"/>
+  <use href="#icon-flask" x="1056" y="790"/>
+  <text x="615" y="802" class="label">Pipeline de experimentos (futuro)</text>
+  <text x="615" y="818" class="small">testa antes de mudar e pede aprovacao</text>
+  <text x="615" y="832" class="tiny">futuro: rust/jarvis_experiments</text>
+  <text x="615" y="846" class="tiny">CPU 20-80%, RAM 0.5-2GB, Lat: offline</text>
+
+  <rect x="600" y="870" width="480" height="80" class="box-total card"/>
+  <text x="615" y="894" class="label">Total VPS (estimado, com Qwen2.5)</text>
+  <text x="615" y="910" class="small">CPU 250-400% (2.5-4 vCPU), RAM 8-14GB</text>
+  <text x="615" y="926" class="small">Disk 10-25GB, Lat 2-8s por plano</text>
+  <text x="615" y="942" class="tiny">Capacidade plano: 4 vCPU, 16GB RAM, 160GB SSD</text>
+
+  <!-- SERVIDOR SELF-HOSTED -->
+  <rect x="1140" y="70" width="520" height="1000" class="region-cloud"/>
+  <text x="1160" y="92" class="region-title">SERVIDOR SELF-HOSTED (VPS/GPU OPCIONAL)</text>
+
+  <rect x="1160" y="120" width="480" height="90" class="box-cloud card"/>
+  <use href="#icon-chip" x="1616" y="130"/>
+  <text x="1175" y="142" class="label">Cérebro Open Source (Qwen2.5 + LoRA)</text>
+  <text x="1175" y="158" class="small">llama.cpp / vLLM + GGUF, PEFT e bitsandbytes</text>
+  <text x="1175" y="172" class="tiny">codigo: jarvis/cerebro/llm.py + Documentos/PLANO_UNICO.md</text>
+  <text x="1175" y="186" class="tiny">CPU/RAM: 200-400% (4vCPU), 10-18GB, Lat 1.5-6s</text>
+
+  <rect x="1160" y="220" width="480" height="90" class="box-future card"/>
+  <use href="#icon-funnel" x="1616" y="230"/>
+  <text x="1175" y="242" class="label">Quantização responsiva + LoRA</text>
+  <text x="1175" y="258" class="small">GGUF/GPTQ/AWQ + peft.merge + bitsandbytes</text>
+  <text x="1175" y="272" class="tiny">documento: jarvis/ops/quantization.md (futuro)</text>
+  <text x="1175" y="286" class="tiny">Lat 0.5-3s (varia conforme o formato)</text>
+
+  <rect x="1160" y="320" width="480" height="90" class="box-future card"/>
+  <use href="#icon-flask" x="1616" y="330"/>
+  <text x="1175" y="342" class="label">Treino incremental</text>
+  <text x="1175" y="358" class="small">captura logs → curadoria → LoRA → validação</text>
+  <text x="1175" y="372" class="tiny">scripts: jarvis/aprendizado/ (futuro)</text>
+  <text x="1175" y="386" class="tiny">Lat backend: batch, varia por ciclo</text>
+
+  <rect x="1160" y="430" width="480" height="90" class="box-cloud card"/>
+  <use href="#icon-gpu" x="1616" y="440"/>
+  <text x="1175" y="452" class="label">Servidor GPU/VPS</text>
+  <text x="1175" y="468" class="small">Hetzner CX32 + GPU NVidia 16GB ou similar</text>
+  <text x="1175" y="482" class="tiny">Disk 160GB, Lat 1-4s</text>
+  <text x="1175" y="496" class="tiny">monitor: systemd + Prometheus simples</text>
+
+  <rect x="1160" y="540" width="480" height="90" class="box-future card"/>
+  <use href="#icon-folder" x="1616" y="550"/>
+  <text x="1175" y="562" class="label">Arquivo frio + exportação</text>
+  <text x="1175" y="578" class="small">jsonl.zst + manifesto via rclone</text>
+  <text x="1175" y="592" class="tiny">backup mensal, latência batch (min)</text>
+  <text x="1175" y="606" class="tiny">disk 1TB+, lat: obediente</text>
+
+  <rect x="1160" y="650" width="480" height="90" class="box-total card"/>
+  <text x="1175" y="674" class="label">Total Servidores dedicados</text>
+  <text x="1175" y="690" class="small">CPU 250-450% (4vCPU+GPU), RAM 14-20GB</text>
+  <text x="1175" y="706" class="small">Lat 1-6s por plano, Disk 160GB+</text>
+  <text x="1175" y="722" class="tiny">GGUF + LoRA → menor consumo, escala com GPU</text>
+
+  <!-- Arrows: local -->
+  <line x1="200" y1="155" x2="220" y2="155" class="arrow-local"/>
+  <line x1="370" y1="210" x2="370" y2="230" class="arrow-local"/>
+
+  <line x1="280" y1="330" x2="155" y2="350" class="arrow-local"/>
+  <line x1="280" y1="330" x2="405" y2="350" class="arrow-local"/>
+  <line x1="280" y1="330" x2="155" y2="450" class="arrow-local"/>
+  <line x1="280" y1="330" x2="405" y2="450" class="arrow-local"/>
+  <line x1="280" y1="330" x2="155" y2="550" class="arrow-local"/>
+  <line x1="405" y1="550" x2="280" y2="330" class="arrow-local"/>
+  <line x1="280" y1="330" x2="405" y2="660" class="arrow-local"/>
+  <line x1="155" y1="645" x2="155" y2="660" class="arrow-local"/>
+  <line x1="270" y1="702" x2="290" y2="597" class="arrow-local"/>
+  <path d="M 280 330 L 155 760" class="arrow-local" stroke-dasharray="5 4"/>
+  <line x1="270" y1="800" x2="290" y2="800" class="arrow-local" stroke-dasharray="5 4"/>
+  <path d="M 520 800 L 1120 800 L 1120 160 L 1160 160" class="arrow-cross-dash"/>
+
+  <!-- Arrows: VPS internal -->
+  <line x1="840" y1="210" x2="840" y2="220" class="arrow-vps"/>
+  <line x1="840" y1="310" x2="840" y2="320" class="arrow-vps"/>
+  <line x1="840" y1="400" x2="840" y2="410" class="arrow-vps"/>
+  <line x1="840" y1="500" x2="840" y2="510" class="arrow-vps"/>
+  <line x1="840" y1="590" x2="840" y2="600" class="arrow-vps"/>
+  <line x1="840" y1="680" x2="840" y2="690" class="arrow-vps"/>
+  <line x1="840" y1="770" x2="840" y2="780" class="arrow-vps"/>
+
+  <!-- Cross-region connections -->
+  <path d="M 520 300 L 600 165" class="arrow-cross"/>
+  <text x="535" y="190" class="tiny">WebSocket/gRPC + Tailscale (futuro obrigatorio)</text>
+  <text x="535" y="204" class="tiny">protocolo: jarvis/comunicacao/protocolo.py</text>
+
+  <path d="M 520 260 L 1120 260 L 1120 160 L 1160 160" class="arrow-cross-dash"/>
+  <text x="760" y="248" class="tiny">HTTP self-hosted (OpenAI compat, LLM + grounding)</text>
+
+  <path d="M 520 170 L 1120 170 L 1120 340 L 1160 340" class="arrow-cross-dash"/>
+  <text x="780" y="184" class="tiny">STT local/auto (faster-whisper)</text>
+
+  <path d="M 1080 165 L 1160 160" class="arrow-cross-dash"/>
+  <text x="1030" y="148" class="tiny">Mock + browser manual (fallback)</text>
+
+  <path d="M 1080 165 L 1160 435" class="arrow-cross-dash"/>
+  <text x="1015" y="410" class="tiny">Quantização + LoRA (futuro)</text>
+
+  <path d="M 1080 455 L 1160 530" class="arrow-cross-dash"/>
+  <text x="1015" y="520" class="tiny">Backup JSONL/manifesto via rclone</text>
+
+  <!-- Legend + Glossary -->
+  <rect x="20" y="1080" width="1640" height="140" class="box-system"/>
+  <text x="40" y="1105" class="label">Legenda</text>
+  <text x="40" y="1122" class="small">Cores fortes = existe hoje. Cinza = futuro. Setas coloridas = fluxo; tracejadas = opcional/condicional.</text>
+  <text x="40" y="1140" class="small">Metricas por balao: CPU, RAM, GPU, DISK, LAT (latencia).</text>
+  <text x="40" y="1156" class="small">Termos: LLM = IA que escreve texto; OCR = le texto da tela; RAG = busca memoria antes de responder; VPS = computador na nuvem.</text>
+  <text x="40" y="1170" class="small">S3 = agente GUI com grounding (jarvis/agent_s3).</text>
+  <text x="40" y="1188" class="small">Obs: pesos do diagrama agora refletem medições locais (02/01/2026) em `Documentos/PESOS_MEDIDOS.md`.</text>
+  <text x="40" y="1204" class="small">Deps opcionais: sounddevice+numpy+faster-whisper (STT), webrtcvad (VAD), piper/espeak (TTS),</text>
+  <text x="40" y="1218" class="small">xdotool/wtype/ydotool/pyautogui (acoes), Playwright (web), Pillow+pytesseract+tesseract (OCR), sentence-transformers (embeddings), pynput (aprendizado), tkinter (chat), gguf-tools/peft (LLM).</text>
+</svg>

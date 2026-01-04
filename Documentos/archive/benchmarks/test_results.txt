@@ -1,0 +1,64 @@
+test_drain_reads_new_lines (teste_chat_inbox.TestChatInbox.test_drain_reads_new_lines) ... ok
+test_append_writes_jsonl (teste_chat_log.TestChatLog.test_append_writes_jsonl) ... ok
+test_empty_file (teste_kill_switch.TestKillSwitch.test_empty_file)
+Test that empty STOP file still activates kill switch. ... ok
+test_file_content_ignored (teste_kill_switch.TestKillSwitch.test_file_content_ignored)
+Test that file content doesn't matter, only existence. ... ok
+test_invalid_path (teste_kill_switch.TestKillSwitch.test_invalid_path)
+Test that invalid path returns False gracefully. ... ok
+test_multiple_checks (teste_kill_switch.TestKillSwitch.test_multiple_checks)
+Test multiple checks of kill switch state. ... ok
+test_nested_directory (teste_kill_switch.TestKillSwitch.test_nested_directory)
+Test kill switch in nested directory structure. ... ok
+test_stop_file_creation (teste_kill_switch.TestKillSwitch.test_stop_file_creation)
+Test that kill switch activates when STOP file is created. ... ok
+test_stop_file_removal (teste_kill_switch.TestKillSwitch.test_stop_file_removal)
+Test that kill switch deactivates when STOP file is removed. ... ok
+test_mock_llm_notes_fallback (teste_llm_roteamento.TestLLMRoteamento.test_mock_llm_notes_fallback) ... ok
+test_mock_llm_notes_parsed (teste_llm_roteamento.TestLLMRoteamento.test_mock_llm_notes_parsed) ... ok
+test_single_shot_no_fallback_on_failure (teste_llm_roteamento.TestLLMRoteamento.test_single_shot_no_fallback_on_failure) ... ok
+test_single_shot_picks_first_available (teste_llm_roteamento.TestLLMRoteamento.test_single_shot_picks_first_available) ... ok
+test_fixar_e_esquecer_memoria (teste_memoria_local.TestMemoriaLocal.test_fixar_e_esquecer_memoria) ... ok
+test_limite_chamadas (teste_orcamento_diario.TestOrcamentoDiario.test_limite_chamadas) ... ok
+test_reset_diario (teste_orcamento_diario.TestOrcamentoDiario.test_reset_diario) ... ok
+test_block_unblock_app (teste_policy_usuario.TestPolicyUsuarioStore.test_block_unblock_app) ... ok
+test_block_unblock_domain (teste_policy_usuario.TestPolicyUsuarioStore.test_block_unblock_domain) ... ok
+test_add_and_match (teste_procedures_store.TestProcedureStore.test_add_and_match) ... ERROR
+test_ambiguous_match_prefers_specific (teste_procedures_store.TestProcedureStore.test_ambiguous_match_prefers_specific) ... ERROR
+test_prune_per_tag (teste_procedures_store.TestProcedureStore.test_prune_per_tag) ... ok
+test_prune_total (teste_procedures_store.TestProcedureStore.test_prune_total) ... ok
+test_classify_confidential (teste_sanitizacao.TestSanitizacao.test_classify_confidential) ... ok
+test_redact_email_cpf (teste_sanitizacao.TestSanitizacao.test_redact_email_cpf) ... ok
+test_sanitize_removes_injection (teste_sanitizacao.TestSanitizacao.test_sanitize_removes_injection) ... ok
+test_plano_invalido (teste_validacao_plano.TestValidacaoPlano.test_plano_invalido) ... ok
+test_plano_valido (teste_validacao_plano.TestValidacaoPlano.test_plano_valido) ... ok
+test_serializacao_confidence (teste_validacao_plano.TestValidacaoPlano.test_serializacao_confidence) ... ok
+
+======================================================================
+ERROR: test_add_and_match (teste_procedures_store.TestProcedureStore.test_add_and_match)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/u/Documentos/Jarvis/testes/teste_procedures_store.py", line 16, in test_add_and_match
+    matched = store.match("abrir example.com")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u/Documentos/Jarvis/jarvis/memoria/procedures.py", line 266, in match
+    pattern, slots = template_to_regex_cached(proc.template)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'template_to_regex_cached' is not defined. Did you mean: 'template_to_regex'?
+
+======================================================================
+ERROR: test_ambiguous_match_prefers_specific (teste_procedures_store.TestProcedureStore.test_ambiguous_match_prefers_specific)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/u/Documentos/Jarvis/testes/teste_procedures_store.py", line 50, in test_ambiguous_match_prefers_specific
+    matched = store.match("abrir github")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u/Documentos/Jarvis/jarvis/memoria/procedures.py", line 266, in match
+    pattern, slots = template_to_regex_cached(proc.template)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'template_to_regex_cached' is not defined. Did you mean: 'template_to_regex'?
+
+----------------------------------------------------------------------
+Ran 28 tests in 0.278s
+
+FAILED (errors=2)

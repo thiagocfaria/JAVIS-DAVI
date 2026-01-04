@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-01-03T01:26:30.703804",
+  "results": {
+    "latency": {
+      "policy_check": 1.6262570024991874,
+      "sanitizacao": 1.623874999495456,
+      "chat_log_append": 1.2701630002993625,
+      "procedures_match": 144.49307800168754,
+      "memory_add_search": 208.32807999977376,
+      "orchestrator_dry_run": 61.70096200003172,
+      "validator_check": 0.03616899994085543
+    },
+    "cpu": {
+      "policy_check": 94.86581032815712,
+      "sanitizacao": 99.62326770230582,
+      "chat_log_append": 99.71121814298922,
+      "procedures_match": 10.460529445150032,
+      "memory_add_search": 11.957098150199922,
+      "orchestrator_dry_run": 18.3181487510586,
+      "validator_check": 91.57493279990533
+    },
+    "memory": {
+      "policy_check": 30.85546875,
+      "sanitizacao": 30.85546875,
+      "chat_log_append": 30.859375,
+      "procedures_match": 31.4765625,
+      "memory_add_search": 31.640625,
+      "orchestrator_dry_run": 31.71484375,
+      "validator_check": 31.71484375
+    }
+  }
+}
