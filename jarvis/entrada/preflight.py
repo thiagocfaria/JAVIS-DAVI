@@ -234,6 +234,15 @@ def _check_desktop_drivers(config: Config) -> CheckResult:
     tools = DesktopAutomation(session_type=config.session_type).check_available_tools()
     has_any = tools["xdotool"] or tools["wtype"] or tools["ydotool"] or tools["pyautogui"]
     ydotool_socket = tools.get("ydotool_socket")
+    headless = _is_headless_env(tools)
+
+    if not has_any and headless:
+        return CheckResult(
+            name="Acoes desktop",
+            status="WARN",
+            detail="ambiente headless (sem drivers)",
+            hint="Instale xdotool (X11) ou wtype/ydotool (Wayland) quando for usar GUI.",
+        )
 
     if not has_any:
         return CheckResult(
@@ -261,6 +270,27 @@ def _check_desktop_drivers(config: Config) -> CheckResult:
 
     detail = "ok (drivers disponiveis)"
     return CheckResult(name="Acoes desktop", status="OK", detail=detail)
+
+
+def _is_headless_env(tools: dict) -> bool:
+    flag = os.environ.get("JARVIS_HEADLESS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if flag:
+        return True
+
+    session_type = str(tools.get("session_type") or "").strip().lower()
+    if session_type in {"tty", "headless"}:
+        return True
+
+    has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+    if not has_display and session_type in {"", "unknown"}:
+        return True
+
+    return False
 
 
 def _check_web_automation() -> CheckResult:

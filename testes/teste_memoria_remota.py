@@ -17,6 +17,14 @@ def _build_store(tmp_path: Path, base_url: str) -> HybridMemoryStore:
     return HybridMemoryStore(local_cache=local, remote_client=remote, embedder=None, embed_dim=None)
 
 
+class _FailingRemote:
+    def add(self, *args, **kwargs):  # pragma: no cover - trivial
+        raise RuntimeError("unreachable")
+
+    def search(self, *args, **kwargs):
+        raise RuntimeError("remote_down")
+
+
 def test_add_pushes_to_remote(tmp_path):
     server, store, thread = start_background_server()
     host, port = server.server_address
@@ -60,6 +68,18 @@ def test_search_merges_local_and_remote(tmp_path):
     assert len(results) == 2
 
 
+def test_remote_failure_falls_back_to_local(tmp_path):
+    local = LocalMemoryCache(tmp_path / "local.db")
+    memory = HybridMemoryStore(local_cache=local, remote_client=_FailingRemote(), embedder=None, embed_dim=None)
+
+    memory.add("procedure", "Apenas local", metadata={"source": "pytest"})
+
+    results = memory.search("Apenas", kind="procedure", limit=5)
+
+    assert any(r.text == "Apenas local" for r in results)
+    assert len(results) == 1
+
+
 def test_cli_entrypoint_starts_server(tmp_path):
     proc = subprocess.Popen(
         [sys.executable, "-m", "jarvis.memoria.remote_service", "--host", "127.0.0.1", "--port", "0"],
@@ -87,4 +107,3 @@ def test_cli_entrypoint_starts_server(tmp_path):
 
     assert remote_id is not None
     assert any(r.text == "cli smoke test" for r in results)
-

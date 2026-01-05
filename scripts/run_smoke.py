@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -21,7 +22,7 @@ def main() -> int:
     env.setdefault("JARVIS_DISABLE_DOTENV", "1")
 
     cmd = [
-        "python",
+        sys.executable,
         "-m",
         "jarvis.app",
         "--text",
