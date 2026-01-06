@@ -188,6 +188,8 @@ class StreamingVAD:
         sample_rate: int = 16000,
         silence_duration_ms: int = 800,
         max_duration_s: int = 30,
+        pre_roll_ms: int = 200,
+        post_roll_ms: int = 200,
     ) -> None:
         if sd is None or np is None:
             raise VADError("sounddevice and numpy required for streaming VAD")
@@ -198,21 +200,34 @@ class StreamingVAD:
             frame_duration_ms=30,
         )
         self.sample_rate = sample_rate
-        self.silence_frames = int(silence_duration_ms / 30)  # frames of silence to stop
-        self.max_frames = int(max_duration_s * 1000 / 30)  # max frames to record
+        frame_ms = getattr(self.vad, "frame_duration_ms", 30)
+        self.frame_ms = frame_ms
+        self.silence_frames = max(1, int(silence_duration_ms / frame_ms))
+        self.max_frames = max(1, int(max_duration_s * 1000 / frame_ms))
+        self.pre_roll_frames = max(1, int(pre_roll_ms / frame_ms))
+        self.post_roll_frames = max(0, int(post_roll_ms / frame_ms))
 
-    def record_until_silence(self) -> bytes:
+    def record_until_silence(self, max_seconds: float | None = None) -> bytes:
         """
         Record audio until silence is detected after speech.
         
+        Captures a small pre-roll (defaults to 200 ms) before the first speech frame
+        so we do not chop the beginning of the command.
+
         Returns:
             Raw 16-bit PCM audio bytes containing the speech
         """
         frame_size = self.vad.frame_size
-        audio_buffer = []
+        frame_events: list[tuple[bytes, bool]] = []
         silence_count = 0
         speech_detected = False
         frame_count = 0
+        max_frames_limit = self.max_frames
+        if max_seconds is not None:
+            max_frames_limit = min(
+                self.max_frames,
+                max(1, int((max_seconds * 1000) / self.frame_ms)),
+            )
 
         def callback(indata, frames, time_info, status):
             nonlocal silence_count, speech_detected, frame_count
@@ -223,7 +238,6 @@ class StreamingVAD:
             # Convert to mono if needed and to int16
             mono = indata[:, 0] if indata.ndim > 1 else indata.flatten()
             int16_data = (mono * 32767).astype(np.int16)
-            audio_buffer.append(int16_data.tobytes())
 
             # Check VAD on each frame
             for i in range(0, len(int16_data), frame_size):
@@ -231,13 +245,13 @@ class StreamingVAD:
                 if len(chunk) == frame_size:
                     frame_bytes = chunk.tobytes()
                     is_speech = self.vad.is_speech(frame_bytes)
+                    frame_events.append((frame_bytes, is_speech))
 
                     if is_speech:
                         speech_detected = True
                         silence_count = 0
                     elif speech_detected:
                         silence_count += 1
-
                     frame_count += 1
 
         with sd.InputStream(
@@ -253,10 +267,57 @@ class StreamingVAD:
                 time.sleep(0.05)
                 if speech_detected and silence_count >= self.silence_frames:
                     break
-                if frame_count >= self.max_frames:
+                if frame_count >= max_frames_limit:
                     break
 
-        return b"".join(audio_buffer)
+        return self._assemble_frames(
+            frame_events,
+            self.pre_roll_frames,
+            self.post_roll_frames,
+            self.silence_frames,
+        )
+
+    @staticmethod
+    def _assemble_frames(
+        frame_events: list[tuple[bytes, bool]],
+        pre_roll_frames: int,
+        post_roll_frames: int,
+        silence_frames: int,
+    ) -> bytes:
+        """Assemble recorded frames honoring pre-roll/post-roll limits."""
+        pre_roll = collections.deque(maxlen=pre_roll_frames)
+        result_frames: list[bytes] = []
+        triggered = False
+        silence_count = 0
+        last_voiced_idx = 0
+
+        for frame_bytes, is_speech in frame_events:
+            if not triggered:
+                if is_speech:
+                    triggered = True
+                    result_frames.extend(pre_roll)
+                    pre_roll.clear()
+                    result_frames.append(frame_bytes)
+                    last_voiced_idx = len(result_frames)
+                    silence_count = 0
+                else:
+                    pre_roll.append(frame_bytes)
+                continue
+
+            result_frames.append(frame_bytes)
+            if is_speech:
+                silence_count = 0
+                last_voiced_idx = len(result_frames)
+            else:
+                silence_count += 1
+            if silence_count >= silence_frames:
+                break
+
+        if not triggered:
+            return b"".join(pre_roll)
+
+        end_idx = min(len(result_frames), last_voiced_idx + post_roll_frames)
+        return b"".join(result_frames[:end_idx])
 
     def record_fixed_duration(self, seconds: int = 5) -> tuple[bytes, bool]:
         """

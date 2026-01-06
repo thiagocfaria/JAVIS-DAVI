@@ -1,0 +1,952 @@
+diff --git a/Documentos/DIAGRAMA_ARQUITETURA.svg b/Documentos/DIAGRAMA_ARQUITETURA.svg
+index 2ce49f2..43f9a8c 100644
+--- a/Documentos/DIAGRAMA_ARQUITETURA.svg
++++ b/Documentos/DIAGRAMA_ARQUITETURA.svg
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+-<svg width="1680" height="1250" viewBox="0 0 1680 1250" xmlns="http://www.w3.org/2000/svg">
++<svg width="1680" height="1600" viewBox="0 0 1680 1600" xmlns="http://www.w3.org/2000/svg">
+   <defs>
+     <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+       <polygon points="0 0, 10 3.5, 0 7" fill="context-stroke"/>
+@@ -17,6 +17,7 @@
+       .card { filter: url(#shadow); }
+       .box-user { fill: #d7f5e2; stroke: #1b8f3a; stroke-width: 1.6; rx: 12; }
+       .box-input { fill: #ffe2c7; stroke: #f57c00; stroke-width: 1.6; rx: 12; }
++      .box-input-sub { fill: #fff5e9; stroke: #f0a862; stroke-width: 1.2; rx: 8; }
+       .box-brain { fill: #cfe5ff; stroke: #0d47a1; stroke-width: 1.6; rx: 12; }
+       .box-safety { fill: #ffd6d1; stroke: #b71c1c; stroke-width: 1.6; rx: 12; }
+       .box-action { fill: #bfeff4; stroke: #006064; stroke-width: 1.6; rx: 12; }
+@@ -28,6 +29,7 @@
+       .box-total { fill: #ffe7b3; stroke: #ff8f00; stroke-width: 1.6; rx: 12; }
+       .label { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 13px; font-weight: 700; fill: #111111; }
+       .small { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; fill: #2b2b2b; }
++      .tiny-bold { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9px; font-weight: 700; fill: #1f1f1f; }
+       .tiny { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9px; fill: #444444; }
+       .icon { fill: none; stroke: #1f2937; stroke-width: 1.2; }
+       .icon-fill { fill: #1f2937; stroke: none; }
+@@ -136,13 +138,13 @@
+   <text x="30" y="60" class="subtitle">Cores = existe hoje. Cinza claro = vai ser criado. Setas tracejadas = opcional/condicional.</text>
+ 
+   <!-- Regions -->
+-  <rect x="20" y="70" width="520" height="1000" class="region-local"/>
++  <rect x="20" y="70" width="520" height="1350" class="region-local"/>
+   <text x="40" y="92" class="region-title">LOCAL (PC)</text>
+ 
+-  <rect x="580" y="70" width="520" height="1000" class="region-vps"/>
++  <rect x="580" y="70" width="520" height="1350" class="region-vps"/>
+   <text x="600" y="92" class="region-title">VPS (CPU) - SELF-HOSTED</text>
+ 
+-  <rect x="1140" y="70" width="520" height="1000" class="region-cloud"/>
++  <rect x="1140" y="70" width="520" height="1350" class="region-cloud"/>
+   <text x="1160" y="92" class="region-title">VPS/GPU SELF-HOSTED (SEM APIS)</text>
+ 
+   <!-- LOCAL (PC) -->
+@@ -152,113 +154,161 @@
+   <text x="55" y="162" class="small">pede algo</text>
+   <text x="55" y="176" class="tiny">Lat: humana</text>
+ 
+-  <rect x="220" y="120" width="300" height="90" class="box-input card"/>
+-  <use href="#icon-mic" x="496" y="130"/>
+-  <text x="235" y="145" class="label">Interface (entrada/saida)</text>
+-  <text x="235" y="162" class="small">texto e voz (STT/TTS)</text>
+-  <text x="235" y="178" class="tiny">codigo: jarvis/entrada/app.py + stt.py + voz/tts.py + chat_log.py + chat_ui.py</text>
+-  <text x="235" y="192" class="tiny">Painel Tkinter (--gui-panel) + telemetria em ~/.jarvis/events.jsonl</text>
+-  <text x="235" y="206" class="tiny">CPU 2-30%, RAM 120-600MB, Disk 50-200MB (+log 1-10MB), Lat 0.2-1.2s</text>
+-
+-  <rect x="40" y="230" width="480" height="100" class="box-brain card"/>
+-  <use href="#icon-gear" x="496" y="240"/>
+-  <text x="55" y="255" class="label">Executor local (gatekeeper)</text>
+-  <text x="55" y="272" class="small">junta tudo, pede confirmacao</text>
+-  <text x="55" y="288" class="small">gate + budget + kill switch; inclui loop S3 (GUI)</text>
+-  <text x="55" y="304" class="tiny">codigo: jarvis/cerebro/orchestrator.py + jarvis/agent_s3/*</text>
+-  <text x="55" y="318" class="tiny">CPU 5-15%, RAM 200-500MB, Lat 20-80ms</text>
+-
+-  <rect x="40" y="350" width="230" height="85" class="box-safety card"/>
+-  <use href="#icon-shield" x="246" y="360"/>
+-  <text x="55" y="372" class="label">Regras de seguranca</text>
+-  <text x="55" y="388" class="small">bloqueia apps/dados + classifica texto</text>
+-  <text x="55" y="402" class="tiny">codigo: jarvis/seguranca/*</text>
+-  <text x="55" y="416" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat &lt;10ms</text>
+-
+-  <rect x="290" y="350" width="230" height="85" class="box-safety card"/>
+-  <use href="#icon-check" x="496" y="360"/>
+-  <text x="305" y="372" class="label">Confirmacao humana</text>
+-  <text x="305" y="388" class="small">voz/tecla antes de agir</text>
+-  <text x="305" y="402" class="tiny">codigo: jarvis/cerebro/orchestrator.py</text>
+-  <text x="305" y="416" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat: humana</text>
+-
+-  <rect x="40" y="450" width="230" height="85" class="box-safety card"/>
+-  <use href="#icon-clipboard" x="246" y="460"/>
+-  <text x="55" y="472" class="label">Validacao de saida</text>
+-  <text x="55" y="488" class="small">validacao visual/OCR da tela</text>
+-  <text x="55" y="502" class="tiny">codigo: jarvis/validacao/validator.py</text>
+-  <text x="55" y="516" class="tiny">CPU 2-8%, RAM 50-120MB, Lat 0.05-6s (Wayland sem portal)</text>
+-
+-  <rect x="290" y="450" width="230" height="85" class="box-safety card"/>
+-  <use href="#icon-mask" x="496" y="460"/>
+-  <text x="305" y="472" class="label">Mascara de privacidade</text>
+-  <text x="305" y="488" class="small">remove dados sensiveis</text>
+-  <text x="305" y="502" class="tiny">codigo: jarvis/seguranca/privacy.py</text>
+-  <text x="305" y="516" class="tiny">CPU 5-25%, RAM 80-200MB, Lat 50-200ms</text>
+-
+-  <rect x="40" y="550" width="230" height="95" class="box-action card"/>
+-  <use href="#icon-cursor" x="246" y="560"/>
+-  <text x="55" y="574" class="label">Maos (acoes) - hoje</text>
+-  <text x="55" y="590" class="small">mouse/teclado/web + drag/overwrite (S3)</text>
+-  <text x="55" y="604" class="tiny">hoje: Python em jarvis/acoes/desktop.py + web.py (S3 usa)</text>
+-  <text x="55" y="618" class="tiny">CPU 5-20%, RAM 80-200MB, Lat 50-200ms</text>
+-
+-  <rect x="290" y="550" width="230" height="95" class="box-vision card"/>
+-  <use href="#icon-eye" x="496" y="560"/>
+-  <text x="305" y="574" class="label">Olhos (vision/OCR)</text>
+-  <text x="305" y="590" class="small">confere tela + grounding S3</text>
+-  <text x="305" y="604" class="tiny">hoje: rust/jarvis_vision + jarvis/agent_s3/grounding.py</text>
+-  <text x="305" y="618" class="tiny">CPU 30-80%, RAM 300-800MB</text>
+-  <text x="305" y="632" class="tiny">Disk 200-600MB, Lat 0.3-1.2s</text>
+-
+-  <rect x="40" y="660" width="230" height="85" class="box-system card"/>
+-  <use href="#icon-monitor" x="246" y="670"/>
+-  <text x="55" y="682" class="label">Tela e apps</text>
+-  <text x="55" y="698" class="small">onde o Jarvis clica</text>
+-  <text x="55" y="712" class="tiny">CPU/RAM/GPU: n/a, Lat: depende app</text>
+-
+-  <rect x="290" y="660" width="230" height="85" class="box-store card"/>
+-  <use href="#icon-db" x="496" y="670"/>
+-  <text x="305" y="682" class="label">Cache local + memoria</text>
+-  <text x="305" y="698" class="small">episodios + conhecimento + procedures</text>
+-  <text x="305" y="712" class="tiny">procedures.db + memory.sqlite3 (FTS + embeddings BLOB)</text>
+-  <text x="305" y="726" class="tiny">codigo: jarvis/memoria/* (dedup hash + cache LRU)</text>
+-  <text x="305" y="740" class="tiny">CPU &lt;2%, RAM 30-80MB, Disk 50MB-2GB</text>
+-
+-  <rect x="40" y="760" width="230" height="80" class="box-brain card"/>
+-  <use href="#icon-chip" x="246" y="770"/>
+-  <text x="55" y="782" class="label">Cerebro local (LLM)</text>
+-  <text x="55" y="798" class="small">endpoint OpenAI-compat self-hosted (LLM + grounding S3)</text>
+-  <text x="55" y="812" class="tiny">codigo: jarvis/cerebro/llm.py</text>
+-  <text x="55" y="826" class="tiny">CPU 200-350%, RAM 6-10GB, Disk 6-12GB, Lat 2-8s</text>
+-
+-  <rect x="290" y="760" width="230" height="80" class="box-input card"/>
+-  <use href="#icon-cursor" x="496" y="770"/>
+-  <text x="305" y="782" class="label">Guidance humano (manual)</text>
+-  <text x="305" y="798" class="small">Navegador: copia/cola se usuario quiser</text>
+-  <text x="305" y="812" class="tiny">sem API externa; so apoio humano opcional</text>
+-  <text x="305" y="826" class="tiny">CPU 2-10%, RAM 200-600MB, Lat humana</text>
+-
+-  <rect x="40" y="850" width="230" height="80" class="box-future card"/>
+-  <use href="#icon-gear" x="246" y="860"/>
+-  <text x="55" y="872" class="label">Bridge Rust (futuro)</text>
+-  <text x="55" y="888" class="small">daemon JSON-RPC local</text>
+-  <text x="55" y="902" class="tiny">futuro: rust/jarvis_bridge</text>
+-  <text x="55" y="916" class="tiny">CPU 1-5%, RAM 30-100MB, Lat 1-5ms</text>
+-
+-  <rect x="290" y="850" width="230" height="80" class="box-future card"/>
+-  <use href="#icon-cursor" x="496" y="860"/>
+-  <text x="305" y="872" class="label">Maos Rust (futuro)</text>
+-  <text x="305" y="888" class="small">input Wayland + AT-SPI</text>
+-  <text x="305" y="902" class="tiny">futuro: rust/jarvis_actions</text>
+-  <text x="305" y="916" class="tiny">CPU 5-15%, RAM 50-150MB, Lat 20-80ms</text>
+-
+-  <rect x="40" y="945" width="480" height="90" class="box-total card"/>
+-  <text x="55" y="970" class="label">Total PC (estimado + capacidade)</text>
+-  <text x="55" y="986" class="small">Base: CPU 40-120%, RAM 1.2-2.2GB</text>
+-  <text x="55" y="1002" class="small">Com LLM local: CPU 200-350%, RAM 6-10GB</text>
+-  <text x="55" y="1018" class="tiny">Disk 0.5-2GB (+6-12GB com LLM), Lat 0.2-8s</text>
+-  <text x="55" y="1032" class="tiny">Capacidade atual (medir): CPU ___, RAM ___GB, GPU ___GB, Disk ___GB</text>
++  <rect x="220" y="80" width="300" height="490" class="box-input card"/>
++  <use href="#icon-mic" x="496" y="90"/>
++  <text x="235" y="105" class="label">Interface (entrada/saida)</text>
++  <text x="235" y="122" class="small">onde voce fala, escuta e ve respostas</text>
++  <text x="235" y="137" class="small">pense como ouvido, boca, janela e caderno</text>
++
++  <rect x="235" y="150" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="162" class="tiny-bold">entrada/app.py</text>
++  <text x="245" y="173" class="tiny">porta principal: recebe pedido e inicia loop</text>
++
++  <rect x="235" y="184" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="196" class="tiny-bold">entrada/preflight.py</text>
++  <text x="245" y="207" class="tiny">checkup do PC: drivers, audio e deps</text>
++
++  <rect x="235" y="218" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="230" class="tiny-bold">entrada/stt.py</text>
++  <text x="245" y="241" class="tiny">orelha: voz vira texto</text>
++
++  <rect x="235" y="252" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="264" class="tiny-bold">voz/vad.py</text>
++  <text x="245" y="275" class="tiny">filtro: corta silencio/ruido antes do STT</text>
++
++  <rect x="235" y="286" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="298" class="tiny-bold">voz/tts.py</text>
++  <text x="245" y="309" class="tiny">boca: texto vira fala</text>
++
++  <rect x="235" y="320" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="332" class="tiny-bold">entrada/gui_panel.py</text>
++  <text x="245" y="343" class="tiny">janela flutuante para digitar tarefas</text>
++
++  <rect x="235" y="354" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="366" class="tiny-bold">entrada/chat_ui.py</text>
++  <text x="245" y="377" class="tiny">caixa e botao de enviar (UI do chat)</text>
++
++  <rect x="235" y="388" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="400" class="tiny-bold">entrada/shortcut.py</text>
++  <text x="245" y="411" class="tiny">atalho global abre o painel</text>
++
++  <rect x="235" y="422" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="434" class="tiny-bold">comunicacao/chat_log.py</text>
++  <text x="245" y="445" class="tiny">caderno: grava conversa no disco</text>
++
++  <rect x="235" y="456" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="468" class="tiny-bold">comunicacao/chat_inbox.py</text>
++  <text x="245" y="479" class="tiny">caixa de entrada local (fila)</text>
++
++  <rect x="235" y="490" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="502" class="tiny-bold">scripts/start_gui_panel.sh</text>
++  <text x="245" y="513" class="tiny">liga venv e abre o painel</text>
++
++  <rect x="235" y="524" width="270" height="30" class="box-input-sub"/>
++  <text x="245" y="536" class="tiny-bold">scripts/install_launcher.sh</text>
++  <text x="245" y="547" class="tiny">cria icone no menu/dock</text>
++
++  <text x="235" y="564" class="tiny">peso est.: texto CPU 1-5%; voz CPU 10-60%</text>
++
++  <rect x="40" y="590" width="480" height="100" class="box-brain card"/>
++  <use href="#icon-gear" x="496" y="600"/>
++  <text x="55" y="615" class="label">Executor local (gatekeeper)</text>
++  <text x="55" y="632" class="small">junta tudo, pede confirmacao</text>
++  <text x="55" y="648" class="small">gate + budget + kill switch; inclui loop S3 (GUI)</text>
++  <text x="55" y="664" class="tiny">codigo: jarvis/cerebro/orchestrator.py + jarvis/agent_s3/*</text>
++  <text x="55" y="678" class="tiny">CPU 5-15%, RAM 200-500MB, Lat 20-80ms</text>
++
++  <rect x="40" y="710" width="230" height="85" class="box-safety card"/>
++  <use href="#icon-shield" x="246" y="720"/>
++  <text x="55" y="732" class="label">Regras de seguranca</text>
++  <text x="55" y="748" class="small">bloqueia apps/dados + classifica texto</text>
++  <text x="55" y="762" class="tiny">codigo: jarvis/seguranca/*</text>
++  <text x="55" y="776" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat &lt;10ms</text>
++
++  <rect x="290" y="710" width="230" height="85" class="box-safety card"/>
++  <use href="#icon-check" x="496" y="720"/>
++  <text x="305" y="732" class="label">Confirmacao humana</text>
++  <text x="305" y="748" class="small">voz/tecla antes de agir</text>
++  <text x="305" y="762" class="tiny">codigo: jarvis/cerebro/orchestrator.py</text>
++  <text x="305" y="776" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat: humana</text>
++
++  <rect x="40" y="810" width="230" height="85" class="box-safety card"/>
++  <use href="#icon-clipboard" x="246" y="820"/>
++  <text x="55" y="832" class="label">Validacao de saida</text>
++  <text x="55" y="848" class="small">validacao visual/OCR da tela</text>
++  <text x="55" y="862" class="tiny">codigo: jarvis/validacao/validator.py</text>
++  <text x="55" y="876" class="tiny">CPU 2-8%, RAM 50-120MB, Lat 0.05-6s (Wayland sem portal)</text>
++
++  <rect x="290" y="810" width="230" height="85" class="box-safety card"/>
++  <use href="#icon-mask" x="496" y="820"/>
++  <text x="305" y="832" class="label">Mascara de privacidade</text>
++  <text x="305" y="848" class="small">remove dados sensiveis</text>
++  <text x="305" y="862" class="tiny">codigo: jarvis/seguranca/privacy.py</text>
++  <text x="305" y="876" class="tiny">CPU 5-25%, RAM 80-200MB, Lat 50-200ms</text>
++
++  <rect x="40" y="910" width="230" height="95" class="box-action card"/>
++  <use href="#icon-cursor" x="246" y="920"/>
++  <text x="55" y="934" class="label">Maos (acoes) - hoje</text>
++  <text x="55" y="950" class="small">mouse/teclado/web + drag/overwrite (S3)</text>
++  <text x="55" y="964" class="tiny">hoje: Python em jarvis/acoes/desktop.py + web.py (S3 usa)</text>
++  <text x="55" y="978" class="tiny">CPU 5-20%, RAM 80-200MB, Lat 50-200ms</text>
++
++  <rect x="290" y="910" width="230" height="95" class="box-vision card"/>
++  <use href="#icon-eye" x="496" y="920"/>
++  <text x="305" y="934" class="label">Olhos (vision/OCR)</text>
++  <text x="305" y="950" class="small">confere tela + grounding S3</text>
++  <text x="305" y="964" class="tiny">hoje: rust/jarvis_vision + jarvis/agent_s3/grounding.py</text>
++  <text x="305" y="978" class="tiny">CPU 30-80%, RAM 300-800MB</text>
++  <text x="305" y="992" class="tiny">Disk 200-600MB, Lat 0.3-1.2s</text>
++
++  <rect x="40" y="1020" width="230" height="85" class="box-system card"/>
++  <use href="#icon-monitor" x="246" y="1030"/>
++  <text x="55" y="1042" class="label">Tela e apps</text>
++  <text x="55" y="1058" class="small">onde o Jarvis clica</text>
++  <text x="55" y="1072" class="tiny">CPU/RAM/GPU: n/a, Lat: depende app</text>
++
++  <rect x="290" y="1020" width="230" height="85" class="box-store card"/>
++  <use href="#icon-db" x="496" y="1030"/>
++  <text x="305" y="1042" class="label">Cache local + memoria</text>
++  <text x="305" y="1058" class="small">episodios + conhecimento + procedures</text>
++  <text x="305" y="1072" class="tiny">procedures.db + memory.sqlite3 (FTS + embeddings BLOB)</text>
++  <text x="305" y="1086" class="tiny">codigo: jarvis/memoria/* (dedup hash + cache LRU)</text>
++  <text x="305" y="1100" class="tiny">CPU &lt;2%, RAM 30-80MB, Disk 50MB-2GB</text>
++
++  <rect x="40" y="1120" width="230" height="80" class="box-brain card"/>
++  <use href="#icon-chip" x="246" y="1130"/>
++  <text x="55" y="1142" class="label">Cerebro local (LLM)</text>
++  <text x="55" y="1158" class="small">endpoint OpenAI-compat self-hosted (LLM + grounding S3)</text>
++  <text x="55" y="1172" class="tiny">codigo: jarvis/cerebro/llm.py</text>
++  <text x="55" y="1186" class="tiny">CPU 200-350%, RAM 6-10GB, Disk 6-12GB, Lat 2-8s</text>
++
++  <rect x="290" y="1120" width="230" height="80" class="box-input card"/>
++  <use href="#icon-cursor" x="496" y="1130"/>
++  <text x="305" y="1142" class="label">Guidance humano (manual)</text>
++  <text x="305" y="1158" class="small">Navegador: copia/cola se usuario quiser</text>
++  <text x="305" y="1172" class="tiny">sem API externa; so apoio humano opcional</text>
++  <text x="305" y="1186" class="tiny">CPU 2-10%, RAM 200-600MB, Lat humana</text>
++
++  <rect x="40" y="1210" width="230" height="80" class="box-future card"/>
++  <use href="#icon-gear" x="246" y="1220"/>
++  <text x="55" y="1232" class="label">Bridge Rust (futuro)</text>
++  <text x="55" y="1248" class="small">daemon JSON-RPC local</text>
++  <text x="55" y="1262" class="tiny">futuro: rust/jarvis_bridge</text>
++  <text x="55" y="1276" class="tiny">CPU 1-5%, RAM 30-100MB, Lat 1-5ms</text>
++
++  <rect x="290" y="1210" width="230" height="80" class="box-future card"/>
++  <use href="#icon-cursor" x="496" y="1220"/>
++  <text x="305" y="1232" class="label">Maos Rust (futuro)</text>
++  <text x="305" y="1248" class="small">input Wayland + AT-SPI</text>
++  <text x="305" y="1262" class="tiny">futuro: rust/jarvis_actions</text>
++  <text x="305" y="1276" class="tiny">CPU 5-15%, RAM 50-150MB, Lat 20-80ms</text>
++
++  <rect x="40" y="1305" width="480" height="90" class="box-total card"/>
++  <text x="55" y="1330" class="label">Total PC (estimado + capacidade)</text>
++  <text x="55" y="1346" class="small">Base: CPU 40-120%, RAM 1.2-2.2GB</text>
++  <text x="55" y="1362" class="small">Com LLM local: CPU 200-350%, RAM 6-10GB</text>
++  <text x="55" y="1378" class="tiny">Disk 0.5-2GB (+6-12GB com LLM), Lat 0.2-8s</text>
++  <text x="55" y="1392" class="tiny">Capacidade atual (medir): CPU ___, RAM ___GB, GPU ___GB, Disk ___GB</text>
+ 
+   <!-- VPS (CPU) -->
+   <rect x="600" y="120" width="480" height="90" class="box-future card"/>
+@@ -325,7 +375,7 @@
+   <text x="615" y="942" class="tiny">Capacidade plano: 4 vCPU, 16GB RAM, 160GB SSD</text>
+ 
+   <!-- SERVIDOR SELF-HOSTED -->
+-  <rect x="1140" y="70" width="520" height="1000" class="region-cloud"/>
++  <rect x="1140" y="70" width="520" height="1350" class="region-cloud"/>
+   <text x="1160" y="92" class="region-title">SERVIDOR SELF-HOSTED (VPS/GPU OPCIONAL)</text>
+ 
+   <rect x="1160" y="120" width="480" height="90" class="box-cloud card"/>
+@@ -371,20 +421,19 @@
+ 
+   <!-- Arrows: local -->
+   <line x1="200" y1="155" x2="220" y2="155" class="arrow-local"/>
+-  <line x1="370" y1="210" x2="370" y2="230" class="arrow-local"/>
+-
+-  <line x1="280" y1="330" x2="155" y2="350" class="arrow-local"/>
+-  <line x1="280" y1="330" x2="405" y2="350" class="arrow-local"/>
+-  <line x1="280" y1="330" x2="155" y2="450" class="arrow-local"/>
+-  <line x1="280" y1="330" x2="405" y2="450" class="arrow-local"/>
+-  <line x1="280" y1="330" x2="155" y2="550" class="arrow-local"/>
+-  <line x1="405" y1="550" x2="280" y2="330" class="arrow-local"/>
+-  <line x1="280" y1="330" x2="405" y2="660" class="arrow-local"/>
+-  <line x1="155" y1="645" x2="155" y2="660" class="arrow-local"/>
+-  <line x1="270" y1="702" x2="290" y2="597" class="arrow-local"/>
+-  <path d="M 280 330 L 155 760" class="arrow-local" stroke-dasharray="5 4"/>
+-  <line x1="270" y1="800" x2="290" y2="800" class="arrow-local" stroke-dasharray="5 4"/>
+-  <path d="M 520 800 L 1120 800 L 1120 160 L 1160 160" class="arrow-cross-dash"/>
++  <line x1="370" y1="570" x2="370" y2="590" class="arrow-local"/>
++
++  <line x1="280" y1="690" x2="155" y2="710" class="arrow-local"/>
++  <line x1="280" y1="690" x2="405" y2="710" class="arrow-local"/>
++  <line x1="280" y1="690" x2="155" y2="810" class="arrow-local"/>
++  <line x1="280" y1="690" x2="405" y2="810" class="arrow-local"/>
++  <line x1="280" y1="690" x2="155" y2="910" class="arrow-local"/>
++  <line x1="405" y1="910" x2="280" y2="690" class="arrow-local"/>
++  <line x1="280" y1="690" x2="405" y2="1020" class="arrow-local"/>
++  <line x1="155" y1="1005" x2="155" y2="1020" class="arrow-local"/>
++  <line x1="270" y1="1062" x2="290" y2="957" class="arrow-local"/>
++  <path d="M 280 690 L 155 1120" class="arrow-local" stroke-dasharray="5 4"/>
++  <line x1="270" y1="1160" x2="290" y2="1160" class="arrow-local" stroke-dasharray="5 4"/>
+ 
+   <!-- Arrows: VPS internal -->
+   <line x1="840" y1="210" x2="840" y2="220" class="arrow-vps"/>
+@@ -396,12 +445,12 @@
+   <line x1="840" y1="770" x2="840" y2="780" class="arrow-vps"/>
+ 
+   <!-- Cross-region connections -->
+-  <path d="M 520 300 L 600 165" class="arrow-cross"/>
+-  <text x="535" y="190" class="tiny">WebSocket/gRPC + Tailscale (futuro obrigatorio)</text>
+-  <text x="535" y="204" class="tiny">protocolo: jarvis/comunicacao/protocolo.py</text>
++  <path d="M 520 640 L 600 165" class="arrow-cross"/>
++  <text x="535" y="420" class="tiny">WebSocket/gRPC + Tailscale (futuro obrigatorio)</text>
++  <text x="535" y="434" class="tiny">protocolo: jarvis/comunicacao/protocolo.py</text>
+ 
+-  <path d="M 520 260 L 1120 260 L 1120 160 L 1160 160" class="arrow-cross-dash"/>
+-  <text x="760" y="248" class="tiny">HTTP self-hosted (OpenAI compat, LLM + grounding)</text>
++  <path d="M 520 1160 L 1120 1160 L 1120 160 L 1160 160" class="arrow-cross-dash"/>
++  <text x="760" y="1148" class="tiny">HTTP self-hosted (OpenAI compat, LLM + grounding)</text>
+ 
+   <path d="M 520 170 L 1120 170 L 1120 340 L 1160 340" class="arrow-cross-dash"/>
+   <text x="780" y="184" class="tiny">STT local/auto (faster-whisper)</text>
+@@ -416,13 +465,13 @@
+   <text x="1015" y="520" class="tiny">Backup JSONL/manifesto via rclone</text>
+ 
+   <!-- Legend + Glossary -->
+-  <rect x="20" y="1080" width="1640" height="140" class="box-system"/>
+-  <text x="40" y="1105" class="label">Legenda</text>
+-  <text x="40" y="1122" class="small">Cores fortes = existe hoje. Cinza = futuro. Setas coloridas = fluxo; tracejadas = opcional/condicional.</text>
+-  <text x="40" y="1140" class="small">Metricas por balao: CPU, RAM, GPU, DISK, LAT (latencia).</text>
+-  <text x="40" y="1156" class="small">Termos: LLM = IA que escreve texto; OCR = le texto da tela; RAG = busca memoria antes de responder; VPS = computador na nuvem.</text>
+-  <text x="40" y="1170" class="small">S3 = agente GUI com grounding (jarvis/agent_s3).</text>
+-  <text x="40" y="1188" class="small">Obs: pesos do diagrama agora refletem medições locais (02/01/2026) em `Documentos/PESOS_MEDIDOS.md`.</text>
+-  <text x="40" y="1204" class="small">Deps opcionais: sounddevice+numpy+faster-whisper (STT), webrtcvad (VAD), piper/espeak (TTS),</text>
+-  <text x="40" y="1218" class="small">xdotool/wtype/ydotool/pyautogui (acoes), Playwright (web), Pillow+pytesseract+tesseract (OCR), sentence-transformers (embeddings), pynput (aprendizado), tkinter (chat), gguf-tools/peft (LLM).</text>
++  <rect x="20" y="1440" width="1640" height="140" class="box-system"/>
++  <text x="40" y="1465" class="label">Legenda</text>
++  <text x="40" y="1482" class="small">Cores fortes = existe hoje. Cinza = futuro. Setas coloridas = fluxo; tracejadas = opcional/condicional.</text>
++  <text x="40" y="1500" class="small">Metricas por balao: CPU, RAM, GPU, DISK, LAT (latencia).</text>
++  <text x="40" y="1516" class="small">Termos: LLM = IA que escreve texto; OCR = le texto da tela; RAG = busca memoria antes de responder; VPS = computador na nuvem.</text>
++  <text x="40" y="1530" class="small">S3 = agente GUI com grounding (jarvis/agent_s3).</text>
++  <text x="40" y="1548" class="small">Obs: pesos do diagrama agora refletem medições locais (02/01/2026) em `Documentos/PESOS_MEDIDOS.md`.</text>
++  <text x="40" y="1564" class="small">Deps opcionais: sounddevice+numpy+faster-whisper (STT), webrtcvad (VAD), piper/espeak (TTS),</text>
++  <text x="40" y="1578" class="small">xdotool/wtype/ydotool/pyautogui (acoes), Playwright (web), Pillow+pytesseract+tesseract (OCR), sentence-transformers (embeddings), pynput (aprendizado), tkinter (chat), gguf-tools/peft (LLM).</text>
+ </svg>
+diff --git a/jarvis/cerebro/config.py b/jarvis/cerebro/config.py
+index 340aa43..38e176e 100644
+--- a/jarvis/cerebro/config.py
++++ b/jarvis/cerebro/config.py
+@@ -133,6 +133,7 @@ class Config:
+ 
+     # STT settings
+     stt_mode: str  # local, auto, none
++    stt_model_size: str  # tiny/base/small/etc.
+ 
+     # TTS settings
+     tts_mode: str  # piper, espeak, none
+@@ -201,6 +202,7 @@ def load_config() -> Config:
+ 
+     # STT mode defaults to local (no cloud)
+     stt_mode = _env("JARVIS_STT_MODE", "local")
++    stt_model_size = _env("JARVIS_STT_MODEL", "small")
+ 
+     return Config(
+         # Data directories
+@@ -237,6 +239,7 @@ def load_config() -> Config:
+ 
+         # STT
+         stt_mode=stt_mode,
++        stt_model_size=stt_model_size,
+ 
+         # TTS
+         tts_mode=_env("JARVIS_TTS_MODE", "local"),
+diff --git a/jarvis/cerebro/orchestrator.py b/jarvis/cerebro/orchestrator.py
+index 5b9076b..fcc3bd1 100644
+--- a/jarvis/cerebro/orchestrator.py
++++ b/jarvis/cerebro/orchestrator.py
+@@ -637,8 +637,12 @@ class Orchestrator:
+         try:
+             # Use VAD if available
+             text = self.stt.transcribe_once(seconds=5)
++            if not text or not str(text).strip():
++                self.telemetry.log_event("voice_empty", {"detail": "sem_fala"})
++                return
+             self.handle_text(text)
+         except Exception as e:
++            self.telemetry.log_event("voice_error", {"error": str(e)})
+             self._say(f"Erro no reconhecimento de voz: {e}")
+ 
+     def _plan_with_llm(
+diff --git a/jarvis/entrada/app.py b/jarvis/entrada/app.py
+index ee0c8cf..fa77b42 100644
+--- a/jarvis/entrada/app.py
++++ b/jarvis/entrada/app.py
+@@ -128,14 +128,19 @@ def main() -> int:
+ 
+     if args.voice_loop:
+         print("Jarvis MVP - voice loop (Ctrl+C para sair)")
++        sleep_ms = int(os.environ.get("JARVIS_VOICE_LOOP_SLEEP_MS", "150"))
++        sleep_s = max(0.05, sleep_ms / 1000)
+         try:
+             while True:
+                 if stop_requested(config.stop_file_path):
+                     print("Kill switch ativo. Saindo do loop.")
+                     break
+                 drain_chat_inbox()
+-                orchestrator.transcribe_and_handle()
+-                time.sleep(0.5)
++                try:
++                    orchestrator.transcribe_and_handle()
++                except Exception as exc:
++                    print(f"[voice_loop] erro no STT/orquestrador: {exc}")
++                time.sleep(sleep_s)
+         except KeyboardInterrupt:
+             pass
+         finally:
+@@ -146,7 +151,11 @@ def main() -> int:
+     if args.gui_panel:
+         from .gui_panel import JarvisPanel
+ 
+-        panel = JarvisPanel(orchestrator, chat_shortcut)
++        panel = JarvisPanel(
++            orchestrator,
++            chat_shortcut=chat_shortcut,
++            chat_inbox=chat_inbox,
++        )
+         panel.run()
+         return 0
+ 
+diff --git a/jarvis/entrada/chat_ui.py b/jarvis/entrada/chat_ui.py
+index 3587708..4ca4d00 100644
+--- a/jarvis/entrada/chat_ui.py
++++ b/jarvis/entrada/chat_ui.py
+@@ -8,15 +8,29 @@ from datetime import datetime
+ from pathlib import Path
+ 
+ 
+-def _tail_lines(path: Path, limit: int) -> str:
+-    if not path.exists():
++def _tail_lines(path: Path, limit: int, chunk_size: int = 4096) -> str:
++    """Ler apenas as últimas N linhas sem carregar o arquivo todo."""
++    if limit <= 0 or not path.exists():
+         return ""
+     try:
+-        data = path.read_text(encoding="utf-8")
++        with path.open("rb") as handle:
++            handle.seek(0, os.SEEK_END)
++            pos = handle.tell()
++            buffer = b""
++            lines: list[bytes] = []
++
++            while pos > 0 and len(lines) <= limit:
++                read_size = min(chunk_size, pos)
++                pos -= read_size
++                handle.seek(pos)
++                chunk = handle.read(read_size)
++                buffer = chunk + buffer
++                lines = buffer.splitlines()
++
++            tail_lines = lines[-limit:] if lines else []
++            return "\n".join(line.decode("utf-8", errors="ignore") for line in tail_lines)
+     except Exception:
+         return ""
+-    lines = data.splitlines()
+-    return "\n".join(lines[-limit:])
+ 
+ 
+ def _format_log_with_timestamps(content: str) -> str:
+@@ -27,14 +41,14 @@ def _format_log_with_timestamps(content: str) -> str:
+     lines = content.splitlines()
+     formatted = []
+ 
++    ts_pattern = re.compile(r"^\[?\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]?")
++
+     for line in lines:
+-        # Check if line already has timestamp
+-        if re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", line):
++        if ts_pattern.match(line):
+             formatted.append(line)
+-        else:
+-            # Add timestamp to line without one
+-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+-            formatted.append(f"[{timestamp}] {line}")
++            continue
++        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
++        formatted.append(f"[{timestamp}] {line}")
+ 
+     return "\n".join(formatted)
+ 
+diff --git a/jarvis/entrada/gui_panel.py b/jarvis/entrada/gui_panel.py
+index 7df4eb6..94f1681 100644
+--- a/jarvis/entrada/gui_panel.py
++++ b/jarvis/entrada/gui_panel.py
+@@ -3,6 +3,8 @@ from __future__ import annotations
+ import threading
+ from typing import Optional
+ 
++from ..comunicacao.chat_inbox import ChatInbox
++
+ try:
+     import tkinter as tk
+ except ImportError as exc:
+@@ -15,11 +17,20 @@ except ImportError as exc:
+ class JarvisPanel:
+     """Mini painel flutuante para enviar comandos e acompanhar o status."""
+ 
+-    def __init__(self, orchestrator, chat_shortcut: Optional[object] = None) -> None:
++    def __init__(
++        self,
++        orchestrator,
++        chat_shortcut: Optional[object] = None,
++        chat_inbox: Optional[ChatInbox] = None,
++        inbox_poll_ms: int = 500,
++    ) -> None:
+         self._orchestrator = orchestrator
+         self._chat_shortcut = chat_shortcut
+         self._microphone_enabled = False
+         self._busy = False
++        self._chat_inbox = chat_inbox
++        self._inbox_poll_ms = max(100, int(inbox_poll_ms))
++        self._inbox_queue: list[str] = []
+ 
+         self.root = tk.Tk()
+         self.root.title("Jarvis - Painel rápido")
+@@ -132,6 +143,19 @@ class JarvisPanel:
+         )
+         thread.start()
+ 
++    def _start_inbox_command(self, text: str) -> None:
++        """Start a command that veio do chat_ui/inbox."""
++        if self._busy:
++            return
++        self._set_busy(True)
++        self._log(f"→ (chat_ui) {text}")
++        thread = threading.Thread(
++            target=self._execute_command,
++            args=(text,),
++            daemon=True,
++        )
++        thread.start()
++
+     def _execute_command(self, text: str) -> None:
+         try:
+             self._orchestrator.handle_text(text)
+@@ -144,11 +168,37 @@ class JarvisPanel:
+     def run(self) -> None:
+         """Start the Tk event loop."""
+         self._log("Painel pronto. Escreva para o Jarvis e pressione Enviar.")
++        if self._chat_inbox:
++            self._schedule_inbox_poll()
+         try:
+             self.root.mainloop()
+         finally:
+             self._shutdown()
+ 
++    def _schedule_inbox_poll(self) -> None:
++        if not self.root.winfo_exists():
++            return
++        self.root.after(self._inbox_poll_ms, self._poll_inbox)
++
++    def _poll_inbox(self) -> None:
++        """Ler comandos do chat_ui (arquivo inbox) sem travar a UI."""
++        if not self.root.winfo_exists() or not self._chat_inbox:
++            return
++
++        try:
++            drained = self._chat_inbox.drain()
++        except Exception:
++            drained = []
++
++        if drained:
++            self._inbox_queue.extend(drained)
++
++        if self._inbox_queue and not self._busy:
++            next_cmd = self._inbox_queue.pop(0)
++            self._start_inbox_command(next_cmd)
++
++        self._schedule_inbox_poll()
++
+     def _shutdown(self) -> None:
+         if not self.root.winfo_exists():
+             return
+diff --git a/jarvis/entrada/shortcut.py b/jarvis/entrada/shortcut.py
+index f157e8d..cf9f25e 100644
+--- a/jarvis/entrada/shortcut.py
++++ b/jarvis/entrada/shortcut.py
+@@ -4,17 +4,18 @@ Global keyboard shortcut handler for opening chat UI.
+ This module registers a global keyboard shortcut (default: Ctrl+Shift+J)
+ that opens the chat UI when pressed.
+ """
++
+ from __future__ import annotations
+ 
+ import os
++import shlex
+ import subprocess
+ import sys
+-import threading
+-from pathlib import Path
+-from typing import Optional
++import time
+ 
+ try:
+     from pynput import keyboard  # type: ignore
++
+     HAS_PYNPUT = True
+ except ImportError:
+     keyboard = None
+@@ -42,6 +43,8 @@ class ChatShortcut:
+         self._listener: keyboard.Listener | None = None
+         self._running = False
+         self._pressed_keys: set = set()
++        self._last_trigger_ts = 0.0
++        self._cooldown_ms = 800
+ 
+     def _default_chat_command(self) -> str:
+         """Get default command to open chat UI."""
+@@ -97,14 +100,20 @@ class ChatShortcut:
+         """Handle key press event."""
+         try:
+             key_str = self._key_to_string(key)
+-            if key_str:
+-                self._pressed_keys.add(key_str)
++            if not key_str:
++                return
++
++            self._pressed_keys.add(key_str)
+ 
+             # Check if shortcut matches
+             mods, final_key = self._parse_combo(self.shortcut_combo)
+-            pressed_mods = {k for k in self._pressed_keys if k in {"ctrl", "alt", "shift", "super"}}
++            pressed_mods = {
++                k for k in self._pressed_keys if k in {"ctrl", "alt", "shift", "super"}
++            }
+ 
+-            if pressed_mods == mods and key_str == final_key:
++            # Check if all required modifiers are pressed AND the final key matches
++            # Use subset check: all required mods must be in pressed_mods
++            if mods.issubset(pressed_mods) and key_str == final_key:
+                 self._open_chat()
+         except Exception:
+             pass  # Ignore errors in key handling
+@@ -120,17 +129,23 @@ class ChatShortcut:
+ 
+     def _open_chat(self) -> None:
+         """Open chat UI by running the chat command."""
++        now = time.time() * 1000
++        if (now - self._last_trigger_ts) < self._cooldown_ms:
++            return
++        self._last_trigger_ts = now
+         try:
+             # Run in background to avoid blocking
+             if os.name == "nt":  # Windows
++                # CREATE_NO_WINDOW = 0x08000000 (Windows only)
++                CREATE_NO_WINDOW = 0x08000000
+                 subprocess.Popen(
+                     self.chat_command,
+                     shell=True,
+-                    creationflags=subprocess.CREATE_NO_WINDOW,
++                    creationflags=CREATE_NO_WINDOW,
+                 )
+             else:  # Linux/Mac
+                 subprocess.Popen(
+-                    self.chat_command.split(),
++                    shlex.split(self.chat_command),
+                     stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL,
+                     start_new_session=True,
+@@ -183,6 +198,3 @@ def check_shortcut_deps() -> dict:
+     return {
+         "pynput": HAS_PYNPUT,
+     }
+-
+-
+-
+diff --git a/jarvis/entrada/stt.py b/jarvis/entrada/stt.py
+index 70f5e5c..f26b905 100644
+--- a/jarvis/entrada/stt.py
++++ b/jarvis/entrada/stt.py
+@@ -51,6 +51,7 @@ class SpeechToText:
+         self._local_model: WhisperModel | None = None
+         self._vad: VoiceActivityDetector | None = None
+         self._streaming_vad: StreamingVAD | None = None
++        self._model_size = (getattr(config, "stt_model_size", "small") or "small").lower()
+ 
+         # Initialize VAD if available
+         if check_vad_available():
+@@ -78,6 +79,8 @@ class SpeechToText:
+ 
+         # Record audio
+         audio_bytes = self._record_audio(seconds)
++        if not audio_bytes:
++            return ""
+ 
+         if mode == "local":
+             return self._transcribe_local(audio_bytes)
+@@ -96,15 +99,26 @@ class SpeechToText:
+         if sd is None or np is None:
+             raise STTError("Missing sounddevice/numpy. Run: pip install sounddevice numpy")
+ 
+-        # Use streaming VAD if available
+         if self._streaming_vad is not None:
++            try:
++                audio_bytes = self._streaming_vad.record_until_silence()
++                return self._finalize_recording(audio_bytes, speech_detected=True)
++            except Exception:
++                pass
++
+             try:
+                 audio_bytes, speech_detected = self._streaming_vad.record_fixed_duration(seconds)
+-                return audio_bytes
++                return self._finalize_recording(audio_bytes, speech_detected)
+             except Exception:
+-                pass  # Fall through to simple recording
++                pass
++
++        audio_bytes, speech_detected = self._record_fixed_duration(seconds)
++        return self._finalize_recording(audio_bytes, speech_detected)
+ 
+-        # Simple fixed-duration recording
++    def _record_fixed_duration(self, seconds: int) -> tuple[bytes, bool]:
++        """
++        Fall back to fixed-duration capture when streaming VAD is not available.
++        """
+         samplerate = 16000
+         audio = sd.rec(
+             int(seconds * samplerate),
+@@ -114,9 +128,24 @@ class SpeechToText:
+         )
+         sd.wait()
+ 
+-        # Convert to int16 bytes
+         int16_data = (audio.flatten() * 32767).astype(np.int16)
+-        return int16_data.tobytes()
++        audio_bytes = int16_data.tobytes()
++        speech_detected = self.check_speech_present(audio_bytes)
++        return audio_bytes, speech_detected
++
++    def _finalize_recording(
++        self,
++        audio_bytes: bytes,
++        speech_detected: bool | None = None,
++    ) -> bytes:
++        """Decide if the captured audio is worth transcribing."""
++        if not audio_bytes:
++            return b""
++        if speech_detected is False:
++            return b""
++        if not self.check_speech_present(audio_bytes):
++            return b""
++        return audio_bytes
+ 
+     def _transcribe_local(self, audio_bytes: bytes) -> str:
+         """
+@@ -135,10 +164,8 @@ class SpeechToText:
+         try:
+             # Load model on first use
+             if self._local_model is None:
+-                # Use small model for balance of speed/quality
+-                model_size = "small"
+                 self._local_model = WhisperModel(
+-                    model_size,
++                    self._model_size,
+                     device="cpu",
+                     compute_type="int8",
+                 )
+@@ -173,14 +200,14 @@ class SpeechToText:
+             Transcribed text
+         """
+         if self._streaming_vad is None:
+-            # Fall back to fixed duration
+             return self.transcribe_once(seconds=5)
+ 
+-        try:
+-            audio_bytes = self._streaming_vad.record_until_silence()
++        audio_bytes = self._record_audio(max_seconds)
++        if not audio_bytes:
++            return ""
+ 
++        try:
+             return self._transcribe_local(audio_bytes)
+-
+         except Exception as e:
+             raise STTError(f"VAD transcription failed: {e}")
+ 
+diff --git a/jarvis/voz/vad.py b/jarvis/voz/vad.py
+index 8fa87fd..6e1470d 100644
+--- a/jarvis/voz/vad.py
++++ b/jarvis/voz/vad.py
+@@ -188,6 +188,8 @@ class StreamingVAD:
+         sample_rate: int = 16000,
+         silence_duration_ms: int = 800,
+         max_duration_s: int = 30,
++        pre_roll_ms: int = 200,
++        post_roll_ms: int = 200,
+     ) -> None:
+         if sd is None or np is None:
+             raise VADError("sounddevice and numpy required for streaming VAD")
+@@ -200,16 +202,21 @@ class StreamingVAD:
+         self.sample_rate = sample_rate
+         self.silence_frames = int(silence_duration_ms / 30)  # frames of silence to stop
+         self.max_frames = int(max_duration_s * 1000 / 30)  # max frames to record
++        self.pre_roll_frames = max(1, int(pre_roll_ms / 30))
++        self.post_roll_frames = max(0, int(post_roll_ms / 30))
+ 
+     def record_until_silence(self) -> bytes:
+         """
+         Record audio until silence is detected after speech.
+         
++        Captures a small pre-roll (defaults to 200 ms) before the first speech frame
++        so we do not chop the beginning of the command.
++
+         Returns:
+             Raw 16-bit PCM audio bytes containing the speech
+         """
+         frame_size = self.vad.frame_size
+-        audio_buffer = []
++        frame_events: list[tuple[bytes, bool]] = []
+         silence_count = 0
+         speech_detected = False
+         frame_count = 0
+@@ -223,7 +230,6 @@ class StreamingVAD:
+             # Convert to mono if needed and to int16
+             mono = indata[:, 0] if indata.ndim > 1 else indata.flatten()
+             int16_data = (mono * 32767).astype(np.int16)
+-            audio_buffer.append(int16_data.tobytes())
+ 
+             # Check VAD on each frame
+             for i in range(0, len(int16_data), frame_size):
+@@ -231,13 +237,13 @@ class StreamingVAD:
+                 if len(chunk) == frame_size:
+                     frame_bytes = chunk.tobytes()
+                     is_speech = self.vad.is_speech(frame_bytes)
++                    frame_events.append((frame_bytes, is_speech))
+ 
+                     if is_speech:
+                         speech_detected = True
+                         silence_count = 0
+                     elif speech_detected:
+                         silence_count += 1
+-
+                     frame_count += 1
+ 
+         with sd.InputStream(
+@@ -256,7 +262,54 @@ class StreamingVAD:
+                 if frame_count >= self.max_frames:
+                     break
+ 
+-        return b"".join(audio_buffer)
++        return self._assemble_frames(
++            frame_events,
++            self.pre_roll_frames,
++            self.post_roll_frames,
++            self.silence_frames,
++        )
++
++    @staticmethod
++    def _assemble_frames(
++        frame_events: list[tuple[bytes, bool]],
++        pre_roll_frames: int,
++        post_roll_frames: int,
++        silence_frames: int,
++    ) -> bytes:
++        """Assemble recorded frames honoring pre-roll/post-roll limits."""
++        pre_roll = collections.deque(maxlen=pre_roll_frames)
++        result_frames: list[bytes] = []
++        triggered = False
++        silence_count = 0
++        last_voiced_idx = 0
++
++        for frame_bytes, is_speech in frame_events:
++            if not triggered:
++                if is_speech:
++                    triggered = True
++                    result_frames.extend(pre_roll)
++                    pre_roll.clear()
++                    result_frames.append(frame_bytes)
++                    last_voiced_idx = len(result_frames)
++                    silence_count = 0
++                else:
++                    pre_roll.append(frame_bytes)
++                continue
++
++            result_frames.append(frame_bytes)
++            if is_speech:
++                silence_count = 0
++                last_voiced_idx = len(result_frames)
++            else:
++                silence_count += 1
++            if silence_count >= silence_frames:
++                break
++
++        if not triggered:
++            return b"".join(pre_roll)
++
++        end_idx = min(len(result_frames), last_voiced_idx + post_roll_frames)
++        return b"".join(result_frames[:end_idx])
+ 
+     def record_fixed_duration(self, seconds: int = 5) -> tuple[bytes, bool]:
+         """
