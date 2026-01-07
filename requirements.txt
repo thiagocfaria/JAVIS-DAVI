@@ -11,6 +11,7 @@ sounddevice>=0.4.6
 numpy>=1.24
 faster-whisper>=1.0.0
 webrtcvad>=2.0.10
+scipy>=1.10
 
 # Local embeddings (optional but supported)
 sentence-transformers>=2.2.2

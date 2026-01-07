@@ -61,7 +61,7 @@ Documento único para a interface de voz do Jarvis: como o áudio entra, vira te
 - Onde entra: `SpeechToText._trim_audio` chama `jarvis_audio.trim_until_silence` quando `JARVIS_AUDIO_TRIM_BACKEND=rust` e o módulo está importável.
 - Contrato de tipos: recebe `bytes`/`bytearray`/`memoryview` contendo PCM int16 LE mono a 16 kHz; internamente corta em frames de 20 ms com pré-roll 200 ms, pós-roll 200 ms e parada após 300 ms de silêncio.
 - Retorno: `(trimmed_bytes, speech_detected: bool, stats: dict)`; se `speech_detected=False`, o STT ignora a transcrição.
-- Build/teste: `scripts/build_rust_audio.sh` instala via maturin. Cobertura em `testes/teste_stt_rust_trim.py` (trim bloqueia silêncio, normaliza lista/frames para bytes) e no fluxo de VAD (`testes/teste_vad_pre_roll.py`, `testes/teste_stt_flow.py`).
+- Build/teste: `scripts/build_rust_audio.sh` instala via maturin. Cobertura em `testes/test_stt_rust_trim.py` (trim bloqueia silêncio, normaliza lista/frames para bytes) e no fluxo de VAD (`testes/test_vad_pre_roll.py`, `testes/test_stt_flow.py`).
 
 ## Observabilidade
 - Telemetria local em `~/.jarvis/events.jsonl` (ver `Telemetria`/`Telemetry`): eventos `voice_empty`, `voice_error`, `command.*`, `plan.*`, `action_*`.

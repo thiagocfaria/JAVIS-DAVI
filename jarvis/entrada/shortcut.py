@@ -3,22 +3,38 @@ Global keyboard shortcut handler for opening chat UI.
 
 This module registers a global keyboard shortcut (default: Ctrl+Shift+J)
 that opens the chat UI when pressed.
+
+Implementation notes:
+- Uses `pynput`.
+- On Linux Wayland, global hotkeys are often blocked. If Wayland is detected
+  without XWayland, we disable the shortcut and suggest setting the hotkey in
+  the desktop environment.
 """
+
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import sys
-import threading
-from pathlib import Path
-from typing import Optional
+import time
 
 try:
     from pynput import keyboard  # type: ignore
+
     HAS_PYNPUT = True
 except ImportError:
     keyboard = None
     HAS_PYNPUT = False
+
+
+def _is_wayland() -> bool:
+    return bool(os.environ.get("WAYLAND_DISPLAY"))
+
+
+def _has_x11() -> bool:
+    # On Wayland with XWayland, DISPLAY is often set.
+    return bool(os.environ.get("DISPLAY"))
 
 
 class ChatShortcut:
@@ -26,8 +42,9 @@ class ChatShortcut:
 
     def __init__(
         self,
-        chat_command: str | None = None,
+        chat_command: str | list[str] | None = None,
         shortcut_combo: str = "ctrl+shift+j",
+        cooldown_s: float = 0.6,
     ) -> None:
         """
         Initialize chat shortcut handler.
@@ -36,12 +53,19 @@ class ChatShortcut:
             chat_command: Command to run when shortcut is pressed.
                           Defaults to opening chat UI via Python module.
             shortcut_combo: Keyboard shortcut combo (default: ctrl+shift+j)
+            cooldown_s: Debounce window to avoid repeated triggers by key repeat.
         """
         self.chat_command = chat_command or self._default_chat_command()
         self.shortcut_combo = shortcut_combo.lower()
+        self.cooldown_s = max(0.0, float(cooldown_s))
+
         self._listener: keyboard.Listener | None = None
         self._running = False
-        self._pressed_keys: set = set()
+        self._pressed_keys: set[str] = set()
+
+        self._combo_mods, self._combo_key = self._parse_combo(self.shortcut_combo)
+        self._last_fire_ts = 0.0
+        self._armed = True  # re-arm after releasing modifiers
 
     def _default_chat_command(self) -> str:
         """Get default command to open chat UI."""
@@ -56,29 +80,29 @@ class ChatShortcut:
         Returns:
             Tuple of (modifiers_set, final_key)
         """
-        parts = [p.strip() for p in combo.split("+")]
+        parts = [p.strip() for p in combo.split("+") if p.strip()]
         modifiers = {"ctrl", "alt", "shift", "super", "cmd"}
-        mods = set()
-        final_key = None
+        mods: set[str] = set()
+        final_key: str | None = None
 
         for part in parts:
-            if part.lower() in modifiers:
-                mods.add(part.lower())
+            p = part.lower()
+            if p in modifiers:
+                mods.add("super" if p == "cmd" else p)
             else:
-                final_key = part.lower()
+                final_key = p
 
         if not final_key:
-            final_key = "j"  # Default key
+            final_key = "j"
 
         return mods, final_key
 
     def _key_to_string(self, key) -> str:
         """Convert pynput key to string."""
         if hasattr(key, "char") and key.char:
-            return key.char.lower()
+            return str(key.char).lower()
         if hasattr(key, "name"):
-            name = key.name.lower()
-            # Map special keys
+            name = str(key.name).lower()
             key_map = {
                 "ctrl_l": "ctrl",
                 "ctrl_r": "ctrl",
@@ -89,9 +113,14 @@ class ChatShortcut:
                 "cmd": "super",
                 "cmd_l": "super",
                 "cmd_r": "super",
+                "super_l": "super",
+                "super_r": "super",
             }
             return key_map.get(name, name)
         return ""
+
+    def _mods_down(self) -> set[str]:
+        return {k for k in self._pressed_keys if k in {"ctrl", "alt", "shift", "super"}}
 
     def _on_press(self, key) -> None:
         """Handle key press event."""
@@ -100,14 +129,24 @@ class ChatShortcut:
             if key_str:
                 self._pressed_keys.add(key_str)
 
-            # Check if shortcut matches
-            mods, final_key = self._parse_combo(self.shortcut_combo)
-            pressed_mods = {k for k in self._pressed_keys if k in {"ctrl", "alt", "shift", "super"}}
+            pressed_mods = self._mods_down()
 
-            if pressed_mods == mods and key_str == final_key:
-                self._open_chat()
+            # Re-arm after all modifiers released (prevents repeats while holding keys)
+            if not pressed_mods:
+                self._armed = True
+
+            if not self._armed:
+                return
+
+            # Match: all required modifiers must be down AND final key pressed
+            if pressed_mods == self._combo_mods and key_str == self._combo_key:
+                now = time.monotonic()
+                if (now - self._last_fire_ts) >= self.cooldown_s:
+                    self._last_fire_ts = now
+                    self._armed = False
+                    self._open_chat()
         except Exception:
-            pass  # Ignore errors in key handling
+            pass
 
     def _on_release(self, key) -> None:
         """Handle key release event."""
@@ -121,22 +160,28 @@ class ChatShortcut:
     def _open_chat(self) -> None:
         """Open chat UI by running the chat command."""
         try:
-            # Run in background to avoid blocking
-            if os.name == "nt":  # Windows
+            cmd = self.chat_command
+
+            # Normalize: allow either "str" or "list[str]"
+            if isinstance(cmd, str):
+                # Use shlex for proper quoting in Linux/macOS
+                cmd_list = shlex.split(cmd) if os.name != "nt" else cmd
+            else:
+                cmd_list = cmd
+
+            if os.name == "nt":
+                # CREATE_NO_WINDOW is Windows-specific and may not be in type stubs
+                create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                subprocess.Popen(cmd_list, shell=True, creationflags=create_no_window)  # type: ignore[arg-type]
+            else:
                 subprocess.Popen(
-                    self.chat_command,
-                    shell=True,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
-            else:  # Linux/Mac
-                subprocess.Popen(
-                    self.chat_command.split(),
+                    cmd_list,  # type: ignore[arg-type]
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     start_new_session=True,
                 )
         except Exception:
-            pass  # Ignore errors when opening chat
+            pass
 
     def start(self) -> bool:
         """
@@ -148,13 +193,16 @@ class ChatShortcut:
         if not HAS_PYNPUT:
             return False
 
+        # On Wayland without XWayland, pynput usually can't grab global hotkeys.
+        if sys.platform.startswith("linux") and _is_wayland() and not _has_x11():
+            return False
+
         if self._running:
             return True
 
         try:
             self._listener = keyboard.Listener(
-                on_press=self._on_press,
-                on_release=self._on_release,
+                on_press=self._on_press, on_release=self._on_release
             )
             self._listener.start()
             self._running = True
@@ -182,7 +230,6 @@ def check_shortcut_deps() -> dict:
     """Check if dependencies for global shortcuts are available."""
     return {
         "pynput": HAS_PYNPUT,
+        "wayland": _is_wayland(),
+        "x11": _has_x11(),
     }
-
-
-

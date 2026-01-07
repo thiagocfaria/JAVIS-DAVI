@@ -18,7 +18,7 @@ class ChatLog:
         path: Path,
         auto_open: bool = False,
         open_command: str | None = None,
-        open_cooldown_s: int = 5,
+        open_cooldown_s: int = 60,
     ) -> None:
         self.path = path
         self.auto_open = auto_open
