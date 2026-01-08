@@ -1,0 +1,175 @@
+{
+  "history": [
+    {
+      "record_id": "baseline_2026-01-07_pior_caso_30s",
+      "created_at": "2026-01-07",
+      "baseline": {
+        "date": "2026-01-07",
+        "method": "scripts/bench_interface.py",
+        "audio": "/tmp/jarvis_bench_30s.wav",
+        "audio_type": "synthetic",
+        "sample_rate_hz": 16000,
+        "channels": 1,
+        "duration_s": 30,
+        "repeat": {
+          "stt": 1,
+          "vad": 5,
+          "speaker": 3,
+          "tts": 3
+        },
+        "env": {
+          "os": "linux",
+          "python": ".venv",
+          "deps": [
+            "numpy",
+            "scipy",
+            "sounddevice",
+            "webrtcvad",
+            "faster-whisper",
+            "resemblyzer",
+            "pynput",
+            "py-spy"
+          ],
+          "tts": {
+            "piper": false,
+            "espeak-ng": true,
+            "aplay": true
+          }
+        },
+        "vars": {
+          "JARVIS_SPK_VERIFY": "1",
+          "JARVIS_CONFIG_DIR": "/tmp/jarvis_bench_config"
+        }
+      },
+      "commands": {
+        "stt": "PYTHONPATH=. .venv/bin/python scripts/bench_interface.py stt --audio /tmp/jarvis_bench_30s.wav --repeat 1",
+        "vad": "PYTHONPATH=. .venv/bin/python scripts/bench_interface.py vad --audio /tmp/jarvis_bench_30s.wav --repeat 5",
+        "speaker": "PYTHONPATH=. JARVIS_CONFIG_DIR=/tmp/jarvis_bench_config JARVIS_SPK_VERIFY=1 .venv/bin/python scripts/bench_interface.py speaker --audio /tmp/jarvis_bench_30s.wav --repeat 3",
+        "tts": "PYTHONPATH=. .venv/bin/python scripts/bench_interface.py tts --text 'ola jarvis, ...' --repeat 3"
+      },
+      "results": [
+        {
+          "scenario": "stt",
+          "repeat": 1,
+          "latency_ms_avg": 23231.05596700043,
+          "latency_ms_p50": 23231.05596700043,
+          "latency_ms_p95": 23231.05596700043,
+          "cpu_time_s_avg": 29.963275,
+          "rss_kb": 1235104
+        },
+        {
+          "scenario": "vad",
+          "repeat": 5,
+          "latency_ms_avg": 9.694870599923888,
+          "latency_ms_p50": 11.454505001893267,
+          "latency_ms_p95": 13.959392997276154,
+          "cpu_time_s_avg": 0.006065199999999859,
+          "rss_kb": 641144
+        },
+        {
+          "scenario": "speaker",
+          "repeat": 3,
+          "latency_ms_avg": 3102.793707665114,
+          "latency_ms_p50": 690.0534809974488,
+          "latency_ms_p95": 13826.83564620238,
+          "cpu_time_s_avg": 2.3697626666666665,
+          "rss_kb": 772616,
+          "vars": {
+            "JARVIS_SPK_VERIFY": "1"
+          }
+        },
+        {
+          "scenario": "tts",
+          "repeat": 3,
+          "latency_ms_avg": 4.669962000965218,
+          "latency_ms_p50": 6.102210001699859,
+          "latency_ms_p95": 7.587236999097513,
+          "cpu_time_s_avg": 0.0005153333333333295,
+          "rss_kb": 24900,
+          "tts_mode": "local",
+          "text": "ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, ola jarvis, "
+        }
+      ]
+    },
+    {
+      "record_id": "ui_tail_2026-01-08",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "component": "chat_ui",
+        "change": "tail_em_blocos",
+        "note": "melhoria sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "chat_ui_tail",
+          "note": "sem benchmark; leitura por blocos para evitar arquivo inteiro"
+        }
+      ]
+    },
+    {
+      "record_id": "speaker_cache_2026-01-08",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "component": "speaker_verify",
+        "change": "voiceprint_cache",
+        "note": "melhoria sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "speaker_cache",
+          "note": "sem benchmark; cache evita IO repetido"
+        }
+      ]
+    },
+    {
+      "record_id": "gui_panel_cancel_2026-01-08",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "component": "gui_panel",
+        "change": "cancelamento_stop",
+        "note": "melhoria de fluxo; sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "gui_panel_cancel",
+          "note": "sem benchmark; botao alterna STOP"
+        }
+      ]
+    },
+    {
+      "record_id": "followup_max_commands_2026-01-08",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "component": "followup",
+        "change": "max_commands",
+        "note": "melhoria de fluxo; sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "followup_max_commands",
+          "note": "sem benchmark; janela limitada por quantidade de comandos"
+        }
+      ]
+    },
+    {
+      "record_id": "tts_serial_2026-01-08",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "component": "tts",
+        "change": "serializacao",
+        "note": "melhoria de fluxo; sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "tts_serial",
+          "note": "sem benchmark; chamadas serializadas para evitar sobreposicao"
+        }
+      ]
+    }
+  ]
+}

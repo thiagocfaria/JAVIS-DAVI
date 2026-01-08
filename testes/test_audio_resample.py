@@ -5,6 +5,7 @@ import math
 import pytest
 
 np = pytest.importorskip("numpy")
+pytest.importorskip("scipy")
 
 from jarvis.entrada.stt import resample_audio_float
 

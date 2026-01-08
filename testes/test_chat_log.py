@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import json
 import jarvis.comunicacao.chat_log as chat_log_module
 
 from jarvis.comunicacao.chat_log import ChatLog
@@ -15,9 +16,10 @@ class TestChatLog(unittest.TestCase):
             chat.append("jarvis", "parou", {"reason": "test"})
             lines = path.read_text(encoding="utf-8").strip().splitlines()
             self.assertEqual(len(lines), 1)
-            self.assertIn("jarvis", lines[0])
-            self.assertIn("parou", lines[0])
-            self.assertIn("reason", lines[0])
+            payload = json.loads(lines[0])
+            self.assertEqual(payload.get("role"), "jarvis")
+            self.assertEqual(payload.get("message"), "parou")
+            self.assertEqual(payload.get("meta", {}).get("reason"), "test")
 
 
 if __name__ == "__main__":
@@ -58,3 +60,39 @@ def test_auto_open_respects_cooldown(monkeypatch, tmp_path):
     chat.append("jarvis", "terceiro")
 
     assert len(calls) == 2
+
+
+def test_log_rotation_by_size(tmp_path):
+    path = tmp_path / "chat.log"
+    chat = ChatLog(path, auto_open=False, max_bytes=1, max_backups=1)
+
+    chat.append("jarvis", "primeiro")
+    assert path.exists()
+    assert not (tmp_path / "chat.log.1").exists()
+
+    chat.append("jarvis", "segundo")
+    rotated = tmp_path / "chat.log.1"
+    assert rotated.exists()
+    assert "primeiro" in rotated.read_text(encoding="utf-8")
+    assert "segundo" in path.read_text(encoding="utf-8")
+
+    chat.append("jarvis", "terceiro")
+    assert rotated.exists()
+    assert "segundo" in rotated.read_text(encoding="utf-8")
+    assert "terceiro" in path.read_text(encoding="utf-8")
+
+
+def test_open_logs_when_popen_fails(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("JARVIS_DEBUG", "1")
+
+    def fake_popen(*args, **kwargs):
+        raise RuntimeError("fail")
+
+    monkeypatch.setattr(chat_log_module.subprocess, "Popen", fake_popen)
+
+    chat = ChatLog(tmp_path / "chat.log", auto_open=False)
+    chat.open()
+
+    output = capsys.readouterr().out
+    assert "[chat_log]" in output
+    assert "open failed" in output

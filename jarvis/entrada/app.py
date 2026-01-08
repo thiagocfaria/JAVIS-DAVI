@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 
@@ -16,19 +17,29 @@ from .stt import check_stt_deps
 def _ensure_stt_ready(config) -> bool:
     deps = check_stt_deps()
     mode = config.stt_mode
-    has_audio = deps.get("sounddevice") and deps.get("numpy")
-    has_local = has_audio and deps.get("faster_whisper")
+    missing: list[str] = []
+    pip_map = {
+        "sounddevice": "sounddevice",
+        "numpy": "numpy",
+        "faster-whisper": "faster-whisper",
+    }
+
+    if not deps.get("sounddevice"):
+        missing.append("sounddevice")
+    if not deps.get("numpy"):
+        missing.append("numpy")
+    if mode in {"local", "auto"} and not deps.get("faster_whisper"):
+        missing.append("faster-whisper")
 
     if mode == "none":
         print("Voz desativada (JARVIS_STT_MODE=none).")
         return False
 
-    if not has_audio:
-        print("Voz indisponivel: faltam sounddevice/numpy (pip install sounddevice numpy).")
-        return False
-
-    if mode in {"local", "auto"} and not has_local:
-        print("Voz indisponivel: faltando faster-whisper (pip install faster-whisper).")
+    if missing:
+        print(f"Voz indisponivel: faltando {', '.join(missing)}.")
+        pip_install = " ".join(pip_map[item] for item in missing if item in pip_map)
+        if pip_install:
+            print(f"Dica: pip install {pip_install}")
         return False
 
     return True
@@ -39,6 +50,22 @@ def main() -> int:
     parser.add_argument("--text", help="command text to run once")
     parser.add_argument("--voice", action="store_true", help="capture voice for a single command")
     parser.add_argument("--voice-loop", action="store_true", help="continuous voice loop")
+    parser.add_argument(
+        "--voice-loop-sleep",
+        type=float,
+        default=0.5,
+        help="sleep between voice loop iterations (seconds)",
+    )
+    parser.add_argument(
+        "--audio-device",
+        type=int,
+        help="audio input device index (override JARVIS_AUDIO_DEVICE)",
+    )
+    parser.add_argument(
+        "--audio-capture-sr",
+        type=int,
+        help="audio capture sample rate (override JARVIS_AUDIO_CAPTURE_SR)",
+    )
     parser.add_argument("--loop", action="store_true", help="interactive loop")
     parser.add_argument(
         "--gui-panel",
@@ -61,6 +88,11 @@ def main() -> int:
         help="enable global keyboard shortcut (Ctrl+Shift+J) to open chat UI",
     )
     args = parser.parse_args()
+
+    if args.audio_device is not None:
+        os.environ["JARVIS_AUDIO_DEVICE"] = str(args.audio_device)
+    if args.audio_capture_sr is not None:
+        os.environ["JARVIS_AUDIO_CAPTURE_SR"] = str(args.audio_capture_sr)
 
     config = load_config()
     # Painel e dry-run não devem ficar presos em aprovação: desligamos aprovação aqui.
@@ -103,7 +135,10 @@ def main() -> int:
     if args.enable_shortcut:
         # Prefer a dedicated command for the chat UI (not the 'open chat log' command).
         chat_cmd = getattr(config, "chat_ui_command", None) or None
-        combo = getattr(config, "chat_shortcut_combo", "ctrl+shift+j")
+        combo = (
+            getattr(config, "chat_shortcut_combo", None)
+            or os.environ.get("JARVIS_CHAT_SHORTCUT_COMBO", "ctrl+shift+j")
+        )
         chat_shortcut = ChatShortcut(chat_command=chat_cmd, shortcut_combo=combo)
         if chat_shortcut.start():
             print(f"Atalho global ativado: {combo} para abrir a Chat UI")
@@ -130,14 +165,18 @@ def main() -> int:
 
     if args.voice_loop:
         print("Jarvis MVP - voice loop (Ctrl+C para sair)")
+        sleep_s = max(0.0, float(args.voice_loop_sleep))
         try:
             while True:
                 if stop_requested(config.stop_file_path):
                     print("Kill switch ativo. Saindo do loop.")
                     break
                 drain_chat_inbox()
+                if not _ensure_stt_ready(config):
+                    print("Voz indisponivel durante o loop. Encerrando.")
+                    break
                 orchestrator.transcribe_and_handle()
-                time.sleep(0.5)
+                time.sleep(sleep_s)
         except KeyboardInterrupt:
             pass
         finally:

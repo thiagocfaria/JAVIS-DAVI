@@ -11,9 +11,10 @@ from ..acoes.web import check_playwright_deps
 from ..aprendizado.recorder import check_recorder_deps
 from ..cerebro.config import Config
 from ..entrada.shortcut import check_shortcut_deps
+from ..entrada import stt as stt_module
 from ..entrada.stt import check_stt_deps
 from ..validacao.validator import check_validator_deps
-from ..voz.tts import check_tts_deps
+from ..voz.tts import TextToSpeech, check_tts_deps
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,73 @@ def format_report(report: PreflightReport) -> str:
     return "\n".join(lines)
 
 
+def _env_bool(key: str, default: bool = False) -> bool:
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_float(key: str, default: float) -> float:
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
+def _env_int_optional(key: str) -> int | None:
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _probe_stt_capture(seconds: float) -> bool:
+    sd = stt_module.sd
+    if sd is None:
+        return False
+    device = _env_int_optional("JARVIS_AUDIO_DEVICE")
+    capture_sr = _env_int_optional("JARVIS_AUDIO_CAPTURE_SR")
+    if capture_sr is None:
+        try:
+            info = sd.query_devices(device, "input")
+            default_sr = info.get("default_samplerate")
+            capture_sr = int(default_sr) if default_sr else stt_module.SAMPLE_RATE
+        except Exception:
+            capture_sr = stt_module.SAMPLE_RATE
+    samplerate = int(capture_sr)
+    try:
+        frames = max(1, int(seconds * samplerate))
+        audio = sd.rec(
+            frames,
+            samplerate=samplerate,
+            channels=1,
+            dtype="float32",
+            device=device,
+        )
+        sd.wait()
+        size = int(getattr(audio, "size", 0))
+        if size == 0 and hasattr(audio, "__len__"):
+            size = len(audio)
+        return size > 0
+    except Exception:
+        return False
+
+
+def _probe_tts_play(config: Config) -> bool:
+    try:
+        TextToSpeech(config).speak("teste de audio")
+        return True
+    except Exception:
+        return False
+
+
 def _check_data_dir(data_dir: Path) -> CheckResult:
     try:
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -166,6 +234,9 @@ def _check_stt(config: Config) -> CheckResult:
 
     has_audio = deps.get("sounddevice") and deps.get("numpy")
     has_local = has_audio and deps.get("faster_whisper")
+    has_resample = bool(deps.get("scipy"))
+    probe_enabled = _env_bool("JARVIS_PREFLIGHT_PROBE", False)
+    probe_seconds = max(0.05, _env_float("JARVIS_PREFLIGHT_PROBE_SECONDS", 0.2))
 
     if mode == "none":
         return CheckResult(
@@ -191,24 +262,60 @@ def _check_stt(config: Config) -> CheckResult:
                 detail="local sem faster-whisper",
                 hint="pip install faster-whisper",
             )
-        return CheckResult(name="STT", status="OK", detail="local ativo")
-
-    if mode == "auto":
+        if not has_resample:
+            result = CheckResult(
+                name="STT",
+                status="WARN",
+                detail="scipy ausente; reamostragem pode falhar em devices != 16 kHz",
+                hint="pip install scipy",
+            )
+        else:
+            result = CheckResult(name="STT", status="OK", detail="local ativo")
+    elif mode == "auto":
         if has_local:
-            return CheckResult(name="STT", status="OK", detail="auto (local)")
-        return CheckResult(
-            name="STT",
-            status="FAIL",
-            detail="auto sem local",
-            hint="Instale faster-whisper.",
+            if not has_resample:
+                result = CheckResult(
+                    name="STT",
+                    status="WARN",
+                    detail="scipy ausente; reamostragem pode falhar em devices != 16 kHz",
+                    hint="pip install scipy",
+                )
+            else:
+                result = CheckResult(name="STT", status="OK", detail="auto (local)")
+        else:
+            result = CheckResult(
+                name="STT",
+                status="FAIL",
+                detail="auto sem local",
+                hint="Instale faster-whisper.",
+            )
+    else:
+        result = CheckResult(
+            name="STT", status="WARN", detail=f"modo desconhecido: {mode}"
         )
 
-    return CheckResult(name="STT", status="WARN", detail=f"modo desconhecido: {mode}")
+    if not probe_enabled or result.status == "FAIL":
+        return result
+
+    if not _probe_stt_capture(probe_seconds):
+        detail = f"{result.detail}; captura falhou no preflight"
+        hint = result.hint or "Verifique microfone/dispositivo ou desative JARVIS_PREFLIGHT_PROBE."
+        return CheckResult(name="STT", status="WARN", detail=detail, hint=hint)
+
+    if result.status == "OK":
+        return CheckResult(
+            name="STT",
+            status="OK",
+            detail=f"{result.detail} (captura ok)",
+        )
+
+    return result
 
 
 def _check_tts(config: Config) -> CheckResult:
     deps = check_tts_deps()
     mode = config.tts_mode
+    probe_enabled = _env_bool("JARVIS_PREFLIGHT_PROBE", False)
 
     if mode == "none":
         return CheckResult(
@@ -218,7 +325,9 @@ def _check_tts(config: Config) -> CheckResult:
             hint="Defina JARVIS_TTS_MODE=local para voz.",
         )
 
-    has_engine = deps.get("piper") or deps.get("espeak-ng")
+    has_piper = bool(deps.get("piper"))
+    has_espeak = bool(deps.get("espeak-ng"))
+    has_engine = has_piper or has_espeak
     if not has_engine:
         return CheckResult(
             name="TTS",
@@ -227,7 +336,43 @@ def _check_tts(config: Config) -> CheckResult:
             hint="Instale piper ou espeak-ng.",
         )
 
-    return CheckResult(name="TTS", status="OK", detail="engine local disponivel")
+    result: CheckResult
+    if has_piper:
+        try:
+            piper_ok = TextToSpeech(config)._find_piper_model() is not None
+        except Exception:
+            piper_ok = False
+        if not piper_ok:
+            detail = "piper instalado, mas sem modelo local"
+            if has_espeak:
+                detail += " (espeak disponivel)"
+            result = CheckResult(
+                name="TTS",
+                status="WARN",
+                detail=detail,
+                hint="Baixe um modelo Piper ou use espeak-ng.",
+            )
+        else:
+            result = CheckResult(name="TTS", status="OK", detail="engine local disponivel")
+    else:
+        result = CheckResult(name="TTS", status="OK", detail="engine local disponivel")
+
+    if not probe_enabled or not has_engine:
+        return result
+
+    if not _probe_tts_play(config):
+        detail = f"{result.detail}; falha ao tocar audio no preflight"
+        hint = result.hint or "Verifique TTS/alsa ou desative JARVIS_PREFLIGHT_PROBE."
+        return CheckResult(name="TTS", status="WARN", detail=detail, hint=hint)
+
+    if result.status == "OK":
+        return CheckResult(
+            name="TTS",
+            status="OK",
+            detail=f"{result.detail} (audio ok)",
+        )
+
+    return result
 
 
 def _check_desktop_drivers(config: Config) -> CheckResult:

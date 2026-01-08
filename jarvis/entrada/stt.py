@@ -10,6 +10,7 @@ import os
 import re
 import tempfile
 import wave
+from array import array
 from fractions import Fraction
 from typing import Any, Literal, overload
 
@@ -94,6 +95,25 @@ def _env_int_optional(key: str) -> int | None:
         return int(value)
     except ValueError:
         return None
+
+
+def _peak_amplitude(pcm_bytes: bytes) -> int:
+    if np is not None:
+        try:
+            samples = np.frombuffer(pcm_bytes, dtype=np.int16)
+            if samples.size == 0:
+                return 0
+            return int(np.max(np.abs(samples)))
+        except Exception:
+            return 0
+    try:
+        samples = array("h")
+        samples.frombytes(pcm_bytes)
+        if not samples:
+            return 0
+        return max(abs(sample) for sample in samples)
+    except Exception:
+        return 0
 
 
 def resample_audio_float(
@@ -699,7 +719,8 @@ class SpeechToText:
                 except Exception as exc:
                     self._debug(f"rust speech check failed: {exc}")
                     return False
-            return True
+            min_peak = _env_int("JARVIS_STT_MIN_PEAK", 300)
+            return _peak_amplitude(pcm_bytes) >= max(0, min_peak)
 
         speech_frames = 0
         total_frames = 0
@@ -717,6 +738,7 @@ def check_stt_deps() -> dict:
     return {
         "sounddevice": sd is not None,
         "numpy": np is not None,
+        "scipy": resample_poly is not None,
         "faster_whisper": WhisperModel is not None,
         "webrtcvad": check_vad_available() if callable(check_vad_available) else False,
     }

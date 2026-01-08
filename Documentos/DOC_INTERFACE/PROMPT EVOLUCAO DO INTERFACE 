@@ -1,0 +1,21 @@
+PADRAO DE EVOLUCAO (ENVIAR ESTE PROMPT INTEIRO DE UMA VEZ)
+
+1) Escolha 1 item do checklist (P1 -> P2 -> P3... os que ainda nao estao feitos) em `Documentos/DOC_INTERFACE/CORRECOES_DOCINTERFACE.MD`.
+   - Explique de forma simples: por que existe, como corrigir, o que melhora.
+
+2) Verifique se existe teste para esse item.
+   - Se existir: rode o teste e registre em `Documentos/DOC_INTERFACE/TESTES_REALISADOS_INTERFACE.MD`.
+   - Se nao existir: crie o teste OU registre "sem teste" com justificativa clara.
+
+3) Corrija o problema no codigo e atualize o doc do modulo correspondente em `Documentos/DOC_INTERFACE/`.
+   - A documentacao deve refletir exatamente o que foi alterado.
+
+4) Rode os testes relevantes e anote o resultado.
+
+5) Atualize o checklist em `Documentos/DOC_INTERFACE/CORRECOES_DOCINTERFACE.MD`:
+   - Marque [x] no item corrigido.
+   - Escreva embaixo: o que foi feito e o ganho obtido.
+
+6) So se a mudanca afetar fluxo ou performance:
+   - Atualize `Documentos/DOC_INTERFACE/EVOLUCAO_PERFOMACE.MD` e `Documentos/DOC_INTERFACE/bench_history.json`.
+   - Atualize `Documentos/DIAGRAMA_ARQUITETURA.svg` se mudou fluxo/dep/testes/peso.

@@ -10,7 +10,7 @@ from jarvis.entrada.stt import apply_wake_word_filter
 
 
 def test_followup_allows_without_wake_word_within_window() -> None:
-    session = FollowUpSession(followup_seconds=20)
+    session = FollowUpSession(followup_seconds=20, max_commands=2)
     now = 100.0
 
     assert session.should_require_wake_word(True, now=now) is True
@@ -25,7 +25,7 @@ def test_followup_allows_without_wake_word_within_window() -> None:
 
 
 def test_followup_expires_and_requires_wake_word() -> None:
-    session = FollowUpSession(followup_seconds=10)
+    session = FollowUpSession(followup_seconds=10, max_commands=2)
     now = 200.0
 
     session.on_command_accepted(True, now=now)
@@ -51,7 +51,7 @@ def test_followup_resets_on_speaker_verify_failure() -> None:
             audio = b"\x01\x00" * SAMPLE_RATE
             return "ligar luz", audio, True
 
-    session = FollowUpSession(followup_seconds=20)
+    session = FollowUpSession(followup_seconds=20, max_commands=2)
     session.renew(now=0.0)
     handled: list[str] = []
     messages: list[str] = []
@@ -111,7 +111,7 @@ def test_followup_resets_when_command_fails() -> None:
             audio = b"\x01\x00" * SAMPLE_RATE
             return "ligar luz", audio, True
 
-    session = FollowUpSession(followup_seconds=20)
+    session = FollowUpSession(followup_seconds=20, max_commands=2)
     session.renew(now=0.0)
 
     class DummyVerifier:
@@ -139,3 +139,14 @@ def test_followup_resets_when_command_fails() -> None:
     Orchestrator.transcribe_and_handle(fake)  # type: ignore[misc]
 
     assert session.followup_until == 0.0
+
+
+def test_followup_resets_after_max_commands() -> None:
+    session = FollowUpSession(followup_seconds=20, max_commands=2)
+    now = 10.0
+
+    session.on_command_accepted(True, now=now)
+    assert session.should_require_wake_word(True, now=now + 1) is False
+
+    session.on_command_accepted(True, now=now + 2)
+    assert session.should_require_wake_word(True, now=now + 3) is True

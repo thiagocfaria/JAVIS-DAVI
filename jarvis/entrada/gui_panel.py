@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 from typing import Optional
 
 try:
@@ -74,6 +75,14 @@ class JarvisPanel:
         )
         self.mic_button.pack(side="left")
 
+        self.cancel_button = tk.Button(
+            control_frame,
+            text="Cancelar",
+            command=self._request_cancel,
+            width=12,
+        )
+        self.cancel_button.pack(side="left", padx=(4, 0))
+
         self.power_button = tk.Button(
             control_frame,
             text="Desligar Jarvis",
@@ -115,6 +124,28 @@ class JarvisPanel:
         label = "Microfone: Ligado" if self._microphone_enabled else "Microfone: Desligado"
         self.mic_button.configure(text=label)
         self._log(f"{label} (indicador apenas, STT permanece nas configurações padrão).")
+
+    def _request_cancel(self) -> None:
+        config = getattr(self._orchestrator, "config", None)
+        stop_path = getattr(config, "stop_file_path", None)
+        if stop_path is None:
+            self._log("Cancelamento indisponivel (stop_file_path ausente).")
+            return
+        try:
+            path = stop_path if isinstance(stop_path, Path) else Path(str(stop_path))
+        except Exception:
+            self._log("Cancelamento indisponivel (stop_file_path invalido).")
+            return
+        try:
+            if path.exists():
+                path.unlink()
+                self._log("Cancelamento removido. Jarvis pode continuar.")
+                return
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch(exist_ok=True)
+            self._log("Cancelamento solicitado (STOP ativado).")
+        except Exception as exc:
+            self._log(f"Falha ao alternar cancelamento: {exc}")
 
     def _on_send(self, event: Optional[tk.Event] = None) -> None:
         if event:

@@ -29,10 +29,10 @@ def _patch_audio_deps(monkeypatch):
     monkeypatch.setattr("jarvis.entrada.stt.check_vad_available", lambda: False)
 
 
-def _make_stt() -> SpeechToText:
+def _make_stt(tmp_path: Path) -> SpeechToText:
     """Create SpeechToText instance with minimal config for testing."""
     # Create a minimal Config with required fields
-    data_dir = Path("/tmp/jarvis_test")
+    data_dir = tmp_path
     config = Config(
         # Data directories
         data_dir=data_dir,
@@ -108,20 +108,20 @@ def _make_stt() -> SpeechToText:
     return SpeechToText(config)
 
 
-def test_check_speech_present_detects_voice():
-    stt = _make_stt()
+def test_check_speech_present_detects_voice(tmp_path):
+    stt = _make_stt(tmp_path)
     stt._vad = _DummyVAD([False, False, True, True])
     assert stt.check_speech_present(b"ignored")
 
 
-def test_check_speech_present_rejects_silence():
-    stt = _make_stt()
+def test_check_speech_present_rejects_silence(tmp_path):
+    stt = _make_stt(tmp_path)
     stt._vad = _DummyVAD([False, False, False])
     assert not stt.check_speech_present(b"ignored")
 
 
-def test_record_audio_prefers_streaming():
-    stt = _make_stt()
+def test_record_audio_prefers_streaming(tmp_path):
+    stt = _make_stt(tmp_path)
     stt._vad = _DummyVAD([True])
 
     class DummyStreaming:
@@ -151,8 +151,8 @@ def test_record_audio_prefers_streaming():
     assert result == b"\x01\x02" * 20000
 
 
-def test_record_audio_streaming_long_enough():
-    stt = _make_stt()
+def test_record_audio_streaming_long_enough(tmp_path):
+    stt = _make_stt(tmp_path)
 
     class DummyStreaming:
         def __init__(self, payload: bytes):
@@ -176,8 +176,8 @@ def test_record_audio_streaming_long_enough():
     assert result == long_payload
 
 
-def test_transcribe_once_skips_whisper_when_empty():
-    stt = _make_stt()
+def test_transcribe_once_skips_whisper_when_empty(tmp_path):
+    stt = _make_stt(tmp_path)
     stt._record_audio = lambda seconds: b""
     touched = {"transcribed": False}
 
@@ -190,8 +190,8 @@ def test_transcribe_once_skips_whisper_when_empty():
     assert not touched["transcribed"]
 
 
-def test_record_audio_accepts_frame_list_from_streaming():
-    stt = _make_stt()
+def test_record_audio_accepts_frame_list_from_streaming(tmp_path):
+    stt = _make_stt(tmp_path)
     stt._min_audio_seconds = 0.1  # reduz limiar para evitar fallback
 
     class DummyStreaming:
@@ -214,8 +214,8 @@ def test_record_audio_accepts_frame_list_from_streaming():
     assert not streaming.fixed_called
 
 
-def test_record_audio_short_payload_triggers_fallback(monkeypatch):
-    stt = _make_stt()
+def test_record_audio_short_payload_triggers_fallback(monkeypatch, tmp_path):
+    stt = _make_stt(tmp_path)
     stt._vad = _DummyVAD([True])
 
     class DummyStreaming:
@@ -238,7 +238,7 @@ def test_record_audio_short_payload_triggers_fallback(monkeypatch):
 
 
 def test_write_wav_coerces_payloads(tmp_path):
-    stt = _make_stt()
+    stt = _make_stt(tmp_path)
     wav_path = tmp_path / "out.wav"
     stt._write_wav(str(wav_path), [0, 1, 2, 3], SAMPLE_RATE)
     expected = coerce_pcm_bytes([0, 1, 2, 3])

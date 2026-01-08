@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="1680" height="1520" viewBox="0 0 1680 1520" xmlns="http://www.w3.org/2000/svg">
+<svg width="1680" height="1920" viewBox="0 0 1680 1920" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
       <polygon points="0 0, 10 3.5, 0 7" fill="context-stroke"/>
@@ -139,192 +139,258 @@
   <text x="30" y="60" class="subtitle">Cores = existe hoje. Cinza claro = vai ser criado. Setas tracejadas = opcional/condicional.</text>
 
   <!-- Regions -->
-  <rect x="20" y="70" width="520" height="1300" class="region-local"/>
+  <rect x="20" y="70" width="520" height="1700" class="region-local"/>
   <text x="40" y="92" class="region-title">LOCAL (PC)</text>
 
-  <rect x="580" y="70" width="520" height="1300" class="region-vps"/>
+  <rect x="580" y="70" width="520" height="1700" class="region-vps"/>
   <text x="600" y="92" class="region-title">VPS (CPU) - SELF-HOSTED</text>
 
-  <rect x="1140" y="70" width="520" height="1300" class="region-cloud"/>
+  <rect x="1140" y="70" width="520" height="1700" class="region-cloud"/>
   <text x="1160" y="92" class="region-title">VPS/GPU SELF-HOSTED (SEM APIS)</text>
 
   <!-- LOCAL (PC) -->
-  <rect x="40" y="120" width="160" height="70" class="box-user card"/>
-  <use href="#icon-user" x="176" y="130"/>
-  <text x="55" y="145" class="label">Voce</text>
-  <text x="55" y="162" class="small">pede algo</text>
-  <text x="55" y="176" class="tiny">Lat: humana</text>
+  <rect x="30" y="120" width="140" height="70" class="box-user card"/>
+  <use href="#icon-user" x="150" y="130"/>
+  <text x="45" y="145" class="label">Voce</text>
+  <text x="45" y="162" class="small">pede algo</text>
+  <text x="45" y="176" class="tiny">Lat: humana</text>
 
-  <rect x="210" y="120" width="330" height="380" class="box-input card"/>
+  <rect x="30" y="210" width="140" height="60" class="box-system card"/>
+  <text x="38" y="228" class="tiny-strong">comunicacao/</text>
+  <text x="38" y="242" class="tiny-strong">protocolo.py</text>
+  <text x="38" y="256" class="tiny">formato das mensagens</text>
+
+  <rect x="180" y="120" width="360" height="780" class="box-input card"/>
   <use href="#icon-mic" x="520" y="130"/>
-  <text x="230" y="145" class="label">Interface (entrada/saida)</text>
-  <text x="230" y="162" class="small">texto e voz (STT/TTS) + UI/painel</text>
-  <line x1="230" y1="170" x2="520" y2="170" class="divider-interface"/>
-  <text x="230" y="176" class="tiny-strong">Voz (entrada)</text>
-  <text x="390" y="176" class="tiny-strong">Texto/UI/saida</text>
-  <text x="230" y="460" class="tiny">Fluxo: mic -&gt; stt/vad -&gt; inbox -&gt; orq -&gt; tts/log</text>
-  <text x="230" y="474" class="tiny">CPU 2-30%, RAM 120-600MB, Disk 50-200MB (+log 1-10MB), Lat 0.2-1.2s</text>
+  <text x="200" y="145" class="label">Interface (entrada/saida)</text>
+  <text x="200" y="162" class="small">texto e voz (STT/TTS) + UI/painel</text>
+  <line x1="200" y1="170" x2="520" y2="170" class="divider-interface"/>
+  <text x="200" y="176" class="tiny-strong">Voz (entrada)</text>
+  <text x="370" y="176" class="tiny-strong">Texto/UI/saida</text>
+  <text x="200" y="846" class="tiny">Fluxo: mic -&gt; stt/vad -&gt; inbox -&gt; orq -&gt; tts/log</text>
+  <text x="200" y="858" class="tiny">CPU 2-30%, RAM 120-600MB, Disk 50-200MB (+log 1-10MB), Lat 0.2-1.2s</text>
   <!-- sub-baloes da interface (limpo e explicativo) -->
-  <rect x="230" y="180" width="150" height="40" class="box-input card"/>
-  <text x="238" y="195" class="tiny-strong">entrada/preflight.py</text>
-  <text x="238" y="210" class="tiny">testa microfone</text>
+  <rect x="190" y="184" width="165" height="28" class="box-input card"/>
+  <text x="198" y="196" class="tiny-strong">entrada/preflight.py</text>
+  <text x="198" y="207" class="tiny">confere microfone</text>
 
-  <rect x="390" y="180" width="150" height="40" class="box-input card"/>
-  <text x="398" y="195" class="tiny-strong">entrada/chat_ui.py</text>
-  <text x="398" y="210" class="tiny">caixinha para digitar</text>
+  <rect x="370" y="184" width="165" height="28" class="box-input card"/>
+  <text x="378" y="196" class="tiny-strong">entrada/chat_ui.py</text>
+  <text x="378" y="207" class="tiny">caixinha para digitar</text>
 
-  <rect x="230" y="226" width="150" height="40" class="box-input card"/>
-  <text x="238" y="241" class="tiny-strong">entrada/app.py</text>
-  <text x="238" y="256" class="tiny">inicia voz e texto</text>
+  <rect x="190" y="216" width="165" height="28" class="box-input card"/>
+  <text x="198" y="228" class="tiny-strong">entrada/app.py</text>
+  <text x="198" y="239" class="tiny">inicia voz + texto</text>
 
-  <rect x="390" y="226" width="150" height="40" class="box-input card"/>
-  <text x="398" y="241" class="tiny-strong">entrada/gui_panel.py</text>
-  <text x="398" y="256" class="tiny">painel que flutua</text>
+  <rect x="370" y="216" width="165" height="28" class="box-input card"/>
+  <text x="378" y="228" class="tiny-strong">entrada/gui_panel.py</text>
+  <text x="378" y="239" class="tiny">painel + cancelar</text>
 
-  <rect x="230" y="272" width="150" height="40" class="box-input card"/>
-  <text x="238" y="287" class="tiny-strong">entrada/audio_utils.py</text>
-  <text x="238" y="302" class="tiny">arruma o som</text>
+  <rect x="190" y="248" width="165" height="28" class="box-input card"/>
+  <text x="198" y="260" class="tiny-strong">entrada/audio_utils.py</text>
+  <text x="198" y="271" class="tiny">normaliza PCM</text>
 
-  <rect x="390" y="272" width="150" height="40" class="box-input card"/>
-  <text x="398" y="287" class="tiny-strong">entrada/shortcut.py</text>
-  <text x="398" y="302" class="tiny">atalho para abrir</text>
+  <rect x="370" y="248" width="165" height="28" class="box-input card"/>
+  <text x="378" y="260" class="tiny-strong">entrada/shortcut.py</text>
+  <text x="378" y="271" class="tiny">atalho global do chat</text>
 
-  <rect x="230" y="318" width="150" height="40" class="box-input card"/>
-  <text x="238" y="333" class="tiny-strong">entrada/stt.py</text>
-  <text x="238" y="348" class="tiny">voz vira texto; chama Rust</text>
+  <rect x="190" y="280" width="165" height="28" class="box-input card"/>
+  <text x="198" y="292" class="tiny-strong">voz/vad.py</text>
+  <text x="198" y="303" class="tiny">detecta quando ha fala</text>
 
-  <rect x="390" y="318" width="150" height="40" class="box-input card"/>
-  <text x="398" y="333" class="tiny-strong">comunicacao/chat_inbox.py</text>
-  <text x="398" y="348" class="tiny">recebe voz + texto</text>
+  <rect x="370" y="280" width="165" height="28" class="box-input card"/>
+  <text x="378" y="292" class="tiny-strong">entrada/followup.py</text>
+  <text x="378" y="303" class="tiny">janela + limite</text>
 
-  <rect x="230" y="364" width="150" height="40" class="box-input card"/>
-  <text x="238" y="379" class="tiny-strong">voz/vad.py</text>
-  <text x="238" y="394" class="tiny">ouve quando voce fala</text>
+  <rect x="190" y="312" width="165" height="28" class="box-input card"/>
+  <text x="198" y="324" class="tiny-strong">entrada/stt.py</text>
+  <text x="198" y="335" class="tiny">voz vira texto; chama Rust</text>
 
-  <rect x="390" y="364" width="150" height="40" class="box-input card"/>
-  <text x="398" y="379" class="tiny-strong">voz/tts.py</text>
-  <text x="398" y="394" class="tiny">texto vira voz</text>
+  <rect x="370" y="312" width="165" height="28" class="box-input card"/>
+  <text x="378" y="324" class="tiny-strong">comunicacao/chat_inbox.py</text>
+  <text x="378" y="335" class="tiny">ponte p/ comandos</text>
 
-  <rect x="230" y="410" width="150" height="40" class="box-input card"/>
-  <text x="238" y="425" class="tiny-strong">rust/jarvis_audio</text>
-  <text x="238" y="440" class="tiny">corta o silencio (Rust)</text>
+  <rect x="190" y="344" width="165" height="28" class="box-input card"/>
+  <text x="198" y="356" class="tiny-strong">rust/jarvis_audio</text>
+  <text x="198" y="367" class="tiny">trim/silencio em Rust</text>
 
-  <rect x="390" y="410" width="150" height="40" class="box-input card"/>
-  <text x="398" y="425" class="tiny-strong">comunicacao/chat_log.py</text>
-  <text x="398" y="440" class="tiny">diario do chat</text>
+  <rect x="370" y="344" width="165" height="28" class="box-input card"/>
+  <text x="378" y="356" class="tiny-strong">voz/tts.py</text>
+  <text x="378" y="367" class="tiny">texto vira voz</text>
 
+  <rect x="190" y="376" width="165" height="28" class="box-input card"/>
+  <text x="198" y="388" class="tiny-strong">voz/speaker_verify.py</text>
+  <text x="198" y="399" class="tiny">confere se e sua voz</text>
+
+  <rect x="370" y="376" width="165" height="28" class="box-input card"/>
+  <text x="378" y="388" class="tiny-strong">comunicacao/chat_log.py</text>
+  <text x="378" y="399" class="tiny">diario do chat</text>
+
+  <rect x="190" y="408" width="165" height="28" class="box-input card"/>
+  <text x="198" y="420" class="tiny-strong">voz/adapters/speaker_resemblyzer.py</text>
+  <text x="198" y="431" class="tiny">ponte p/ verificador</text>
+
+  <rect x="370" y="408" width="165" height="28" class="box-input card"/>
+  <text x="378" y="420" class="tiny-strong">voz/adapters/base.py</text>
+  <text x="378" y="431" class="tiny">contratos da voz</text>
+
+  <rect x="190" y="440" width="165" height="28" class="box-input card"/>
+  <text x="198" y="452" class="tiny-strong">voz/adapters/wakeword_text.py</text>
+  <text x="198" y="463" class="tiny">checa wake word</text>
+
+  <rect x="370" y="440" width="165" height="28" class="box-input card"/>
+  <text x="378" y="452" class="tiny-strong">DOC_INTERFACE</text>
+  <text x="378" y="463" class="tiny">docs da interface</text>
+
+  <rect x="190" y="472" width="345" height="80" class="box-input card"/>
+  <text x="198" y="486" class="tiny-strong">Deps da interface (entrada/saida)</text>
+  <text x="198" y="500" class="tiny">sounddevice + numpy (captura)</text>
+  <text x="198" y="510" class="tiny">scipy (reamostra) + webrtcvad (VAD)</text>
+  <text x="198" y="520" class="tiny">faster-whisper (STT)</text>
+  <text x="198" y="530" class="tiny">piper/espeak-ng + modelos (TTS)</text>
+  <text x="198" y="540" class="tiny">resemblyzer, pynput, tkinter (locutor/UI)</text>
+  <text x="198" y="550" class="tiny">py-spy (diagnostico CPU)</text>
+
+  <rect x="190" y="560" width="345" height="270" class="box-input card"/>
+  <text x="198" y="574" class="tiny-strong">Testes da interface (entrada/saida)</text>
+  <text x="198" y="590" class="tiny">test_preflight_headless.py - preflight voz/tts</text>
+  <text x="198" y="601" class="tiny">test_preflight_shortcut_ui.py - preflight chat UI/atalho</text>
+  <text x="198" y="612" class="tiny">test_chat_inbox.py - entrada por arquivo</text>
+  <text x="198" y="623" class="tiny">test_chat_log.py - saida/log</text>
+  <text x="198" y="634" class="tiny">test_chat_ui_interface.py - UI escreve no inbox</text>
+  <text x="198" y="645" class="tiny">test_gui_panel_interface.py - painel envia comando + cancelar</text>
+  <text x="198" y="656" class="tiny">test_shortcut_interface.py - atalho global/Wayland</text>
+  <text x="198" y="667" class="tiny">test_app_voice_interface.py - CLI voz/loop/chat</text>
+  <text x="198" y="678" class="tiny">test_stt_flow.py - streaming + fallback</text>
+  <text x="198" y="689" class="tiny">test_stt_rust_trim.py - trim Rust</text>
+  <text x="198" y="700" class="tiny">test_stt_filters.py - wake word</text>
+  <text x="198" y="711" class="tiny">test_stt_capture_config.py - device/SR/streaming</text>
+  <text x="198" y="722" class="tiny">test_audio_resample.py - reamostra 44k->16k</text>
+  <text x="198" y="733" class="tiny">test_vad_pre_roll.py - VAD pre-roll</text>
+  <text x="198" y="744" class="tiny">test_vad_streaming_interface.py - VAD streaming fixo</text>
+  <text x="198" y="755" class="tiny">test_followup_mode.py - follow-up</text>
+  <text x="198" y="766" class="tiny">test_voice_adapters.py - adapters de voz</text>
+  <text x="198" y="777" class="tiny">test_speaker_verify_interface.py - verif. de locutor</text>
+  <text x="198" y="788" class="tiny">test_voice_max_seconds_env.py - max_seconds</text>
+  <text x="198" y="799" class="tiny">test_tts_interface.py - TTS piper/espeak</text>
+  <text x="198" y="810" class="tiny">scripts/bench_interface.py - mede lat/CPU/RAM</text>
   <!-- setas internas da interface -->
-  <line x1="305" y1="220" x2="305" y2="226" class="arrow-interface"/>
-  <line x1="305" y1="266" x2="305" y2="272" class="arrow-interface"/>
-  <line x1="305" y1="312" x2="305" y2="318" class="arrow-interface"/>
-  <line x1="305" y1="358" x2="305" y2="364" class="arrow-interface"/>
-  <path d="M 230 338 L 220 338 L 220 410 L 230 410" class="arrow-interface"/>
-  <line x1="380" y1="338" x2="390" y2="338" class="arrow-interface"/>
-  <line x1="465" y1="220" x2="465" y2="226" class="arrow-interface"/>
-  <line x1="465" y1="266" x2="465" y2="272" class="arrow-interface"/>
-  <line x1="465" y1="312" x2="465" y2="318" class="arrow-interface"/>
-  <line x1="465" y1="358" x2="465" y2="364" class="arrow-interface"/>
-  <line x1="465" y1="404" x2="465" y2="410" class="arrow-interface"/>
+  <line x1="272" y1="212" x2="272" y2="216" class="arrow-interface"/>
+  <line x1="272" y1="244" x2="272" y2="248" class="arrow-interface"/>
+  <line x1="272" y1="276" x2="272" y2="280" class="arrow-interface"/>
+  <line x1="272" y1="308" x2="272" y2="312" class="arrow-interface"/>
+  <line x1="272" y1="340" x2="272" y2="344" class="arrow-interface"/>
+  <line x1="272" y1="372" x2="272" y2="376" class="arrow-interface"/>
+  <line x1="272" y1="404" x2="272" y2="408" class="arrow-interface"/>
+  <line x1="272" y1="436" x2="272" y2="440" class="arrow-interface"/>
+  <line x1="452" y1="212" x2="452" y2="216" class="arrow-interface"/>
+  <line x1="452" y1="244" x2="452" y2="248" class="arrow-interface"/>
+  <line x1="452" y1="276" x2="452" y2="280" class="arrow-interface"/>
+  <line x1="452" y1="308" x2="452" y2="312" class="arrow-interface"/>
+  <line x1="452" y1="340" x2="452" y2="344" class="arrow-interface"/>
+  <line x1="452" y1="372" x2="452" y2="376" class="arrow-interface"/>
+  <line x1="452" y1="404" x2="452" y2="408" class="arrow-interface"/>
+  <line x1="355" y1="326" x2="370" y2="326" class="arrow-interface"/>
 
-  <rect x="40" y="520" width="480" height="100" class="box-brain card"/>
-  <use href="#icon-gear" x="496" y="530"/>
-  <text x="55" y="545" class="label">Executor local (gatekeeper)</text>
-  <text x="55" y="562" class="small">junta tudo, pede confirmacao</text>
-  <text x="55" y="578" class="small">gate + budget + kill switch; inclui loop S3 (GUI)</text>
-  <text x="55" y="594" class="tiny">codigo: jarvis/cerebro/orchestrator.py + jarvis/agent_s3/*</text>
-  <text x="55" y="608" class="tiny">CPU 5-15%, RAM 200-500MB, Lat 20-80ms</text>
+  <rect x="40" y="920" width="480" height="100" class="box-brain card"/>
+  <use href="#icon-gear" x="496" y="930"/>
+  <text x="55" y="945" class="label">Executor local (gatekeeper)</text>
+  <text x="55" y="962" class="small">junta tudo, pede confirmacao</text>
+  <text x="55" y="978" class="small">gate + budget + kill switch; inclui loop S3 (GUI)</text>
+  <text x="55" y="994" class="tiny">codigo: jarvis/cerebro/orchestrator.py + jarvis/agent_s3/*</text>
+  <text x="55" y="1008" class="tiny">CPU 5-15%, RAM 200-500MB, Lat 20-80ms</text>
 
-  <rect x="40" y="640" width="230" height="85" class="box-safety card"/>
-  <use href="#icon-shield" x="246" y="650"/>
-  <text x="55" y="662" class="label">Regras de seguranca</text>
-  <text x="55" y="678" class="small">bloqueia apps/dados + classifica texto</text>
-  <text x="55" y="692" class="tiny">codigo: jarvis/seguranca/*</text>
-  <text x="55" y="706" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat &lt;10ms</text>
+  <rect x="40" y="1040" width="230" height="85" class="box-safety card"/>
+  <use href="#icon-shield" x="246" y="1050"/>
+  <text x="55" y="1062" class="label">Regras de seguranca</text>
+  <text x="55" y="1078" class="small">bloqueia apps/dados + classifica texto</text>
+  <text x="55" y="1092" class="tiny">codigo: jarvis/seguranca/*</text>
+  <text x="55" y="1106" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat &lt;10ms</text>
 
-  <rect x="290" y="640" width="230" height="85" class="box-safety card"/>
-  <use href="#icon-check" x="496" y="650"/>
-  <text x="305" y="662" class="label">Confirmacao humana</text>
-  <text x="305" y="678" class="small">voz/tecla antes de agir</text>
-  <text x="305" y="692" class="tiny">codigo: jarvis/cerebro/orchestrator.py</text>
-  <text x="305" y="706" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat: humana</text>
+  <rect x="290" y="1040" width="230" height="85" class="box-safety card"/>
+  <use href="#icon-check" x="496" y="1050"/>
+  <text x="305" y="1062" class="label">Confirmacao humana</text>
+  <text x="305" y="1078" class="small">voz/tecla antes de agir</text>
+  <text x="305" y="1092" class="tiny">codigo: jarvis/cerebro/orchestrator.py</text>
+  <text x="305" y="1106" class="tiny">CPU &lt;2%, RAM 20-60MB, Lat: humana</text>
 
-  <rect x="40" y="740" width="230" height="85" class="box-safety card"/>
-  <use href="#icon-clipboard" x="246" y="750"/>
-  <text x="55" y="762" class="label">Validacao de saida</text>
-  <text x="55" y="778" class="small">validacao visual/OCR da tela</text>
-  <text x="55" y="792" class="tiny">codigo: jarvis/validacao/validator.py</text>
-  <text x="55" y="806" class="tiny">CPU 2-8%, RAM 50-120MB, Lat 0.05-6s (Wayland sem portal)</text>
+  <rect x="40" y="1140" width="230" height="85" class="box-safety card"/>
+  <use href="#icon-clipboard" x="246" y="1150"/>
+  <text x="55" y="1162" class="label">Validacao de saida</text>
+  <text x="55" y="1178" class="small">validacao visual/OCR da tela</text>
+  <text x="55" y="1192" class="tiny">codigo: jarvis/validacao/validator.py</text>
+  <text x="55" y="1206" class="tiny">CPU 2-8%, RAM 50-120MB, Lat 0.05-6s (Wayland sem portal)</text>
 
-  <rect x="290" y="740" width="230" height="85" class="box-safety card"/>
-  <use href="#icon-mask" x="496" y="750"/>
-  <text x="305" y="762" class="label">Mascara de privacidade</text>
-  <text x="305" y="778" class="small">remove dados sensiveis</text>
-  <text x="305" y="792" class="tiny">codigo: jarvis/seguranca/privacy.py</text>
-  <text x="305" y="806" class="tiny">CPU 5-25%, RAM 80-200MB, Lat 50-200ms</text>
+  <rect x="290" y="1140" width="230" height="85" class="box-safety card"/>
+  <use href="#icon-mask" x="496" y="1150"/>
+  <text x="305" y="1162" class="label">Mascara de privacidade</text>
+  <text x="305" y="1178" class="small">remove dados sensiveis</text>
+  <text x="305" y="1192" class="tiny">codigo: jarvis/seguranca/privacy.py</text>
+  <text x="305" y="1206" class="tiny">CPU 5-25%, RAM 80-200MB, Lat 50-200ms</text>
 
-  <rect x="40" y="840" width="230" height="95" class="box-action card"/>
-  <use href="#icon-cursor" x="246" y="850"/>
-  <text x="55" y="864" class="label">Maos (acoes) - hoje</text>
-  <text x="55" y="880" class="small">mouse/teclado/web + drag/overwrite (S3)</text>
-  <text x="55" y="894" class="tiny">hoje: Python em jarvis/acoes/desktop.py + web.py (S3 usa)</text>
-  <text x="55" y="908" class="tiny">CPU 5-20%, RAM 80-200MB, Lat 50-200ms</text>
+  <rect x="40" y="1240" width="230" height="95" class="box-action card"/>
+  <use href="#icon-cursor" x="246" y="1250"/>
+  <text x="55" y="1264" class="label">Maos (acoes) - hoje</text>
+  <text x="55" y="1280" class="small">mouse/teclado/web + drag/overwrite (S3)</text>
+  <text x="55" y="1294" class="tiny">hoje: Python em jarvis/acoes/desktop.py + web.py (S3 usa)</text>
+  <text x="55" y="1308" class="tiny">CPU 5-20%, RAM 80-200MB, Lat 50-200ms</text>
 
-  <rect x="290" y="840" width="230" height="95" class="box-vision card"/>
-  <use href="#icon-eye" x="496" y="850"/>
-  <text x="305" y="864" class="label">Olhos (vision/OCR)</text>
-  <text x="305" y="880" class="small">confere tela + grounding S3</text>
-  <text x="305" y="894" class="tiny">hoje: rust/jarvis_vision + jarvis/agent_s3/grounding.py</text>
-  <text x="305" y="908" class="tiny">CPU 30-80%, RAM 300-800MB</text>
-  <text x="305" y="922" class="tiny">Disk 200-600MB, Lat 0.3-1.2s</text>
+  <rect x="290" y="1240" width="230" height="95" class="box-vision card"/>
+  <use href="#icon-eye" x="496" y="1250"/>
+  <text x="305" y="1264" class="label">Olhos (vision/OCR)</text>
+  <text x="305" y="1280" class="small">confere tela + grounding S3</text>
+  <text x="305" y="1294" class="tiny">hoje: rust/jarvis_vision + jarvis/agent_s3/grounding.py</text>
+  <text x="305" y="1308" class="tiny">CPU 30-80%, RAM 300-800MB</text>
+  <text x="305" y="1322" class="tiny">Disk 200-600MB, Lat 0.3-1.2s</text>
 
-  <rect x="40" y="950" width="230" height="85" class="box-system card"/>
-  <use href="#icon-monitor" x="246" y="960"/>
-  <text x="55" y="972" class="label">Tela e apps</text>
-  <text x="55" y="988" class="small">onde o Jarvis clica</text>
-  <text x="55" y="1002" class="tiny">CPU/RAM/GPU: n/a, Lat: depende app</text>
+  <rect x="40" y="1350" width="230" height="85" class="box-system card"/>
+  <use href="#icon-monitor" x="246" y="1360"/>
+  <text x="55" y="1372" class="label">Tela e apps</text>
+  <text x="55" y="1388" class="small">onde o Jarvis clica</text>
+  <text x="55" y="1402" class="tiny">CPU/RAM/GPU: n/a, Lat: depende app</text>
 
-  <rect x="290" y="950" width="230" height="85" class="box-store card"/>
-  <use href="#icon-db" x="496" y="960"/>
-  <text x="305" y="972" class="label">Cache local + memoria</text>
-  <text x="305" y="988" class="small">episodios + conhecimento + procedures</text>
-  <text x="305" y="1002" class="tiny">procedures.db + memory.sqlite3 (FTS + embeddings BLOB)</text>
-  <text x="305" y="1016" class="tiny">codigo: jarvis/memoria/* (dedup hash + cache LRU)</text>
-  <text x="305" y="1030" class="tiny">CPU &lt;2%, RAM 30-80MB, Disk 50MB-2GB</text>
+  <rect x="290" y="1350" width="230" height="85" class="box-store card"/>
+  <use href="#icon-db" x="496" y="1360"/>
+  <text x="305" y="1372" class="label">Cache local + memoria</text>
+  <text x="305" y="1388" class="small">episodios + conhecimento + procedures</text>
+  <text x="305" y="1402" class="tiny">procedures.db + memory.sqlite3 (FTS + embeddings BLOB)</text>
+  <text x="305" y="1416" class="tiny">codigo: jarvis/memoria/* (dedup hash + cache LRU)</text>
+  <text x="305" y="1430" class="tiny">CPU &lt;2%, RAM 30-80MB, Disk 50MB-2GB</text>
 
-  <rect x="40" y="1070" width="230" height="80" class="box-brain card"/>
-  <use href="#icon-chip" x="246" y="1080"/>
-  <text x="55" y="1092" class="label">Cerebro local (LLM)</text>
-  <text x="55" y="1108" class="small">endpoint OpenAI-compat self-hosted (LLM + grounding S3)</text>
-  <text x="55" y="1122" class="tiny">codigo: jarvis/cerebro/llm.py</text>
-  <text x="55" y="1136" class="tiny">CPU 200-350%, RAM 6-10GB, Disk 6-12GB, Lat 2-8s</text>
+  <rect x="40" y="1470" width="230" height="80" class="box-brain card"/>
+  <use href="#icon-chip" x="246" y="1480"/>
+  <text x="55" y="1492" class="label">Cerebro local (LLM)</text>
+  <text x="55" y="1508" class="small">endpoint OpenAI-compat self-hosted (LLM + grounding S3)</text>
+  <text x="55" y="1522" class="tiny">codigo: jarvis/cerebro/llm.py</text>
+  <text x="55" y="1536" class="tiny">CPU 200-350%, RAM 6-10GB, Disk 6-12GB, Lat 2-8s</text>
 
-  <rect x="290" y="1070" width="230" height="80" class="box-input card"/>
-  <use href="#icon-cursor" x="496" y="1080"/>
-  <text x="305" y="1092" class="label">Guidance humano (manual)</text>
-  <text x="305" y="1108" class="small">Navegador: copia/cola se usuario quiser</text>
-  <text x="305" y="1122" class="tiny">sem API externa; so apoio humano opcional</text>
-  <text x="305" y="1136" class="tiny">CPU 2-10%, RAM 200-600MB, Lat humana</text>
+  <rect x="290" y="1470" width="230" height="80" class="box-input card"/>
+  <use href="#icon-cursor" x="496" y="1480"/>
+  <text x="305" y="1492" class="label">Guidance humano (manual)</text>
+  <text x="305" y="1508" class="small">Navegador: copia/cola se usuario quiser</text>
+  <text x="305" y="1522" class="tiny">sem API externa; so apoio humano opcional</text>
+  <text x="305" y="1536" class="tiny">CPU 2-10%, RAM 200-600MB, Lat humana</text>
 
-  <rect x="40" y="1160" width="230" height="80" class="box-future card"/>
-  <use href="#icon-gear" x="246" y="1170"/>
-  <text x="55" y="1182" class="label">Bridge Rust (futuro)</text>
-  <text x="55" y="1198" class="small">daemon JSON-RPC local</text>
-  <text x="55" y="1212" class="tiny">futuro: rust/jarvis_bridge</text>
-  <text x="55" y="1226" class="tiny">CPU 1-5%, RAM 30-100MB, Lat 1-5ms</text>
+  <rect x="40" y="1560" width="230" height="80" class="box-future card"/>
+  <use href="#icon-gear" x="246" y="1570"/>
+  <text x="55" y="1582" class="label">Bridge Rust (futuro)</text>
+  <text x="55" y="1598" class="small">daemon JSON-RPC local</text>
+  <text x="55" y="1612" class="tiny">futuro: rust/jarvis_bridge</text>
+  <text x="55" y="1626" class="tiny">CPU 1-5%, RAM 30-100MB, Lat 1-5ms</text>
 
-  <rect x="290" y="1160" width="230" height="80" class="box-future card"/>
-  <use href="#icon-cursor" x="496" y="1170"/>
-  <text x="305" y="1182" class="label">Maos Rust (futuro)</text>
-  <text x="305" y="1198" class="small">input Wayland + AT-SPI</text>
-  <text x="305" y="1212" class="tiny">futuro: rust/jarvis_actions</text>
-  <text x="305" y="1226" class="tiny">CPU 5-15%, RAM 50-150MB, Lat 20-80ms</text>
+  <rect x="290" y="1560" width="230" height="80" class="box-future card"/>
+  <use href="#icon-cursor" x="496" y="1570"/>
+  <text x="305" y="1582" class="label">Maos Rust (futuro)</text>
+  <text x="305" y="1598" class="small">input Wayland + AT-SPI</text>
+  <text x="305" y="1612" class="tiny">futuro: rust/jarvis_actions</text>
+  <text x="305" y="1626" class="tiny">CPU 5-15%, RAM 50-150MB, Lat 20-80ms</text>
 
-  <rect x="40" y="1255" width="480" height="90" class="box-total card"/>
-  <text x="55" y="1280" class="label">Total PC (estimado + capacidade)</text>
-  <text x="55" y="1296" class="small">Base: CPU 40-120%, RAM 1.2-2.2GB</text>
-  <text x="55" y="1312" class="small">Com LLM local: CPU 200-350%, RAM 6-10GB</text>
-  <text x="55" y="1328" class="tiny">Disk 0.5-2GB (+6-12GB com LLM), Lat 0.2-8s</text>
-  <text x="55" y="1342" class="tiny">Capacidade atual (medir): CPU ___, RAM ___GB, GPU ___GB, Disk ___GB</text>
+  <rect x="40" y="1655" width="480" height="90" class="box-total card"/>
+  <text x="55" y="1680" class="label">Total PC (estimado + capacidade)</text>
+  <text x="55" y="1696" class="small">Base: CPU 40-120%, RAM 1.2-2.2GB</text>
+  <text x="55" y="1712" class="small">Com LLM local: CPU 200-350%, RAM 6-10GB</text>
+  <text x="55" y="1728" class="tiny">Disk 0.5-2GB (+6-12GB com LLM), Lat 0.2-8s</text>
+  <text x="55" y="1742" class="tiny">Capacidade atual (medir): CPU ___, RAM ___GB, GPU ___GB, Disk ___GB</text>
 
   <!-- VPS (CPU) -->
   <rect x="600" y="120" width="480" height="90" class="box-future card"/>
@@ -363,35 +429,35 @@
   <text x="615" y="562" class="tiny">futuro: jarvis/memoria/*</text>
   <text x="615" y="576" class="tiny">CPU 10-40%, RAM 300-800MB, Lat 0.1-0.8s</text>
 
-  <rect x="600" y="600" width="480" height="80" class="box-future card"/>
-  <use href="#icon-chart" x="1056" y="610"/>
-  <text x="615" y="622" class="label">Telemetria + budget diario</text>
-  <text x="615" y="638" class="small">corta gasto ao passar limite</text>
-  <text x="615" y="652" class="tiny">futuro: jarvis/telemetria/*</text>
-  <text x="615" y="666" class="tiny">CPU &lt;5%, RAM 50-150MB, Disk 100MB-1GB</text>
+  <rect x="600" y="720" width="480" height="80" class="box-future card"/>
+  <use href="#icon-chart" x="1056" y="730"/>
+  <text x="615" y="742" class="label">Telemetria + budget diario</text>
+  <text x="615" y="758" class="small">corta gasto ao passar limite</text>
+  <text x="615" y="772" class="tiny">futuro: jarvis/telemetria/*</text>
+  <text x="615" y="926" class="tiny">CPU &lt;5%, RAM 50-150MB, Disk 100MB-1GB</text>
 
-  <rect x="600" y="690" width="480" height="80" class="box-future card"/>
-  <use href="#icon-folder" x="1056" y="700"/>
-  <text x="615" y="712" class="label">Exportacao para Drive (futuro)</text>
-  <text x="615" y="728" class="small">jsonl.zst + manifesto via rclone</text>
-  <text x="615" y="742" class="tiny">CPU &lt;10% (batch), RAM 50-200MB</text>
-  <text x="615" y="756" class="tiny">Disk temp 1-5GB, Lat: batch (min)</text>
+  <rect x="600" y="950" width="480" height="80" class="box-future card"/>
+  <use href="#icon-folder" x="1056" y="960"/>
+  <text x="615" y="972" class="label">Exportacao para Drive (futuro)</text>
+  <text x="615" y="988" class="small">jsonl.zst + manifesto via rclone</text>
+  <text x="615" y="1002" class="tiny">CPU &lt;10% (batch), RAM 50-200MB</text>
+  <text x="615" y="1016" class="tiny">Disk temp 1-5GB, Lat: batch (min)</text>
 
-  <rect x="600" y="780" width="480" height="80" class="box-future card"/>
-  <use href="#icon-flask" x="1056" y="790"/>
-  <text x="615" y="802" class="label">Pipeline de experimentos (futuro)</text>
-  <text x="615" y="818" class="small">testa antes de mudar e pede aprovacao</text>
-  <text x="615" y="832" class="tiny">futuro: rust/jarvis_experiments</text>
-  <text x="615" y="846" class="tiny">CPU 20-80%, RAM 0.5-2GB, Lat: offline</text>
+  <rect x="600" y="1040" width="480" height="80" class="box-future card"/>
+  <use href="#icon-flask" x="1056" y="1050"/>
+  <text x="615" y="1062" class="label">Pipeline de experimentos (futuro)</text>
+  <text x="615" y="1078" class="small">testa antes de mudar e pede aprovacao</text>
+  <text x="615" y="1092" class="tiny">futuro: rust/jarvis_experiments</text>
+  <text x="615" y="1106" class="tiny">CPU 20-80%, RAM 0.5-2GB, Lat: offline</text>
 
-  <rect x="600" y="870" width="480" height="80" class="box-total card"/>
-  <text x="615" y="894" class="label">Total VPS (estimado, com Qwen2.5)</text>
-  <text x="615" y="910" class="small">CPU 250-400% (2.5-4 vCPU), RAM 8-14GB</text>
-  <text x="615" y="926" class="small">Disk 10-25GB, Lat 2-8s por plano</text>
-  <text x="615" y="942" class="tiny">Capacidade plano: 4 vCPU, 16GB RAM, 160GB SSD</text>
+  <rect x="600" y="1130" width="480" height="80" class="box-total card"/>
+  <text x="615" y="1154" class="label">Total VPS (estimado, com Qwen2.5)</text>
+  <text x="615" y="1170" class="small">CPU 250-400% (2.5-4 vCPU), RAM 8-14GB</text>
+  <text x="615" y="1186" class="small">Disk 10-25GB, Lat 2-8s por plano</text>
+  <text x="615" y="1202" class="tiny">Capacidade plano: 4 vCPU, 16GB RAM, 160GB SSD</text>
 
   <!-- SERVIDOR SELF-HOSTED -->
-  <rect x="1140" y="70" width="520" height="1300" class="region-cloud"/>
+  <rect x="1140" y="70" width="520" height="1700" class="region-cloud"/>
   <text x="1160" y="92" class="region-title">SERVIDOR SELF-HOSTED (VPS/GPU OPCIONAL)</text>
 
   <rect x="1160" y="120" width="480" height="90" class="box-cloud card"/>
@@ -429,28 +495,30 @@
   <text x="1175" y="592" class="tiny">backup mensal, latência batch (min)</text>
   <text x="1175" y="606" class="tiny">disk 1TB+, lat: obediente</text>
 
-  <rect x="1160" y="650" width="480" height="90" class="box-total card"/>
-  <text x="1175" y="674" class="label">Total Servidores dedicados</text>
-  <text x="1175" y="690" class="small">CPU 250-450% (4vCPU+GPU), RAM 14-20GB</text>
-  <text x="1175" y="706" class="small">Lat 1-6s por plano, Disk 160GB+</text>
-  <text x="1175" y="722" class="tiny">GGUF + LoRA → menor consumo, escala com GPU</text>
+  <rect x="1160" y="770" width="480" height="90" class="box-total card"/>
+  <text x="1175" y="934" class="label">Total Servidores dedicados</text>
+  <text x="1175" y="950" class="small">CPU 250-450% (4vCPU+GPU), RAM 14-20GB</text>
+  <text x="1175" y="966" class="small">Lat 1-6s por plano, Disk 160GB+</text>
+  <text x="1175" y="982" class="tiny">GGUF + LoRA → menor consumo, escala com GPU</text>
 
   <!-- Arrows: local -->
-  <line x1="200" y1="155" x2="210" y2="155" class="arrow-local"/>
-  <line x1="375" y1="500" x2="375" y2="520" class="arrow-local"/>
+  <line x1="170" y1="155" x2="180" y2="155" class="arrow-local"/>
+  <line x1="170" y1="240" x2="180" y2="240" class="arrow-local"/>
+  <line x1="170" y1="270" x2="40" y2="920" class="arrow-local"/>
+  <line x1="360" y1="920" x2="360" y2="935" class="arrow-local"/>
 
-  <line x1="280" y1="620" x2="155" y2="640" class="arrow-local"/>
-  <line x1="280" y1="620" x2="405" y2="640" class="arrow-local"/>
-  <line x1="280" y1="620" x2="155" y2="740" class="arrow-local"/>
-  <line x1="280" y1="620" x2="405" y2="740" class="arrow-local"/>
-  <line x1="280" y1="620" x2="155" y2="840" class="arrow-local"/>
-  <line x1="405" y1="840" x2="280" y2="620" class="arrow-local"/>
-  <line x1="280" y1="620" x2="405" y2="840" class="arrow-local"/>
-  <line x1="155" y1="935" x2="155" y2="950" class="arrow-local"/>
-  <line x1="405" y1="935" x2="405" y2="950" class="arrow-local"/>
-  <path d="M 280 620 L 155 1070" class="arrow-local" stroke-dasharray="5 4"/>
-  <line x1="270" y1="1110" x2="290" y2="1110" class="arrow-local" stroke-dasharray="5 4"/>
-  <path d="M 520 1110 L 1120 1110 L 1120 160 L 1160 160" class="arrow-cross-dash"/>
+  <line x1="280" y1="1020" x2="155" y2="1040" class="arrow-local"/>
+  <line x1="280" y1="1020" x2="405" y2="1040" class="arrow-local"/>
+  <line x1="280" y1="1020" x2="155" y2="1140" class="arrow-local"/>
+  <line x1="280" y1="1020" x2="405" y2="1140" class="arrow-local"/>
+  <line x1="280" y1="1020" x2="155" y2="1240" class="arrow-local"/>
+  <line x1="405" y1="1240" x2="280" y2="1020" class="arrow-local"/>
+  <line x1="280" y1="1020" x2="405" y2="1240" class="arrow-local"/>
+  <line x1="155" y1="1335" x2="155" y2="1350" class="arrow-local"/>
+  <line x1="405" y1="1335" x2="405" y2="1350" class="arrow-local"/>
+  <path d="M 280 1020 L 155 1470" class="arrow-local" stroke-dasharray="5 4"/>
+  <line x1="270" y1="1510" x2="290" y2="1510" class="arrow-local" stroke-dasharray="5 4"/>
+  <path d="M 520 1510 L 1120 1510 L 1120 160 L 1160 160" class="arrow-cross-dash"/>
 
   <!-- Arrows: VPS internal -->
   <line x1="840" y1="210" x2="840" y2="220" class="arrow-vps"/>
@@ -458,11 +526,11 @@
   <line x1="840" y1="400" x2="840" y2="410" class="arrow-vps"/>
   <line x1="840" y1="500" x2="840" y2="510" class="arrow-vps"/>
   <line x1="840" y1="590" x2="840" y2="600" class="arrow-vps"/>
-  <line x1="840" y1="680" x2="840" y2="690" class="arrow-vps"/>
-  <line x1="840" y1="770" x2="840" y2="780" class="arrow-vps"/>
+  <line x1="840" y1="940" x2="840" y2="950" class="arrow-vps"/>
+  <line x1="840" y1="1030" x2="840" y2="1040" class="arrow-vps"/>
 
   <!-- Cross-region connections -->
-  <path d="M 520 570 L 600 165" class="arrow-cross"/>
+  <path d="M 520 970 L 600 165" class="arrow-cross"/>
   <text x="535" y="190" class="tiny">WebSocket/gRPC + Tailscale (futuro obrigatorio)</text>
   <text x="535" y="204" class="tiny">protocolo: jarvis/comunicacao/protocolo.py</text>
 
@@ -482,13 +550,13 @@
   <text x="1015" y="520" class="tiny">Backup JSONL/manifesto via rclone</text>
 
   <!-- Legend + Glossary -->
-  <rect x="20" y="1360" width="1640" height="140" class="box-system"/>
-  <text x="40" y="1385" class="label">Legenda</text>
-  <text x="40" y="1402" class="small">Cores fortes = existe hoje. Cinza = futuro. Setas coloridas = fluxo; tracejadas = opcional/condicional.</text>
-  <text x="40" y="1420" class="small">Metricas por balao: CPU, RAM, GPU, DISK, LAT (latencia).</text>
-  <text x="40" y="1436" class="small">Termos: LLM = IA que escreve texto; OCR = le texto da tela; RAG = busca memoria antes de responder; VPS = computador na nuvem.</text>
-  <text x="40" y="1450" class="small">S3 = agente GUI com grounding (jarvis/agent_s3).</text>
-  <text x="40" y="1468" class="small">Obs: pesos do diagrama agora refletem medições locais (02/01/2026) em `Documentos/PESOS_MEDIDOS.md`.</text>
-  <text x="40" y="1484" class="small">Deps opcionais: sounddevice+numpy+faster-whisper (STT), webrtcvad (VAD), piper/espeak (TTS),</text>
-  <text x="40" y="1498" class="small">xdotool/wtype/ydotool/pyautogui (acoes), Playwright (web), Pillow+pytesseract+tesseract (OCR), sentence-transformers (embeddings), pynput (aprendizado), tkinter (chat), gguf-tools/peft (LLM).</text>
+  <rect x="20" y="1620" width="1640" height="140" class="box-system"/>
+  <text x="40" y="1645" class="label">Legenda</text>
+  <text x="40" y="1662" class="small">Cores fortes = existe hoje. Cinza = futuro. Setas coloridas = fluxo; tracejadas = opcional/condicional.</text>
+  <text x="40" y="1680" class="small">Metricas por balao: CPU, RAM, GPU, DISK, LAT (latencia).</text>
+  <text x="40" y="1696" class="small">Termos: LLM = IA que escreve texto; OCR = le texto da tela; RAG = busca memoria antes de responder; VPS = computador na nuvem.</text>
+  <text x="40" y="1710" class="small">S3 = agente GUI com grounding (jarvis/agent_s3).</text>
+  <text x="40" y="1728" class="small">Obs: pesos do diagrama agora refletem medições locais (02/01/2026) em `Documentos/PESOS_MEDIDOS.md`.</text>
+  <text x="40" y="1744" class="small">Deps opcionais: sounddevice+numpy+faster-whisper (STT), webrtcvad (VAD), piper/espeak (TTS),</text>
+  <text x="40" y="1758" class="small">xdotool/wtype/ydotool/pyautogui (acoes), Playwright (web), Pillow+pytesseract+tesseract (OCR), sentence-transformers (embeddings), pynput (aprendizado), tkinter (chat), gguf-tools/peft (LLM).</text>
 </svg>

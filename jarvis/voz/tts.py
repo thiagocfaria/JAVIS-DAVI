@@ -10,10 +10,18 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 from typing import Optional
 
 from ..cerebro.config import Config
+
+
+def _env_bool(key: str, default: bool) -> bool:
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 class TextToSpeech:
@@ -31,6 +39,8 @@ class TextToSpeech:
         self._piper_available: bool | None = None
         self._espeak_available: bool | None = None
         self._piper_model: str | None = None
+        self._debug_enabled = _env_bool("JARVIS_DEBUG", False)
+        self._speak_lock = threading.Lock()
 
         # Piper model paths (can be overridden via environment)
         self._piper_models_dir = Path(
@@ -39,6 +49,10 @@ class TextToSpeech:
 
         # Default Portuguese Brazilian voice
         self._default_voice = os.environ.get("JARVIS_PIPER_VOICE", "pt_BR-faber-medium")
+
+    def _debug(self, message: str) -> None:
+        if self._debug_enabled:
+            print(f"[tts] {message}")
 
     def speak(self, text: str) -> None:
         """
@@ -52,12 +66,14 @@ class TextToSpeech:
         if not text or not text.strip():
             return
 
-        # Try Piper first
-        if self._try_piper(text):
-            return
+        with self._speak_lock:
+            # Try Piper first
+            if self._try_piper(text):
+                return
 
-        # Fallback to espeak
-        self._speak_espeak(text)
+            # Fallback to espeak
+            self._debug("piper indisponivel; usando espeak-ng")
+            self._speak_espeak(text)
 
     def _try_piper(self, text: str) -> bool:
         """
@@ -111,12 +127,15 @@ class TextToSpeech:
             piper_proc.stdin.close()
 
             # Wait for completion (with timeout)
-            piper_proc.wait(timeout=30)
-            aplay_proc.wait(timeout=30)
+            piper_rc = piper_proc.wait(timeout=30)
+            aplay_rc = aplay_proc.wait(timeout=30)
+            if piper_rc != 0 or aplay_rc != 0:
+                self._debug(f"piper/aplay retornaram codigo {piper_rc}/{aplay_rc}")
 
             return True
 
-        except Exception:
+        except Exception as exc:
+            self._debug(f"piper falhou: {exc}")
             return False
 
     def _find_piper_model(self) -> Path | None:
@@ -172,8 +191,8 @@ class TextToSpeech:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            self._debug(f"espeak falhou: {exc}")
 
     def speak_async(self, text: str) -> None:
         """
@@ -181,7 +200,6 @@ class TextToSpeech:
         
         Uses a background thread to avoid blocking the main loop.
         """
-        import threading
         thread = threading.Thread(target=self.speak, args=(text,), daemon=True)
         thread.start()
 

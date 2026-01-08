@@ -1,21 +1,42 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import tkinter as tk
 from datetime import datetime
 from pathlib import Path
 
+from ..comunicacao.chat_inbox import append_line
+
 
 def _tail_lines(path: Path, limit: int) -> str:
+    if limit <= 0:
+        return ""
     if not path.exists():
         return ""
     try:
-        data = path.read_text(encoding="utf-8")
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            pos = handle.tell()
+            chunks: list[bytes] = []
+            lines = 0
+            while pos > 0 and lines <= limit:
+                read_size = min(4096, pos)
+                pos -= read_size
+                handle.seek(pos)
+                chunk = handle.read(read_size)
+                chunks.append(chunk)
+                lines += chunk.count(b"\n")
+        data = b"".join(reversed(chunks))
     except Exception:
         return ""
-    lines = data.splitlines()
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        text = data.decode("utf-8", errors="replace")
+    lines = text.splitlines()
     return "\n".join(lines[-limit:])
 
 
@@ -28,8 +49,25 @@ def _format_log_with_timestamps(content: str) -> str:
     formatted = []
 
     for line in lines:
+        if not line:
+            continue
+        parsed = None
+        try:
+            parsed = json.loads(line)
+        except Exception:
+            parsed = None
+        if isinstance(parsed, dict) and "message" in parsed:
+            ts = str(parsed.get("ts") or datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            role = str(parsed.get("role") or "")
+            message = str(parsed.get("message") or "")
+            rendered = f"[{ts}] {role}: {message}".strip()
+            meta = parsed.get("meta")
+            if isinstance(meta, dict) and meta:
+                rendered += " | meta=" + json.dumps(meta, ensure_ascii=True)
+            formatted.append(rendered)
+            continue
         # Check if line already has timestamp
-        if re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", line):
+        if re.match(r"^\[?\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", line):
             formatted.append(line)
         else:
             # Add timestamp to line without one
@@ -77,10 +115,10 @@ def main() -> int:
         msg = entry.get().strip()
         if not msg:
             return
-        inbox_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with inbox_path.open("a", encoding="utf-8") as handle:
-                handle.write(f"{msg}\n")
+            ok = append_line(inbox_path, msg)
+            if not ok:
+                raise RuntimeError("append_line failed")
             entry.delete(0, "end")
             # Visual feedback
             status_label.config(text="✓ Enviado", fg="green")
