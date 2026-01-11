@@ -14,6 +14,7 @@ from ..entrada.shortcut import check_shortcut_deps
 from ..entrada import stt as stt_module
 from ..entrada.stt import check_stt_deps
 from ..validacao.validator import check_validator_deps
+from ..voz.adapters import vad_silero, wakeword_openwakeword, wakeword_porcupine
 from ..voz.tts import TextToSpeech, check_tts_deps
 
 
@@ -42,7 +43,8 @@ class PreflightReport:
         }
 
 
-def run_preflight(config: Config) -> PreflightReport:
+def run_preflight(config: Config, profile: str | None = None) -> PreflightReport:
+    profiles = _resolve_profiles(profile)
     checks: list[CheckResult] = []
 
     # Python version
@@ -75,29 +77,39 @@ def run_preflight(config: Config) -> PreflightReport:
     # LLM (local only)
     checks.append(_check_local_llm(config))
 
-    # STT deps
-    checks.append(_check_stt(config))
+    if "voice" in profiles:
+        # STT deps
+        checks.append(_check_stt(config))
 
-    # TTS deps
-    checks.append(_check_tts(config))
+        wake_check = _check_wake_word_audio()
+        if wake_check is not None:
+            checks.append(wake_check)
+        silero_check = _check_silero_deactivity()
+        if silero_check is not None:
+            checks.append(silero_check)
 
-    # Desktop automation drivers
-    checks.append(_check_desktop_drivers(config))
+        # TTS deps
+        checks.append(_check_tts(config))
 
-    # Web automation
-    checks.append(_check_web_automation())
+    if "desktop" in profiles:
+        # Desktop automation drivers
+        checks.append(_check_desktop_drivers(config))
 
-    # OCR / validator
-    checks.append(_check_validator())
+        # Web automation
+        checks.append(_check_web_automation())
 
-    # Recorder deps (optional)
-    checks.append(_check_recorder())
+        # OCR / validator
+        checks.append(_check_validator())
 
-    # Chat UI (optional)
-    checks.append(_check_chat_ui())
+        # Recorder deps (optional)
+        checks.append(_check_recorder())
 
-    # Chat shortcut (optional)
-    checks.append(_check_chat_shortcut())
+    if "ui" in profiles:
+        # Chat UI (optional)
+        checks.append(_check_chat_ui())
+
+        # Chat shortcut (optional)
+        checks.append(_check_chat_shortcut())
 
     return PreflightReport(checks=checks)
 
@@ -113,6 +125,24 @@ def format_report(report: PreflightReport) -> str:
         f"Resumo: {counts['ok']} OK, {counts['warn']} aviso(s), {counts['fail']} falha(s)"
     )
     return "\n".join(lines)
+
+
+def _resolve_profiles(profile: str | None = None) -> set[str]:
+    raw = profile
+    if raw is None:
+        raw = os.environ.get("JARVIS_PREFLIGHT_PROFILE", "")
+    raw = str(raw or "").strip().lower()
+
+    valid = {"voice", "ui", "desktop"}
+    if not raw or raw in {"full", "all", "default"}:
+        return set(valid)
+
+    parts: list[str] = []
+    for chunk in raw.split(","):
+        parts.extend(piece for piece in chunk.split() if piece)
+
+    selected = {part for part in parts if part in valid}
+    return selected or set(valid)
 
 
 def _env_bool(key: str, default: bool = False) -> bool:
@@ -142,19 +172,33 @@ def _env_int_optional(key: str) -> int | None:
         return None
 
 
-def _probe_stt_capture(seconds: float) -> bool:
+def _probe_stt_capture(seconds: float) -> tuple[bool, str, int | None]:
     sd = stt_module.sd
     if sd is None:
-        return False
+        return False, "indisponivel", None
     device = _env_int_optional("JARVIS_AUDIO_DEVICE")
     capture_sr = _env_int_optional("JARVIS_AUDIO_CAPTURE_SR")
+    device_label = "default"
+    device_name = ""
     if capture_sr is None:
         try:
             info = sd.query_devices(device, "input")
             default_sr = info.get("default_samplerate")
             capture_sr = int(default_sr) if default_sr else stt_module.SAMPLE_RATE
+            device_name = str(info.get("name") or "").strip()
         except Exception:
             capture_sr = stt_module.SAMPLE_RATE
+    else:
+        try:
+            info = sd.query_devices(device, "input")
+            device_name = str(info.get("name") or "").strip()
+        except Exception:
+            device_name = ""
+
+    if device is not None:
+        device_label = f"{device} ({device_name})" if device_name else str(device)
+    else:
+        device_label = f"default ({device_name})" if device_name else "default"
     samplerate = int(capture_sr)
     try:
         frames = max(1, int(seconds * samplerate))
@@ -169,9 +213,9 @@ def _probe_stt_capture(seconds: float) -> bool:
         size = int(getattr(audio, "size", 0))
         if size == 0 and hasattr(audio, "__len__"):
             size = len(audio)
-        return size > 0
+        return size > 0, device_label, samplerate
     except Exception:
-        return False
+        return False, device_label, samplerate
 
 
 def _probe_tts_play(config: Config) -> bool:
@@ -297,8 +341,12 @@ def _check_stt(config: Config) -> CheckResult:
     if not probe_enabled or result.status == "FAIL":
         return result
 
-    if not _probe_stt_capture(probe_seconds):
-        detail = f"{result.detail}; captura falhou no preflight"
+    probe_ok, device_label, capture_sr = _probe_stt_capture(probe_seconds)
+    sr_label = f"{capture_sr}Hz" if capture_sr else "desconhecido"
+    probe_detail = f"device={device_label}, sr={sr_label}"
+
+    if not probe_ok:
+        detail = f"{result.detail}; captura falhou no preflight ({probe_detail})"
         hint = result.hint or "Verifique microfone/dispositivo ou desative JARVIS_PREFLIGHT_PROBE."
         return CheckResult(name="STT", status="WARN", detail=detail, hint=hint)
 
@@ -306,10 +354,81 @@ def _check_stt(config: Config) -> CheckResult:
         return CheckResult(
             name="STT",
             status="OK",
-            detail=f"{result.detail} (captura ok)",
+            detail=f"{result.detail} (captura ok; {probe_detail})",
         )
 
-    return result
+    return CheckResult(
+        name="STT",
+        status=result.status,
+        detail=f"{result.detail} (captura ok; {probe_detail})",
+        hint=result.hint,
+    )
+
+
+def _check_wake_word_audio() -> CheckResult | None:
+    if not _env_bool("JARVIS_WAKE_WORD_AUDIO", False):
+        return None
+    backend = os.environ.get("JARVIS_WAKE_WORD_AUDIO_BACKEND", "pvporcupine").strip().lower()
+    if backend in {"oww", "openwakeword", "openwakewords"}:
+        if not wakeword_openwakeword.is_available():
+            return CheckResult(
+                name="Wake word (audio)",
+                status="WARN",
+                detail="wake word por audio ativo, mas openwakeword ausente",
+                hint="pip install openwakeword e configure JARVIS_OPENWAKEWORD_MODEL_PATHS",
+            )
+        model_paths = os.environ.get("JARVIS_OPENWAKEWORD_MODEL_PATHS", "").strip()
+        auto_download = _env_bool("JARVIS_OPENWAKEWORD_AUTO_DOWNLOAD", False)
+        if not model_paths and not auto_download:
+            return CheckResult(
+                name="Wake word (audio)",
+                status="WARN",
+                detail="openwakeword disponivel, mas sem modelos configurados",
+                hint="Defina JARVIS_OPENWAKEWORD_MODEL_PATHS ou JARVIS_OPENWAKEWORD_AUTO_DOWNLOAD=1",
+            )
+        return CheckResult(
+            name="Wake word (audio)",
+            status="OK",
+            detail="openwakeword disponivel",
+        )
+
+    if not wakeword_porcupine.is_available():
+        return CheckResult(
+            name="Wake word (audio)",
+            status="WARN",
+            detail="wake word por audio ativo, mas pvporcupine ausente",
+            hint="pip install pvporcupine e configure JARVIS_PORCUPINE_ACCESS_KEY",
+        )
+    return CheckResult(
+        name="Wake word (audio)",
+        status="OK",
+        detail="pvporcupine disponivel",
+    )
+
+
+def _check_silero_deactivity() -> CheckResult | None:
+    if not _env_bool("JARVIS_SILERO_DEACTIVITY", False):
+        return None
+    if not vad_silero.is_available():
+        return CheckResult(
+            name="Silero deactivity",
+            status="WARN",
+            detail="silero deactivity ativo, mas torch/numpy ausentes",
+            hint="Instale torch e numpy, ou desative JARVIS_SILERO_DEACTIVITY.",
+        )
+    auto_download = _env_bool("JARVIS_SILERO_AUTO_DOWNLOAD", False)
+    if not auto_download and not vad_silero.has_cached_model():
+        return CheckResult(
+            name="Silero deactivity",
+            status="WARN",
+            detail="silero ativo, mas modelo nao encontrado no cache",
+            hint="Defina JARVIS_SILERO_AUTO_DOWNLOAD=1 para baixar o modelo.",
+        )
+    return CheckResult(
+        name="Silero deactivity",
+        status="OK",
+        detail="silero disponivel",
+    )
 
 
 def _check_tts(config: Config) -> CheckResult:
@@ -428,11 +547,19 @@ def _is_headless_env(tools: dict) -> bool:
         return True
 
     session_type = str(tools.get("session_type") or "").strip().lower()
+    if session_type in {"", "unknown"}:
+        env_session = os.environ.get("XDG_SESSION_TYPE", "").strip().lower()
+        if env_session:
+            session_type = env_session
     if session_type in {"tty", "headless"}:
         return True
 
     has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+    if os.environ.get("CI") and not has_display:
+        return True
     if not has_display and session_type in {"", "unknown"}:
+        return True
+    if session_type in {"x11", "wayland"} and not has_display:
         return True
 
     return False
@@ -517,7 +644,18 @@ def _check_chat_ui() -> CheckResult:
 def _check_chat_shortcut() -> CheckResult:
     """Check if dependencies for global keyboard shortcut are available."""
     deps = check_shortcut_deps()
+    file_trigger = bool(deps.get("file_trigger"))
     if not deps.get("pynput"):
+        if file_trigger:
+            return CheckResult(
+                name="Atalho chat",
+                status="OK",
+                detail="atalho via arquivo configurado (pynput ausente)",
+                hint=(
+                    "Configure um atalho do sistema para executar: "
+                    "touch $JARVIS_CHAT_SHORTCUT_FILE"
+                ),
+            )
         return CheckResult(
             name="Atalho chat",
             status="WARN",
@@ -526,6 +664,16 @@ def _check_chat_shortcut() -> CheckResult:
         )
     # Wayland costuma bloquear captura global de teclado; XWayland (DISPLAY) às vezes funciona.
     if deps.get("wayland") and not deps.get("x11"):
+        if file_trigger:
+            return CheckResult(
+                name="Atalho chat",
+                status="OK",
+                detail="Wayland detectado; usando atalho via arquivo",
+                hint=(
+                    "Configure um atalho do sistema para executar: "
+                    "touch $JARVIS_CHAT_SHORTCUT_FILE"
+                ),
+            )
         return CheckResult(
             name="Atalho chat",
             status="WARN",

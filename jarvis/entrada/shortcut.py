@@ -18,6 +18,8 @@ import shlex
 import subprocess
 import sys
 import time
+import threading
+from pathlib import Path
 
 try:
     from pynput import keyboard  # type: ignore
@@ -37,14 +39,25 @@ def _has_x11() -> bool:
     return bool(os.environ.get("DISPLAY"))
 
 
+def _env_int(key: str, default: int) -> int:
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 class ChatShortcut:
     """Global keyboard shortcut to open chat UI."""
 
     def __init__(
         self,
         chat_command: str | list[str] | None = None,
-        shortcut_combo: str = "ctrl+shift+j",
+        shortcut_combo: str | None = None,
         cooldown_s: float = 0.6,
+        file_trigger_path: str | None = None,
     ) -> None:
         """
         Initialize chat shortcut handler.
@@ -56,16 +69,30 @@ class ChatShortcut:
             cooldown_s: Debounce window to avoid repeated triggers by key repeat.
         """
         self.chat_command = chat_command or self._default_chat_command()
-        self.shortcut_combo = shortcut_combo.lower()
+        combo = (
+            shortcut_combo
+            or os.environ.get("JARVIS_CHAT_SHORTCUT_COMBO", "").strip()
+            or "ctrl+shift+j"
+        )
+        self.shortcut_combo = combo.lower()
         self.cooldown_s = max(0.0, float(cooldown_s))
 
         self._listener: keyboard.Listener | None = None
         self._running = False
         self._pressed_keys: set[str] = set()
+        self._file_thread: threading.Thread | None = None
 
         self._combo_mods, self._combo_key = self._parse_combo(self.shortcut_combo)
         self._last_fire_ts = 0.0
         self._armed = True  # re-arm after releasing modifiers
+        self._last_error: str | None = None
+        self._file_trigger_path = (
+            file_trigger_path
+            or os.environ.get("JARVIS_CHAT_SHORTCUT_FILE", "").strip()
+        ) or None
+        self._file_trigger_mtime: float | None = None
+        poll_ms = _env_int("JARVIS_CHAT_SHORTCUT_FILE_POLL_MS", 500)
+        self._file_poll_s = max(0.05, float(poll_ms) / 1000.0)
 
     def _default_chat_command(self) -> str:
         """Get default command to open chat UI."""
@@ -183,6 +210,41 @@ class ChatShortcut:
         except Exception:
             pass
 
+    def _file_trigger_enabled(self) -> bool:
+        return bool(self._file_trigger_path)
+
+    def _check_file_trigger(self) -> None:
+        if not self._file_trigger_path:
+            return
+        try:
+            path = Path(self._file_trigger_path)
+        except Exception:
+            return
+        try:
+            stat = path.stat()
+        except FileNotFoundError:
+            return
+        except Exception:
+            return
+        mtime = stat.st_mtime
+        if self._file_trigger_mtime is None:
+            self._file_trigger_mtime = mtime
+            return
+        if mtime <= self._file_trigger_mtime:
+            return
+        now = time.monotonic()
+        if (now - self._last_fire_ts) < self.cooldown_s:
+            self._file_trigger_mtime = mtime
+            return
+        self._last_fire_ts = now
+        self._file_trigger_mtime = mtime
+        self._open_chat()
+
+    def _file_trigger_loop(self) -> None:
+        while self._running:
+            self._check_file_trigger()
+            time.sleep(self._file_poll_s)
+
     def start(self) -> bool:
         """
         Start listening for keyboard shortcut.
@@ -190,40 +252,66 @@ class ChatShortcut:
         Returns:
             True if started successfully, False otherwise
         """
-        if not HAS_PYNPUT:
-            return False
-
-        # On Wayland without XWayland, pynput usually can't grab global hotkeys.
-        if sys.platform.startswith("linux") and _is_wayland() and not _has_x11():
-            return False
-
         if self._running:
+            self._last_error = None
             return True
 
-        try:
-            self._listener = keyboard.Listener(
-                on_press=self._on_press, on_release=self._on_release
-            )
-            self._listener.start()
-            self._running = True
-            return True
-        except Exception:
+        started = False
+        self._last_error = None
+
+        if HAS_PYNPUT:
+            # On Wayland without XWayland, pynput usually can't grab global hotkeys.
+            if sys.platform.startswith("linux") and _is_wayland() and not _has_x11():
+                self._last_error = "wayland_no_x11"
+            else:
+                try:
+                    self._listener = keyboard.Listener(
+                        on_press=self._on_press, on_release=self._on_release
+                    )
+                    self._listener.start()
+                    started = True
+                except Exception:
+                    self._last_error = "listener_failed"
+        else:
+            self._last_error = "pynput_missing"
+
+        if self._file_trigger_enabled():
+            if self._file_thread is None or not self._file_thread.is_alive():
+                self._file_thread = threading.Thread(
+                    target=self._file_trigger_loop, daemon=True
+                )
+                self._file_thread.start()
+            started = True
+
+        self._running = started
+        if not started:
             return False
+        return True
 
     def stop(self) -> None:
         """Stop listening for keyboard shortcut."""
+        self._running = False
         if self._listener:
             try:
                 self._listener.stop()
             except Exception:
                 pass
             self._listener = None
-        self._running = False
         self._pressed_keys.clear()
+        self._file_thread = None
 
     def is_running(self) -> bool:
         """Check if shortcut listener is running."""
-        return self._running and self._listener is not None and self._listener.running
+        listener_running = (
+            self._listener is not None and getattr(self._listener, "running", False)
+        )
+        file_running = self._file_thread is not None and self._file_thread.is_alive()
+        return self._running and (listener_running or file_running)
+
+    @property
+    def last_error(self) -> str | None:
+        """Return last start failure reason if any."""
+        return self._last_error
 
 
 def check_shortcut_deps() -> dict:
@@ -232,4 +320,5 @@ def check_shortcut_deps() -> dict:
         "pynput": HAS_PYNPUT,
         "wayland": _is_wayland(),
         "x11": _has_x11(),
+        "file_trigger": bool(os.environ.get("JARVIS_CHAT_SHORTCUT_FILE")),
     }

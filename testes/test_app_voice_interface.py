@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from types import SimpleNamespace
 
@@ -236,7 +237,7 @@ def test_main_sets_audio_env_from_cli(monkeypatch, tmp_path):
     config = _make_config(tmp_path)
     monkeypatch.setattr(app_module, "load_config", lambda: config)
     monkeypatch.setattr(app_module, "ensure_dirs", lambda cfg: None)
-    monkeypatch.setattr(app_module, "run_preflight", lambda cfg: object())
+    monkeypatch.setattr(app_module, "run_preflight", lambda cfg, **kwargs: object())
     monkeypatch.setattr(app_module, "format_report", lambda report: "ok")
     monkeypatch.delenv("JARVIS_AUDIO_DEVICE", raising=False)
     monkeypatch.delenv("JARVIS_AUDIO_CAPTURE_SR", raising=False)
@@ -256,6 +257,8 @@ def test_main_sets_audio_env_from_cli(monkeypatch, tmp_path):
     assert app_module.main() == 0
     assert app_module.os.environ.get("JARVIS_AUDIO_DEVICE") == "3"
     assert app_module.os.environ.get("JARVIS_AUDIO_CAPTURE_SR") == "44100"
+    monkeypatch.delenv("JARVIS_AUDIO_DEVICE", raising=False)
+    monkeypatch.delenv("JARVIS_AUDIO_CAPTURE_SR", raising=False)
 
 
 def test_main_enable_shortcut_uses_env_combo(monkeypatch, tmp_path):
@@ -360,7 +363,7 @@ def test_main_gui_panel_invokes_panel(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "tkinter", type("TkDummy", (), {"Tk": DummyTk}))
 
     class DummyPanel:
-        def __init__(self, orchestrator, chat_shortcut=None):
+        def __init__(self, orchestrator, chat_shortcut=None, followup_poll_ms=None):
             return None
 
         def run(self):
@@ -398,3 +401,60 @@ def test_main_gui_panel_invokes_panel(monkeypatch, tmp_path):
 
     assert app_module.main() == 0
     assert called["run"] == 1
+
+
+def test_main_gui_panel_sets_followup_poll_env(monkeypatch, tmp_path):
+    config = _make_config(tmp_path)
+    captured = {"run": 0, "poll": None}
+
+    class DummyTk:
+        def __init__(self):
+            return None
+
+    monkeypatch.setitem(sys.modules, "tkinter", type("TkDummy", (), {"Tk": DummyTk}))
+
+    class DummyPanel:
+        def __init__(self, orchestrator, chat_shortcut=None, followup_poll_ms=None):
+            captured["poll"] = followup_poll_ms
+
+        def run(self):
+            captured["run"] += 1
+
+    class DummyOrchestrator:
+        def __init__(self, cfg):
+            return None
+
+        def transcribe_and_handle(self):
+            return None
+
+        def handle_text(self, text: str) -> None:
+            return None
+
+        def run_s3_loop(self, text: str) -> bool:
+            return True
+
+    class DummyInbox:
+        def __init__(self, path):
+            self._path = path
+
+        def drain(self):
+            return []
+
+    import jarvis.entrada.gui_panel as gui_panel_module
+    monkeypatch.setattr(gui_panel_module, "JarvisPanel", DummyPanel)
+
+    monkeypatch.setattr(app_module, "load_config", lambda: config)
+    monkeypatch.setattr(app_module, "ensure_dirs", lambda cfg: None)
+    monkeypatch.setattr(app_module, "Orchestrator", DummyOrchestrator)
+    monkeypatch.setattr(app_module, "ChatInbox", DummyInbox)
+    monkeypatch.setattr(app_module, "stop_requested", lambda path: False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["jarvis", "--gui-panel", "--gui-followup-poll-ms", "777"],
+    )
+
+    assert app_module.main() == 0
+    assert os.environ.get("JARVIS_GUI_FOLLOWUP_POLL_MS") == "777"
+    assert captured["poll"] == 777
+    assert captured["run"] == 1

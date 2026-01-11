@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+import os
 import threading
 from pathlib import Path
 from typing import Optional
@@ -13,14 +15,35 @@ except ImportError as exc:
     ) from exc
 
 
+def _env_int(key: str, default: int) -> int:
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 class JarvisPanel:
     """Mini painel flutuante para enviar comandos e acompanhar o status."""
 
-    def __init__(self, orchestrator, chat_shortcut: Optional[object] = None) -> None:
+    def __init__(
+        self,
+        orchestrator,
+        chat_shortcut: Optional[object] = None,
+        followup_poll_ms: int | None = None,
+    ) -> None:
         self._orchestrator = orchestrator
         self._chat_shortcut = chat_shortcut
-        self._microphone_enabled = False
+        self._microphone_enabled = self._is_stt_enabled()
+        self._stt_prev_mode: str | None = None
         self._busy = False
+        self._last_mic_error: str | None = None
+        if followup_poll_ms is None:
+            followup_poll_ms = _env_int("JARVIS_GUI_FOLLOWUP_POLL_MS", 500)
+        self._followup_poll_ms = int(followup_poll_ms)
+        self._followup_poll_enabled = True
 
         self.root = tk.Tk()
         self.root.title("Jarvis - Painel rápido")
@@ -30,6 +53,8 @@ class JarvisPanel:
         self.root.protocol("WM_DELETE_WINDOW", self._shutdown)
 
         self._build_ui()
+        self._update_followup_indicator()
+        self._schedule_followup_poll()
 
     def _build_ui(self) -> None:
         padding = 8
@@ -74,6 +99,7 @@ class JarvisPanel:
             width=18,
         )
         self.mic_button.pack(side="left")
+        self._sync_mic_label()
 
         self.cancel_button = tk.Button(
             control_frame,
@@ -96,7 +122,14 @@ class JarvisPanel:
             text="Pronto para ouvir comandos",
             anchor="w",
         )
-        self.status_label.pack(side="left", padx=(6, 0), expand=True)
+        self.status_label.pack(side="left", padx=(6, 0))
+
+        self.followup_label = tk.Label(
+            control_frame,
+            text="Follow-up: inativo",
+            anchor="w",
+        )
+        self.followup_label.pack(side="left", padx=(6, 0), expand=True)
 
     def _log(self, message: str) -> None:
         """Append message to the log safely."""
@@ -120,10 +153,28 @@ class JarvisPanel:
         self.status_label.configure(text=status)
 
     def _toggle_microphone(self) -> None:
-        self._microphone_enabled = not self._microphone_enabled
+        target_enabled = not self._microphone_enabled
+        current_mode = self._get_stt_mode() or "local"
+        desired_mode = current_mode
+
+        if target_enabled:
+            desired_mode = self._stt_prev_mode or current_mode
+            if desired_mode == "none":
+                desired_mode = "local"
+        else:
+            if current_mode and current_mode != "none":
+                self._stt_prev_mode = current_mode
+            desired_mode = "none"
+
+        if not self._set_stt_mode(desired_mode):
+            detail = self._last_mic_error or "config indisponivel"
+            self._log(f"Nao foi possivel alternar o microfone ({detail}).")
+            return
+
+        self._microphone_enabled = target_enabled
+        self._sync_mic_label()
         label = "Microfone: Ligado" if self._microphone_enabled else "Microfone: Desligado"
-        self.mic_button.configure(text=label)
-        self._log(f"{label} (indicador apenas, STT permanece nas configurações padrão).")
+        self._log(f"{label} (STT={'ativo' if self._microphone_enabled else 'desativado'}).")
 
     def _request_cancel(self) -> None:
         config = getattr(self._orchestrator, "config", None)
@@ -171,6 +222,7 @@ class JarvisPanel:
             self._log(f"❌ Erro ao processar '{text}': {exc}")
         finally:
             self.root.after(0, lambda: self._set_busy(False))
+            self.root.after(0, self._update_followup_indicator)
 
     def run(self) -> None:
         """Start the Tk event loop."""
@@ -183,9 +235,94 @@ class JarvisPanel:
     def _shutdown(self) -> None:
         if not self.root.winfo_exists():
             return
+        self._followup_poll_enabled = False
         self._log("Desligando o Jarvis...")
         if self._chat_shortcut:
             self._chat_shortcut.stop()
         if self._busy:
             self._set_busy(False)
         self.root.destroy()
+
+    def _get_stt_mode(self) -> Optional[str]:
+        config = getattr(self._orchestrator, "config", None)
+        mode = getattr(config, "stt_mode", None) if config else None
+        if mode is None:
+            stt = getattr(self._orchestrator, "stt", None)
+            mode = getattr(getattr(stt, "config", None), "stt_mode", None)
+        return str(mode) if mode is not None else None
+
+    def _is_stt_enabled(self) -> bool:
+        mode = self._get_stt_mode()
+        return bool(mode and mode != "none")
+
+    def _clone_config(self, config, **overrides):
+        if hasattr(config, "__dataclass_fields__"):
+            try:
+                return dataclasses.replace(config, **overrides)
+            except Exception:
+                pass
+        if not hasattr(config, "__dict__"):
+            return None
+        data = dict(config.__dict__)
+        data.update(overrides)
+        try:
+            return config.__class__(**data)
+        except Exception:
+            return None
+
+    def _set_stt_mode(self, mode: str) -> bool:
+        self._last_mic_error = None
+        config = getattr(self._orchestrator, "config", None)
+        if config is None or not hasattr(config, "stt_mode"):
+            self._last_mic_error = "config sem stt_mode"
+            return False
+        new_config = self._clone_config(config, stt_mode=mode)
+        if new_config is None:
+            try:
+                setattr(config, "stt_mode", mode)
+                new_config = config
+            except Exception as exc:
+                self._last_mic_error = f"config imutavel/nao clonavel: {exc}"
+                return False
+        self._orchestrator.config = new_config
+        stt = getattr(self._orchestrator, "stt", None)
+        if stt is not None and hasattr(stt, "config"):
+            stt.config = new_config
+        return True
+
+    def _sync_mic_label(self) -> None:
+        label = "Microfone: Ligado" if self._microphone_enabled else "Microfone: Desligado"
+        self.mic_button.configure(text=label)
+
+    def _get_followup_state(self) -> Optional[bool]:
+        followup = getattr(self._orchestrator, "_followup", None)
+        if followup is None or not hasattr(followup, "is_active"):
+            return None
+        try:
+            return bool(followup.is_active())
+        except Exception:
+            return None
+
+    def _update_followup_indicator(self) -> None:
+        state = self._get_followup_state()
+        if state is None:
+            label = "Follow-up: n/a"
+        elif state:
+            label = "Follow-up: ativo"
+        else:
+            label = "Follow-up: inativo"
+        self.followup_label.configure(text=label)
+
+    def _schedule_followup_poll(self) -> None:
+        if not self._followup_poll_enabled:
+            return
+        if getattr(self.root, "_immediate_after", False):
+            return
+
+        def _tick() -> None:
+            if not self._followup_poll_enabled or not self.root.winfo_exists():
+                return
+            self._update_followup_indicator()
+            self.root.after(self._followup_poll_ms, _tick)
+
+        self.root.after(self._followup_poll_ms, _tick)

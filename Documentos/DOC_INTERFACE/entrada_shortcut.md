@@ -3,6 +3,7 @@
 - Caminho: `jarvis/entrada/shortcut.py`
 - Papel: atalho global (Ctrl+Shift+J) para abrir Chat UI.
 - Onde entra no fluxo: opcional, iniciado pelo CLI.
+- Atualizado em: 2026-01-10 (revisado com o codigo)
 
 ## Responsabilidades
 - Capturar combinacao global via pynput.
@@ -16,8 +17,10 @@
 
 ## Configuracao (env/config)
 - Usa `DISPLAY` e `WAYLAND_DISPLAY` para detectar Wayland.
-- Opcional: `chat_ui_command` e `chat_shortcut_combo` se existirem no config (fallback para padrao).
-- Opcional: `JARVIS_CHAT_SHORTCUT_COMBO` para definir o combo via env.
+- Opcional: `chat_ui_command` e `chat_shortcut_combo` se existirem no config (fallback para env).
+- Env: `JARVIS_CHAT_SHORTCUT_COMBO` define o combo direto (ex: `alt+k`).
+- Opcional: `JARVIS_CHAT_SHORTCUT_FILE` ativa gatilho por arquivo (fallback sem pynput).
+- Opcional: `JARVIS_CHAT_SHORTCUT_FILE_POLL_MS` (default 500) ajusta o polling do arquivo.
 
 ## Dependencias diretas
 - `pynput`
@@ -33,6 +36,7 @@
 ## Qualidade e limites
 - Em Wayland puro, atalho pode nao funcionar.
 - `cooldown_s` evita repeticao quando a tecla fica pressionada.
+- Gatilho por arquivo funciona mesmo sem pynput (use um atalho do sistema para `touch`).
 
 
 ## Performance (estimativa)
@@ -40,11 +44,11 @@
 - Medir: use `/usr/bin/time -v <comando>` e monitore `top`/`htop`.
 
 ## Observabilidade
-- Sem log proprio; imprime aviso no CLI se indisponivel.
+- Sem log proprio; imprime aviso no CLI se indisponivel e expõe `last_error`.
 
 ## Problemas conhecidos (hoje)
-- Em Wayland sem X11, atalho global nao funciona.
-- Depende de pynput; se ausente, nao ativa.
+- Em Wayland sem X11, atalho global nao funciona (agora detectado com `last_error`).
+- Depende de pynput para o atalho global; fallback por arquivo evita bloqueio.
 
 ## Melhorias sugeridas
-- Padronizar `chat_shortcut_combo` via env/config (hoje e opcional).
+- (nenhuma pendente relevante no momento)

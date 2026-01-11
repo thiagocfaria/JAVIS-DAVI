@@ -38,6 +38,16 @@ def test_check_chat_shortcut_warns_without_pynput(monkeypatch):
     assert result.status == "WARN"
 
 
+def test_check_chat_shortcut_ok_with_file_trigger(monkeypatch):
+    monkeypatch.setattr(
+        preflight,
+        "check_shortcut_deps",
+        lambda: {"pynput": False, "file_trigger": True},
+    )
+    result = preflight._check_chat_shortcut()
+    assert result.status == "OK"
+
+
 def test_check_chat_shortcut_warns_on_wayland_without_x11(monkeypatch):
     monkeypatch.setattr(
         preflight,
@@ -96,3 +106,55 @@ def test_check_tts_warns_when_piper_missing_model_but_espeak_ok(monkeypatch):
     result = preflight._check_tts(_make_config())
     assert result.status == "WARN"
     assert "espeak" in result.detail
+
+
+def test_check_wake_word_audio_warns_when_porcupine_missing(monkeypatch):
+    monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO", "1")
+    monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO_BACKEND", "porcupine")
+    monkeypatch.setattr(
+        preflight, "wakeword_porcupine", types.SimpleNamespace(is_available=lambda: False)
+    )
+    result = preflight._check_wake_word_audio()
+    assert result is not None
+    assert result.status == "WARN"
+
+
+def test_check_wake_word_audio_warns_when_openwakeword_missing(monkeypatch):
+    monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO", "1")
+    monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO_BACKEND", "openwakeword")
+    monkeypatch.setattr(
+        preflight,
+        "wakeword_openwakeword",
+        types.SimpleNamespace(is_available=lambda: False),
+    )
+    result = preflight._check_wake_word_audio()
+    assert result is not None
+    assert result.status == "WARN"
+
+
+def test_check_wake_word_audio_warns_when_openwakeword_no_models(monkeypatch):
+    monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO", "1")
+    monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO_BACKEND", "openwakeword")
+    monkeypatch.delenv("JARVIS_OPENWAKEWORD_MODEL_PATHS", raising=False)
+    monkeypatch.setattr(
+        preflight,
+        "wakeword_openwakeword",
+        types.SimpleNamespace(is_available=lambda: True),
+    )
+    result = preflight._check_wake_word_audio()
+    assert result is not None
+    assert result.status == "WARN"
+
+
+def test_check_wake_word_audio_ok_with_openwakeword_models(monkeypatch):
+    monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO", "1")
+    monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO_BACKEND", "openwakeword")
+    monkeypatch.setenv("JARVIS_OPENWAKEWORD_MODEL_PATHS", "model1.onnx")
+    monkeypatch.setattr(
+        preflight,
+        "wakeword_openwakeword",
+        types.SimpleNamespace(is_available=lambda: True),
+    )
+    result = preflight._check_wake_word_audio()
+    assert result is not None
+    assert result.status == "OK"

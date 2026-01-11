@@ -3,15 +3,19 @@
 - Caminho: `jarvis/entrada/app.py`
 - Papel: entrypoint da interface (CLI) para voz, texto, painel e preflight.
 - Onde entra no fluxo: recebe comandos e aciona o orquestrador (fora do escopo da interface).
+- Atualizado em: 2026-01-10 (revisado com o codigo e flags conferidas)
 
 ## Responsabilidades
-- Parsear flags (`--voice`, `--voice-loop`, `--gui-panel`, `--chat-ui`, `--preflight`).
+- Parsear flags de fluxo (`--voice`, `--voice-loop`, `--loop`, `--gui-panel`, `--chat-ui`).
+- Suportar rotas auxiliares (`--open-chat`, `--s3`) e modos (`--dry-run`).
+- Permitir preflight por perfil via `--preflight-profile` (voz/UI/desktop).
 - Controlar pausa do voice-loop com `--voice-loop-sleep`.
 - Permitir override de device/SR via CLI (`--audio-device`, `--audio-capture-sr`).
+- Permitir ajustar o polling do follow-up no painel (`--gui-followup-poll-ms`).
 - Garantir que STT esta disponivel antes de usar voz.
 - Criar `Orchestrator` e `ChatInbox` para drenar comandos de UI/arquivo.
 - Iniciar loop de voz ou loop interativo.
-- Acionar `ChatShortcut` quando pedido.
+- Acionar `ChatShortcut` quando pedido (`--enable-shortcut`).
 
 ## Entrada e saida
 - Entrada: args CLI + linhas do inbox (texto) + opcional microfone.
@@ -35,11 +39,13 @@
 
 ## Comandos uteis
 - Preflight: `PYTHONPATH=. python -m jarvis.entrada.app --preflight`
+- Preflight por perfil (voz): `PYTHONPATH=. python -m jarvis.entrada.app --preflight --preflight-profile voice`
 - Voz unica: `PYTHONPATH=. python -m jarvis.entrada.app --voice`
 - Voice loop: `PYTHONPATH=. python -m jarvis.entrada.app --voice-loop --voice-loop-sleep 0.5`
 - Voice loop com device/SR: `PYTHONPATH=. python -m jarvis.entrada.app --voice-loop --audio-device 3 --audio-capture-sr 44100`
 - Chat UI: `PYTHONPATH=. python -m jarvis.entrada.app --chat-ui`
 - Painel: `PYTHONPATH=. python -m jarvis.entrada.app --gui-panel`
+- Painel (polling follow-up): `PYTHONPATH=. python -m jarvis.entrada.app --gui-panel --gui-followup-poll-ms 750`
 - Teste: `PYTHONPATH=. pytest -q testes/test_app_voice_interface.py`
 
 ## Qualidade e limites

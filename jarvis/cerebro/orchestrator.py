@@ -1335,7 +1335,10 @@ class Orchestrator:
             if not verifier.is_available():
                 self._say("Verificacao de locutor indisponivel. Instale resemblyzer.")
                 return True
-            self._say("Certo. Fale normalmente para cadastrar sua voz.")
+            self._say(
+                "Certo. Vou gravar sua voz por alguns segundos. "
+                "Quando terminar, vou pedir confirmacao."
+            )
             try:
                 enroll_seconds = _env_int_clamped(
                     "JARVIS_VOICE_ENROLL_MAX_SECONDS", 12, 5, 60
@@ -1358,6 +1361,11 @@ class Orchestrator:
                 return True
             if len(audio_bytes) < (SAMPLE_RATE * BYTES_PER_SAMPLE):
                 self._say("Fale por mais tempo para cadastrar sua voz.")
+                return True
+            confirm = self._prompt_user("Confirmar cadastro de voz? (sim/nao)")
+            confirm_text = normalize_text(confirm)
+            if not confirm_text.startswith("s") and confirm_text != "ok":
+                self._say("Cadastro cancelado.")
                 return True
             embedding = verifier.enroll(audio_bytes, SAMPLE_RATE)
             if embedding:

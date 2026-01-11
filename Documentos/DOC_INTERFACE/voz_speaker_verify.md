@@ -3,12 +3,13 @@
 - Caminho: `jarvis/voz/speaker_verify.py`
 - Papel: verificar se a voz do comando e do locutor cadastrado.
 - Onde entra no fluxo: filtro opcional antes de aceitar comando de voz.
+- Atualizado em: 2026-01-10 (politica de audio curto ajustada)
 
 ## Responsabilidades
 - Criar embedding (enroll) e salvar voiceprint.
 - Comparar embedding atual com voiceprint (cosine similarity).
 - Aplicar threshold configuravel.
-- Armazenar voiceprint em JSON com lista `embedding`.
+- Armazenar voiceprint em JSON com lista `embedding` (ou payload criptografado quando passphrase esta ativa).
 
 ## Entrada e saida
 - Entrada: audio PCM int16 mono; reamostra para 16 kHz quando necessario.
@@ -17,8 +18,9 @@
 ## Configuracao (env)
 - `JARVIS_SPK_VERIFY` (liga/desliga)
 - `JARVIS_SPK_THRESHOLD` (padrao 0.75)
-- `JARVIS_SPK_MIN_AUDIO_MS` (padrao 1000; abaixo disso a verificacao e pulada)
+- `JARVIS_SPK_MIN_AUDIO_MS` (padrao 1000; abaixo disso a verificacao falha)
 - `JARVIS_CONFIG_DIR` (local do voiceprint)
+- `JARVIS_SPK_VOICEPRINT_PASSPHRASE` (opcional, criptografar voiceprint)
 - `JARVIS_DEBUG`
   - Default voiceprint: `~/.config/jarvis/voiceprint.json`
 
@@ -26,6 +28,7 @@
 - `resemblyzer`
 - `numpy`
 - `scipy` (opcional, reamostragem)
+- `cryptography` (opcional, criptografar voiceprint)
 
 ## Testes relacionados
 - `testes/test_speaker_verify_interface.py`
@@ -41,6 +44,10 @@
 - Se `JARVIS_SPK_VERIFY=1` mas o resemblyzer nao esta disponivel, a verificacao e ignorada (ok).
 - Se `scipy` estiver ausente, a reamostragem nao ocorre (usa o audio original).
 - Voiceprint e mantido em cache para reduzir IO.
+- Se `JARVIS_SPK_VOICEPRINT_PASSPHRASE` estiver setado e `cryptography` faltar, o enroll falha.
+- O modulo salva o voiceprint automaticamente quando chamado; a confirmacao explicita e feita no orquestrador antes do enroll.
+- Se o voiceprint estiver criptografado e a passphrase estiver ausente, a verificacao falha.
+- Audio curto falha a verificacao para evitar falso positivo.
 
 
 ## Performance (estimativa)
@@ -51,8 +58,7 @@
 - Debug por `JARVIS_DEBUG=1`.
 
 ## Problemas conhecidos (hoje)
-- Voiceprint e salvo em JSON simples (sem criptografia).
-- Audio curto pode gerar falso negativo.
+- Sem bloqueios criticos conhecidos neste modulo.
 
 ## Melhorias sugeridas
-- Explicar UX para cadastro (mensagem guiada + confirmacao).
+- Adicionar confirmacao explicita antes de salvar o voiceprint (ex: prompt no orquestrador).

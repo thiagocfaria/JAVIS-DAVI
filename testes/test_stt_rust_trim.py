@@ -37,6 +37,8 @@ def patch_audio(monkeypatch):
     monkeypatch.setattr("jarvis.entrada.stt.sd", DummySD())
     monkeypatch.setattr("jarvis.entrada.stt.np", DummyNP())
     monkeypatch.setattr("jarvis.entrada.stt.check_vad_available", lambda: False)
+    monkeypatch.delenv("JARVIS_AUDIO_DEVICE", raising=False)
+    monkeypatch.delenv("JARVIS_AUDIO_CAPTURE_SR", raising=False)
 
 
 def test_trim_rust_blocks_silence(monkeypatch):

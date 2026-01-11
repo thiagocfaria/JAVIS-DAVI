@@ -75,6 +75,7 @@ class _DummyEnrollVerifier:
         return True
 
     def enroll(self, audio_bytes: bytes, sample_rate: int):
+        self.called = True
         return [0.1]
 
     def voiceprint_path(self) -> Path:
@@ -89,12 +90,32 @@ def test_voice_enroll_max_seconds_env(monkeypatch: pytest.MonkeyPatch, env_value
     _set_env(monkeypatch, "JARVIS_VOICE_ENROLL_MAX_SECONDS", env_value)
 
     stt = _DummySTT()
+    verifier = _DummyEnrollVerifier()
+    verifier.called = False
     fake = types.SimpleNamespace(
         stt=stt,
-        _speaker_verifier=_DummyEnrollVerifier(),
+        _speaker_verifier=verifier,
         _debug=lambda message: None,
         _say=lambda message: None,
+        _prompt_user=lambda prompt: "sim",
     )
 
     assert Orchestrator._handle_meta_command(fake, "cadastrar voz") is True  # type: ignore[misc]
     assert stt.last_max_seconds == expected
+    assert verifier.called is True
+
+
+def test_voice_enroll_requires_confirmation() -> None:
+    stt = _DummySTT()
+    verifier = _DummyEnrollVerifier()
+    verifier.called = False
+    fake = types.SimpleNamespace(
+        stt=stt,
+        _speaker_verifier=verifier,
+        _debug=lambda message: None,
+        _say=lambda message: None,
+        _prompt_user=lambda prompt: "nao",
+    )
+
+    assert Orchestrator._handle_meta_command(fake, "cadastrar voz") is True  # type: ignore[misc]
+    assert verifier.called is False

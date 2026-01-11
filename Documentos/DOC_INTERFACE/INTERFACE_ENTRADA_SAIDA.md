@@ -10,7 +10,7 @@ Este documento e a fonte principal da interface de entrada/saida do Jarvis. Ele 
 
 ## Visao geral do fluxo
 1) Voz entra via microfone (sounddevice) e vira PCM int16 16k.
-2) VAD corta silencio; opcionalmente trim Rust remove bordas.
+2) VAD corta silencio; opcionalmente Silero melhora fim de fala e trim Rust remove bordas.
 3) STT local transcreve para texto.
 4) Texto segue para o orquestrador (fora deste escopo).
 5) Saida: texto no log/UI e voz via TTS local.
@@ -43,6 +43,7 @@ Este documento e a fonte principal da interface de entrada/saida do Jarvis. Ele 
 - [entrada/stt.py](./entrada_stt.md)
 - [entrada/audio_utils.py](./entrada_audio_utils.md)
 - [voz/vad.py](./voz_vad.md)
+- [voz/adapters/vad_silero.py](./voz_adapters_vad_silero.md)
 - [entrada/followup.py](./entrada_followup.md)
 - [voz/adapters/wakeword_text.py](./voz_adapters_wakeword_text.md)
 - [voz/adapters/base.py](./voz_adapters_base.md)

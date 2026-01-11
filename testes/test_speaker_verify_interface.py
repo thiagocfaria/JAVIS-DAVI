@@ -45,7 +45,9 @@ def test_enroll_speaker_saves_voiceprint(monkeypatch, tmp_path):
 
     monkeypatch.setattr(sv, "_pcm16_to_float", lambda audio: DummyWav())
     monkeypatch.setattr(sv, "_get_encoder", lambda: DummyEncoder())
-    monkeypatch.setattr(sv, "_save_voiceprint", lambda emb: saved.__setitem__("embedding", emb))
+    monkeypatch.setattr(
+        sv, "_save_voiceprint", lambda emb: saved.__setitem__("embedding", emb) or True
+    )
 
     embedding = sv.enroll_speaker(b"\x00\x00")
     assert embedding == [0.1, 0.2]
@@ -57,6 +59,7 @@ def test_verify_speaker_uses_threshold(monkeypatch):
 
     monkeypatch.setenv("JARVIS_SPK_VERIFY", "1")
     monkeypatch.setenv("JARVIS_SPK_THRESHOLD", "0.75")
+    monkeypatch.setenv("JARVIS_SPK_MIN_AUDIO_MS", "0")
     monkeypatch.setattr(sv, "is_available", lambda: True)
     monkeypatch.setattr(sv, "_load_voiceprint", lambda: [0.1, 0.2])
     monkeypatch.setattr(sv, "_pcm16_to_float", lambda audio: types.SimpleNamespace(size=1))
@@ -103,7 +106,7 @@ def test_verify_speaker_resamples_when_sample_rate_diff(monkeypatch):
     assert score == 0.9
 
 
-def test_verify_speaker_skips_short_audio(monkeypatch):
+def test_verify_speaker_fails_short_audio(monkeypatch):
     monkeypatch.setenv("JARVIS_SPK_VERIFY", "1")
     monkeypatch.setenv("JARVIS_SPK_MIN_AUDIO_MS", "1000")
     monkeypatch.setattr(sv, "is_available", lambda: True)
@@ -111,8 +114,8 @@ def test_verify_speaker_skips_short_audio(monkeypatch):
     monkeypatch.setattr(sv, "_get_encoder", lambda: (_ for _ in ()).throw(RuntimeError("should not call")))
 
     score, ok = sv.verify_speaker(b"\x00\x00" * 100, sample_rate=16000)
-    assert ok is True
-    assert score == 1.0
+    assert ok is False
+    assert score == 0.0
 
 
 def test_load_voiceprint_uses_cache(monkeypatch, tmp_path):
@@ -137,3 +140,25 @@ def test_load_voiceprint_uses_cache(monkeypatch, tmp_path):
     assert first == [0.1, 0.2]
     assert second == [0.1, 0.2]
     assert calls["count"] == 1
+
+
+def test_voiceprint_encryption_roundtrip(monkeypatch, tmp_path):
+    monkeypatch.setenv("JARVIS_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("JARVIS_SPK_VOICEPRINT_PASSPHRASE", "secret")
+
+    def fake_encrypt(payload, passphrase):
+        assert passphrase == "secret"
+        return {"encrypted": True, "ciphertext": json.dumps(payload)}
+
+    def fake_decrypt(data, passphrase):
+        assert passphrase == "secret"
+        return json.loads(data["ciphertext"])  # type: ignore[index]
+
+    monkeypatch.setattr(sv, "_encrypt_payload", fake_encrypt)
+    monkeypatch.setattr(sv, "_decrypt_payload", fake_decrypt)
+    monkeypatch.setattr(sv, "_voiceprint_cache", None)
+    monkeypatch.setattr(sv, "_voiceprint_mtime", None)
+
+    assert sv._save_voiceprint([0.1, 0.2]) is True
+    loaded = sv.load_voiceprint()
+    assert loaded == [0.1, 0.2]

@@ -3,24 +3,38 @@
 - Caminho: `jarvis/voz/vad.py`
 - Papel: VAD (detectar fala) e gravacao streaming.
 - Onde entra no fluxo: usado pelo STT para cortar silencio.
+- Atualizado em: 2026-01-10 (revisado com o codigo)
 
 ## Responsabilidades
 - Detectar fala em frames PCM int16.
 - Gravar ate silencio (StreamingVAD).
 - Gerar pre/post-roll para nao cortar o inicio/fim.
 - Opcionalmente retornar `speech_detected` junto com os bytes.
+- Aplicar AEC simples (quando habilitado) antes de checar fala.
 
 ## Entrada e saida
 - Entrada: bytes PCM int16 ou stream do microfone (float32 -> int16).
 - Saida: bytes de audio; quando `return_speech_flag=True`, retorna `(bytes, bool)`.
 
 ## Configuracao
-- Parametros no init: aggressiveness, sample_rate, silence_duration, pre/post-roll.
+- Parametros no init: aggressiveness, sample_rate, silence_duration, pre/post-roll, device.
 - Defaults do StreamingVAD: sample_rate=16000, frame=30ms, silence=800ms, max=30s, pre=200ms, post=200ms.
+- Env opcional: `JARVIS_VAD_METRICS=1` para logar frames/duracao.
+- Env opcional: `JARVIS_VAD_AGGRESSIVENESS=0..3` (default 2) para ajustar sensibilidade.
+- Env opcional: `JARVIS_VAD_SILENCE_MS`, `JARVIS_VAD_PRE_ROLL_MS`, `JARVIS_VAD_POST_ROLL_MS`, `JARVIS_VAD_MAX_SECONDS` (ajusta o StreamingVAD).
+- Env opcional: `JARVIS_VAD_PREPROCESS=1` habilita pre-processamento (NS/AGC leve) antes do VAD.
+- Env opcional: `JARVIS_AEC_BACKEND=simple` habilita AEC simples (precisa referencia de playback).
+- Ajustes do AEC:
+  - `JARVIS_AEC_REF_SECONDS` (tamanho do buffer de playback; default 5s)
+  - `JARVIS_AEC_MAX_GAIN` (limite de ganho; default 1.0)
+- Ajustes de pre-processamento:
+  - `JARVIS_AUDIO_AGC_TARGET_RMS` (default 0.06)
+  - `JARVIS_AUDIO_AGC_MAX_GAIN` (default 6.0)
+  - `JARVIS_AUDIO_NS_GATE_RMS` (default 0.01)
 
 ## Dependencias diretas
 - `webrtcvad`
-- `sounddevice`
+- `sounddevice` (apenas para gravacao streaming)
 - `numpy`
 
 ## Testes relacionados
@@ -35,6 +49,9 @@
 - webrtcvad aceita SR: 8/16/32/48 kHz.
 - Frames precisam ter tamanho exato (10/20/30 ms).
 - `VADError` e levantado quando o frame tem tamanho invalido.
+- Quando `empty_if_no_speech=True` (padrao), retorna `b""` se nao houve fala.
+- Streaming VAD precisa de `sounddevice`; se faltar backend de audio, gravação falha com `VADError`.
+- AEC simples so roda em 16 kHz e depende de referencia de playback (piper).
 
 
 ## Performance (estimativa)
@@ -42,12 +59,12 @@
 - Medir: use `/usr/bin/time -v <comando>` e monitore `top`/`htop`.
 
 ## Observabilidade
+- Metrics via `JARVIS_VAD_METRICS=1` (frames e duracao).
 - Sem log proprio; erros viram excecao.
 
 ## Problemas conhecidos (hoje)
-- webrtcvad pode errar com voz baixa/ruido.
-- Nao ha AEC/NS/AGC antes do VAD.
-- StreamingVAD nao expone escolha de device.
+- Voz baixa/ruido pode exigir ajuste de `JARVIS_VAD_AGGRESSIVENESS`.
+- AEC simples depende de ter referencia valida; se nao houver, vira passthrough.
 
 ## Melhorias sugeridas
-- Expor metricas de frames processados e duracao.
+- (nenhuma pendente relevante no momento)

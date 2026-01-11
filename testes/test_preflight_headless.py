@@ -36,3 +36,64 @@ def test_preflight_headless_treats_desktop_as_warning(monkeypatch):
         desktop_check = next(c for c in report.checks if c.name == "Acoes desktop")
         assert desktop_check.status == "WARN"
         assert "headless" in desktop_check.detail
+
+
+def test_preflight_headless_respects_xdg_session_type_x11(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("JARVIS_DATA_DIR", tmpdir)
+        monkeypatch.setenv("JARVIS_HEADLESS", "0")
+        monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
+        monkeypatch.setenv("DISPLAY", ":0")
+        monkeypatch.setenv("JARVIS_STT_MODE", "none")
+        monkeypatch.setenv("JARVIS_TTS_MODE", "none")
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+
+        def _fake_tools(self):
+            return {
+                "xdotool": False,
+                "wtype": False,
+                "ydotool": False,
+                "ydotool_socket": None,
+                "pyautogui": False,
+                "atspi": False,
+                "session_type": "unknown",
+                "is_wayland": False,
+            }
+
+        monkeypatch.setattr(DesktopAutomation, "check_available_tools", _fake_tools)
+
+        config = load_config()
+        report = run_preflight(config)
+
+        desktop_check = next(c for c in report.checks if c.name == "Acoes desktop")
+        assert desktop_check.status == "FAIL"
+
+
+def test_preflight_headless_respects_ci_without_display(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("JARVIS_DATA_DIR", tmpdir)
+        monkeypatch.setenv("CI", "1")
+        monkeypatch.setenv("JARVIS_STT_MODE", "none")
+        monkeypatch.setenv("JARVIS_TTS_MODE", "none")
+        monkeypatch.delenv("DISPLAY", raising=False)
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+
+        def _fake_tools(self):
+            return {
+                "xdotool": False,
+                "wtype": False,
+                "ydotool": False,
+                "ydotool_socket": None,
+                "pyautogui": False,
+                "atspi": False,
+                "session_type": "unknown",
+                "is_wayland": False,
+            }
+
+        monkeypatch.setattr(DesktopAutomation, "check_available_tools", _fake_tools)
+
+        config = load_config()
+        report = run_preflight(config)
+
+        desktop_check = next(c for c in report.checks if c.name == "Acoes desktop")
+        assert desktop_check.status == "WARN"

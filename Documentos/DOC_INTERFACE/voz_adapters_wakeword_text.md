@@ -3,6 +3,7 @@
 - Caminho: `jarvis/voz/adapters/wakeword_text.py`
 - Papel: adapter de wake word para fluxos baseados em texto.
 - Onde entra no fluxo: usado pelo STT/orquestrador para filtrar comandos.
+- Atualizado em: 2026-01-10 (revisado com o codigo)
 
 ## Responsabilidades
 - Manter a mesma interface de detectores de audio.
@@ -20,12 +21,19 @@
 
 ## Testes relacionados
 - `testes/test_stt_filters.py` (cobre o filtro)
+- `testes/test_voice_adapters.py` (cobre o adapter e o wake word por audio)
 
 ## Comandos uteis
 - Teste: `PYTHONPATH=. pytest -q testes/test_stt_filters.py`
 
 ## Qualidade e limites
-- `detect()` sempre retorna False (nao detecta audio).
+- `detect()` sempre retorna False (nao detecta audio; este adapter e so para texto).
+- Wake word por audio existe como opcional via Porcupine (ver abaixo).
+
+## Wake word por audio (opcional)
+- Modulo: `jarvis/voz/adapters/wakeword_porcupine.py`.
+- Ativar: `JARVIS_WAKE_WORD_AUDIO=1` e `JARVIS_PORCUPINE_ACCESS_KEY`.
+- Quando ativo e `require_wake_word=True`, o STT usa o detector de audio antes do texto.
 
 
 ## Performance (estimativa)
@@ -36,8 +44,7 @@
 - Sem logs.
 
 ## Problemas conhecidos (hoje)
-- `detect()` sempre retorna False; nao detecta wake word em audio.
-- Depende do texto ja transcrito para filtrar.
+- Sem Porcupine configurado, continua dependente do texto transcrito.
 
 ## Melhorias sugeridas
-- Implementar detector real por audio quando houver lib.
+- ~~Implementar detector real por audio quando houver lib.~~ (resolvido com Porcupine opcional)

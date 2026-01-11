@@ -3,6 +3,7 @@
 - Caminho: `jarvis/comunicacao/protocolo.py`
 - Papel: contrato de mensagens (tipos, ids, timestamps).
 - Onde entra no fluxo: base para mensagens entre modulos/servicos.
+- Atualizado em: 2026-01-10 (revisado com o codigo)
 
 ## Responsabilidades
 - Definir tipos de mensagem validos.

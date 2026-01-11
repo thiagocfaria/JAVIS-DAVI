@@ -170,6 +170,377 @@
           "note": "sem benchmark; chamadas serializadas para evitar sobreposicao"
         }
       ]
+    },
+    {
+      "record_id": "vad_device_2026-01-08",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "component": "vad_streaming",
+        "change": "device_support",
+        "note": "melhoria de fluxo; sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "vad_device",
+          "note": "sem benchmark; device pode ser definido no StreamingVAD"
+        }
+      ]
+    },
+    {
+      "record_id": "adapters_validate_audio_2026-01-08",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "component": "voz_adapters",
+        "change": "validate_audio_i16",
+        "note": "melhoria de fluxo; sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "adapters_validate_audio",
+          "note": "sem benchmark; valida PCM int16 e sample_rate"
+        }
+      ]
+    },
+    {
+      "record_id": "wakeword_audio_2026-01-08",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "component": "wakeword_audio",
+        "change": "porcupine_optional",
+        "note": "melhoria de fluxo; sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "wakeword_audio",
+          "note": "sem benchmark; wake word por audio opcional no STT"
+        }
+      ]
+    },
+    {
+      "record_id": "baseline_2026-01-08_pior_caso_30s",
+      "created_at": "2026-01-08",
+      "baseline": {
+        "date": "2026-01-08",
+        "method": "scripts/bench_interface.py",
+        "audio": "/tmp/jarvis_bench_30s.wav",
+        "audio_type": "espeak_repeat",
+        "sample_rate_hz": 16000,
+        "channels": 1,
+        "duration_s": 30,
+        "repeat": {
+          "stt": 1,
+          "vad": 5,
+          "speaker": 3,
+          "tts": 3
+        },
+        "deps_missing": [
+          "sounddevice",
+          "numpy",
+          "scipy",
+          "faster_whisper",
+          "webrtcvad"
+        ],
+        "speaker_available": false,
+        "note": "Resultados de STT/speaker podem nao refletir producao se deps estiverem ausentes."
+      },
+      "commands": {
+        "stt": "PYTHONPATH=. python scripts/bench_interface.py stt --audio /tmp/jarvis_bench_30s.wav --repeat 1 --json /tmp/bench_stt.json",
+        "vad": "PYTHONPATH=. python scripts/bench_interface.py vad --audio /tmp/jarvis_bench_30s.wav --repeat 5 --json /tmp/bench_vad.json",
+        "speaker": "PYTHONPATH=. JARVIS_CONFIG_DIR=/tmp/jarvis_bench_config JARVIS_SPK_VERIFY=1 python scripts/bench_interface.py speaker --audio /tmp/jarvis_bench_30s.wav --repeat 3 --json /tmp/bench_speaker.json",
+        "tts": "PYTHONPATH=. python scripts/bench_interface.py tts --text 'ola jarvis, este e um teste de desempenho' --repeat 3 --json /tmp/bench_tts.json"
+      },
+      "results": [
+        {
+          "repeat": 1,
+          "latency_ms_avg": 57.25350300053833,
+          "latency_ms_p50": 57.25350300053833,
+          "latency_ms_p95": 57.25350300053833,
+          "cpu_time_s_avg": 0.045179,
+          "rss_kb": 31892,
+          "psutil_cpu_percent": 86.7,
+          "psutil_rss_bytes": 20275200,
+          "psutil_vms_bytes": 40189952,
+          "psutil_available": true,
+          "scenario": "stt",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 5,
+          "latency_ms_avg": 79.88706880041718,
+          "latency_ms_p50": 78.39712100030738,
+          "latency_ms_p95": 136.56125130100918,
+          "cpu_time_s_avg": 0.052591999999999986,
+          "rss_kb": 32016,
+          "psutil_cpu_percent": 65.0,
+          "psutil_rss_bytes": 21315584,
+          "psutil_vms_bytes": 41115648,
+          "psutil_available": true,
+          "scenario": "vad",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 3,
+          "latency_ms_avg": 0.01234666645662704,
+          "latency_ms_p50": 0.008158999662555289,
+          "latency_ms_p95": 0.03638479993242072,
+          "cpu_time_s_avg": 1.6333333333338102e-05,
+          "rss_kb": 32188,
+          "psutil_cpu_percent": 0.0,
+          "psutil_rss_bytes": 24694784,
+          "psutil_vms_bytes": 48730112,
+          "psutil_available": true,
+          "scenario": "speaker",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 3,
+          "latency_ms_avg": 1.0533423331556453,
+          "latency_ms_p50": 0.8755779999773949,
+          "latency_ms_p95": 2.0453314000405953,
+          "cpu_time_s_avg": 0.0006466666666666657,
+          "rss_kb": 32216,
+          "psutil_cpu_percent": 273.8,
+          "psutil_rss_bytes": 19619840,
+          "psutil_vms_bytes": 39333888,
+          "psutil_available": true,
+          "scenario": "tts",
+          "text": "ola jarvis, este e um teste de desempenho",
+          "tts_mode": "local"
+        }
+      ]
+    },
+    {
+      "record_id": "baseline_2026-01-10_pior_caso_30s",
+      "created_at": "2026-01-10",
+      "baseline": {
+        "date": "2026-01-10",
+        "method": "scripts/bench_interface.py",
+        "audio": "/tmp/jarvis_bench_30s.wav",
+        "audio_type": "espeak_repeat",
+        "sample_rate_hz": 16000,
+        "channels": 1,
+        "duration_s": 30,
+        "repeat": {
+          "stt": 1,
+          "vad": 5,
+          "speaker": 3,
+          "tts": 3
+        },
+        "env": {
+          "python": ".venv",
+          "deps": [
+            "numpy",
+            "scipy",
+            "webrtcvad",
+            "faster-whisper",
+            "resemblyzer",
+            "sounddevice (stubbed)"
+          ],
+          "deps_missing": [
+            "psutil"
+          ],
+          "tts": {
+            "piper": false,
+            "espeak-ng": true,
+            "aplay": true
+          }
+        },
+        "vars": {
+          "JARVIS_SPK_VERIFY": "1",
+          "JARVIS_CONFIG_DIR": "/tmp/jarvis_bench_config"
+        },
+        "note": "sounddevice import travou; stub usado apenas para benchmark STT/VAD (sounddevice nao participa desses cenarios)."
+      },
+      "commands": {
+        "stt": "PYTHONPATH=. .venv/bin/python -c 'stub sounddevice' scripts/bench_interface.py stt --audio /tmp/jarvis_bench_30s.wav --repeat 1",
+        "vad": "PYTHONPATH=. .venv/bin/python -c 'stub sounddevice' scripts/bench_interface.py vad --audio /tmp/jarvis_bench_30s.wav --repeat 5",
+        "speaker": "PYTHONPATH=. JARVIS_CONFIG_DIR=/tmp/jarvis_bench_config JARVIS_SPK_VERIFY=1 .venv/bin/python scripts/bench_interface.py speaker --audio /tmp/jarvis_bench_30s.wav --repeat 3",
+        "tts": "PYTHONPATH=. .venv/bin/python scripts/bench_interface.py tts --text 'ola jarvis, teste de desempenho de voz' --repeat 3"
+      },
+      "results": [
+        {
+          "repeat": 1,
+          "latency_ms_avg": 13597.570753999662,
+          "latency_ms_p50": 13597.570753999662,
+          "latency_ms_p95": 13597.570753999662,
+          "cpu_time_s_avg": 38.146141,
+          "rss_kb": 1249704,
+          "scenario": "stt",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 5,
+          "latency_ms_avg": 4.54786359996433,
+          "latency_ms_p50": 4.453777999970043,
+          "latency_ms_p95": 5.214723899962337,
+          "cpu_time_s_avg": 0.004546600000000156,
+          "rss_kb": 607236,
+          "scenario": "vad",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 3,
+          "latency_ms_avg": 637.0484346666672,
+          "latency_ms_p50": 402.19459599984475,
+          "latency_ms_p95": 1928.654469400135,
+          "cpu_time_s_avg": 1.7605440000000003,
+          "rss_kb": 760536,
+          "scenario": "speaker",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 3,
+          "latency_ms_avg": 2.410204333349005,
+          "latency_ms_p50": 0.657991000025504,
+          "latency_ms_p95": 10.348836399771244,
+          "cpu_time_s_avg": 0.0003343333333333716,
+          "rss_kb": 98376,
+          "scenario": "tts",
+          "text": "ola jarvis, teste de desempenho de voz",
+          "tts_mode": "local"
+        }
+      ]
+    },
+    {
+      "record_id": "aec_simple_2026-01-10",
+      "created_at": "2026-01-10",
+      "baseline": {
+        "component": "aec",
+        "change": "simple_playback_reference",
+        "note": "melhoria de fluxo; sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "aec_simple",
+          "note": "sem benchmark; AEC simples usa referencia de playback"
+        }
+      ]
+    },
+    {
+      "record_id": "stt_streaming_controls_2026-01-11",
+      "created_at": "2026-01-11",
+      "baseline": {
+        "component": "stt",
+        "change": "early_transcribe_buffer_cap_external_audio",
+        "note": "melhoria de fluxo; sem benchmark"
+      },
+      "commands": {},
+      "results": [
+        {
+          "scenario": "stt_streaming_controls",
+          "note": "sem benchmark; early transcribe, buffer cap e entrada externa"
+        }
+      ]
+    },
+    {
+      "record_id": "baseline_2026-01-11_pior_caso_30s",
+      "created_at": "2026-01-11",
+      "baseline": {
+        "date": "2026-01-11",
+        "method": "scripts/bench_interface.py",
+        "audio": "/tmp/jarvis_bench_30s.wav",
+        "audio_type": "espeak_repeat_trimmed",
+        "sample_rate_hz": 22050,
+        "channels": 1,
+        "duration_s": 30,
+        "resample": true,
+        "repeat": {
+          "stt": 1,
+          "vad": 5,
+          "speaker": 3,
+          "tts": 3
+        },
+        "env": {
+          "python": ".venv",
+          "deps": [
+            "numpy",
+            "scipy",
+            "webrtcvad",
+            "faster-whisper",
+            "resemblyzer",
+            "psutil",
+            "espeak-ng"
+          ],
+          "tts": {
+            "piper": false,
+            "espeak-ng": true
+          }
+        },
+        "vars": {
+          "JARVIS_SPK_VERIFY": "1",
+          "JARVIS_CONFIG_DIR": "/tmp/jarvis_bench_config"
+        },
+        "note": "audio gerado via espeak-ng (22.05k) e reamostrado via --resample; comparacao nao e 1:1 com baselines anteriores."
+      },
+      "commands": {
+        "stt": "PYTHONPATH=. .venv/bin/python scripts/bench_interface.py stt --audio /tmp/jarvis_bench_30s.wav --repeat 1 --json /tmp/bench_stt.json --resample",
+        "vad": "PYTHONPATH=. .venv/bin/python scripts/bench_interface.py vad --audio /tmp/jarvis_bench_30s.wav --repeat 5 --json /tmp/bench_vad.json --resample",
+        "speaker": "PYTHONPATH=. JARVIS_CONFIG_DIR=/tmp/jarvis_bench_config JARVIS_SPK_VERIFY=1 .venv/bin/python scripts/bench_interface.py speaker --audio /tmp/jarvis_bench_30s.wav --repeat 3 --json /tmp/bench_speaker.json --resample",
+        "tts": "PYTHONPATH=. .venv/bin/python scripts/bench_interface.py tts --text 'ola jarvis, teste de desempenho de voz' --repeat 3 --json /tmp/bench_tts.json"
+      },
+      "results": [
+        {
+          "repeat": 1,
+          "latency_ms_avg": 44216.83770499931,
+          "latency_ms_p50": 44216.83770499931,
+          "latency_ms_p95": 44216.83770499931,
+          "cpu_time_s_avg": 79.083677,
+          "rss_kb": 1735028,
+          "psutil_cpu_percent": 178.8,
+          "psutil_rss_bytes": 1230626816,
+          "psutil_vms_bytes": 6811992064,
+          "psutil_available": true,
+          "scenario": "stt",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 5,
+          "latency_ms_avg": 8.289046599566063,
+          "latency_ms_p50": 6.70229799925437,
+          "latency_ms_p95": 12.72827619977761,
+          "cpu_time_s_avg": 0.005876999999999843,
+          "rss_kb": 617312,
+          "psutil_cpu_percent": 71.7,
+          "psutil_rss_bytes": 627011584,
+          "psutil_vms_bytes": 5801697280,
+          "psutil_available": true,
+          "scenario": "vad",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 3,
+          "latency_ms_avg": 0.04798566684864151,
+          "latency_ms_p50": 0.03345200002513593,
+          "latency_ms_p95": 0.12974660075997235,
+          "cpu_time_s_avg": 5.066666666668033e-05,
+          "rss_kb": 578968,
+          "psutil_cpu_percent": 0.0,
+          "psutil_rss_bytes": 587866112,
+          "psutil_vms_bytes": 5576974336,
+          "psutil_available": true,
+          "scenario": "speaker",
+          "audio": "/tmp/jarvis_bench_30s.wav"
+        },
+        {
+          "repeat": 3,
+          "latency_ms_avg": 1.4593786669744684,
+          "latency_ms_p50": 1.42115900052886,
+          "latency_ms_p95": 1.6573081997194095,
+          "cpu_time_s_avg": 0.0008016666666666172,
+          "rss_kb": 98664,
+          "psutil_cpu_percent": 206.6,
+          "psutil_rss_bytes": 101990400,
+          "psutil_vms_bytes": 901099520,
+          "psutil_available": true,
+          "scenario": "tts",
+          "text": "ola jarvis, teste de desempenho de voz",
+          "tts_mode": "local"
+        }
+      ]
     }
   ]
 }

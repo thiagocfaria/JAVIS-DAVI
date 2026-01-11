@@ -41,6 +41,9 @@ def _build_dummy_tk(entry_value: str = "hello"):
         def configure(self, *args, **kwargs):
             return None
 
+        def tag_configure(self, *args, **kwargs):
+            return None
+
         def delete(self, *args, **kwargs):
             self.value = ""
 
@@ -131,6 +134,18 @@ def test_format_log_with_timestamps(monkeypatch):
     assert formatted.count("[") >= 1
 
 
+def test_line_tags_roles_and_error(monkeypatch):
+    tk_dummy = _build_dummy_tk()
+    monkeypatch.setitem(sys.modules, "tkinter", tk_dummy)
+    chat_ui = importlib.import_module("jarvis.entrada.chat_ui")
+    importlib.reload(chat_ui)
+
+    line = "[2024-01-01 10:00:00] jarvis: erro ao iniciar"
+    tags = chat_ui._line_tags(line)
+    assert "role_jarvis" in tags
+    assert "error" in tags
+
+
 def test_chat_ui_main_writes_inbox(tmp_path, monkeypatch):
     tk_dummy = _build_dummy_tk(entry_value="hello")
     monkeypatch.setitem(sys.modules, "tkinter", tk_dummy)
@@ -161,3 +176,65 @@ def test_chat_ui_main_writes_inbox(tmp_path, monkeypatch):
 
     assert chat_ui.main() == 0
     assert inbox_path.read_text(encoding="utf-8").strip() == "hello"
+
+
+def test_chat_ui_uses_watchdog_when_available(tmp_path, monkeypatch):
+    tk_dummy = _build_dummy_tk(entry_value="hello")
+    monkeypatch.setitem(sys.modules, "tkinter", tk_dummy)
+    chat_ui = importlib.import_module("jarvis.entrada.chat_ui")
+    importlib.reload(chat_ui)
+
+    log_path = tmp_path / "chat.log"
+    inbox_path = tmp_path / "chat_inbox.txt"
+    log_path.write_text("log\n", encoding="utf-8")
+
+    monkeypatch.setenv("JARVIS_CHAT_LOG_PATH", str(log_path))
+    monkeypatch.setenv("JARVIS_CHAT_INBOX_PATH", str(inbox_path))
+
+    class DummyObserver:
+        last = None
+
+        def __init__(self):
+            self.started = False
+            self.stopped = False
+            self.joined = False
+            DummyObserver.last = self
+
+        def schedule(self, handler, path, recursive=False):
+            self.handler = handler
+            self.path = path
+            self.recursive = recursive
+
+        def start(self):
+            self.started = True
+
+        def stop(self):
+            self.stopped = True
+
+        def join(self, timeout=None):
+            self.joined = True
+
+    class DummyHandler:
+        pass
+
+    monkeypatch.setattr(chat_ui, "_get_watchdog", lambda: (DummyObserver, DummyHandler))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "chat_ui",
+            "--log-path",
+            str(log_path),
+            "--inbox-path",
+            str(inbox_path),
+            "--tail",
+            "1",
+            "--poll-ms",
+            "1000",
+        ],
+    )
+
+    assert chat_ui.main() == 0
+    assert DummyObserver.last is not None
+    assert DummyObserver.last.started is True
+    assert DummyObserver.last.stopped is True

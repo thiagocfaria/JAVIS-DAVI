@@ -3,6 +3,7 @@
 - Caminho: `jarvis/voz/adapters/speaker_resemblyzer.py`
 - Papel: adapter para speaker verification via Resemblyzer.
 - Onde entra no fluxo: usado pelo orquestrador antes de aceitar comando.
+- Atualizado em: 2026-01-10 (revisado com o codigo)
 
 ## Responsabilidades
 - Encapsular `speaker_verify` em uma interface padrao.
@@ -29,6 +30,7 @@
 ## Qualidade e limites
 - Se resemblyzer nao estiver disponivel, adapter reporta indisponivel.
 - Voiceprint usa cache em memoria (via `speaker_verify`).
+- Rejeita audio invalido (sample_rate <= 0 ou bytes desalinhados).
 
 
 ## Performance (estimativa)

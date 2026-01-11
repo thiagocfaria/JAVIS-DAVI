@@ -3,10 +3,11 @@
 - Caminho: `jarvis/entrada/preflight.py`
 - Papel: validar deps e ambiente antes de usar a interface (voz/UI).
 - Onde entra no fluxo: chamado pelo CLI (`--preflight`).
+- Atualizado em: 2026-01-10 (revisado com o codigo)
 
 ## Responsabilidades
 - Checar Python, data dir e kill switch.
-- Validar deps de STT, TTS, UI, atalho e OCR.
+- Validar deps por perfil (voz/UI/desktop) para reduzir ruido.
 - Reportar WARN/FAIL com sugestoes.
 
 ## Entrada e saida
@@ -14,12 +15,15 @@
 - Saida: `PreflightReport` com lista de checks.
 
 ## Configuracao (env)
-- `JARVIS_HEADLESS`, `DISPLAY`, `WAYLAND_DISPLAY`
+- `JARVIS_HEADLESS`, `DISPLAY`, `WAYLAND_DISPLAY`, `XDG_SESSION_TYPE`, `CI`
 - `JARVIS_STT_MODE`, `JARVIS_TTS_MODE`
 - `JARVIS_LOCAL_LLM_BASE_URL`
 - `JARVIS_FORCE_RUST_VISION`
+- `JARVIS_PREFLIGHT_PROFILE` (`full`, `voice`, `ui`, `desktop` ou combinacoes)
 - `JARVIS_PREFLIGHT_PROBE` (0/1) ativa teste real de captura/TTS
 - `JARVIS_PREFLIGHT_PROBE_SECONDS` (float) duracao da captura no probe
+- `JARVIS_WAKE_WORD_AUDIO` (0/1) ativa wake word por audio (Porcupine)
+- `JARVIS_PORCUPINE_ACCESS_KEY`, `JARVIS_PORCUPINE_KEYWORD_PATH`, `JARVIS_PORCUPINE_SENSITIVITY`
 
 ## Dependencias diretas
 - `jarvis.entrada.stt.check_stt_deps`
@@ -34,9 +38,11 @@
 - `testes/test_preflight_headless.py`
 - `testes/test_preflight_shortcut_ui.py`
 - `testes/test_preflight_probe.py`
+- `testes/test_preflight_profiles.py`
 
 ## Comandos uteis
 - Rodar preflight: `PYTHONPATH=. python -m jarvis.entrada.app --preflight`
+- Preflight por perfil (voz): `PYTHONPATH=. python -m jarvis.entrada.app --preflight --preflight-profile voice`
 - Testes: `PYTHONPATH=. pytest -q testes/test_preflight_headless.py testes/test_preflight_shortcut_ui.py`
 
 ## Qualidade e limites
@@ -44,6 +50,8 @@
 - Em headless: acoes desktop viram WARN (nao FAIL).
 - Sem `scipy`: STT fica WARN porque reamostragem pode falhar em devices != 16 kHz.
 - Se piper estiver instalado sem modelo local, TTS fica WARN.
+- Se `JARVIS_WAKE_WORD_AUDIO=1` e `pvporcupine` nao estiver instalado, preflight emite WARN.
+- Quando o probe de audio esta ativo, o relatorio inclui device e sample_rate usados.
 
 
 ## Performance (estimativa)
@@ -54,7 +62,8 @@
 - Saida textual via `format_report`.
 
 ## Problemas conhecidos (hoje)
-- Deteccao de headless e heuristica; pode errar em ambientes atipicos.
+- Deteccao de headless e heuristica; apesar de usar `XDG_SESSION_TYPE`/`DISPLAY`, pode errar em ambientes atipicos.
+- Em alguns ambientes, o import do `sounddevice` pode travar (PortAudio/ALSA). Isso afeta o probe de audio.
 
 ## Melhorias sugeridas
-- Separar checks por perfil (voz/UI/desktop) para reduzir ruido.
+- ~~Mostrar no relatorio o device e `sample_rate` usados no probe, para diagnostico rapido.~~ (resolvido)

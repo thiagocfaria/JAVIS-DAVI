@@ -72,8 +72,17 @@ def main() -> int:
         action="store_true",
         help="open a floating panel for writing commands instead of the terminal loop",
     )
+    parser.add_argument(
+        "--gui-followup-poll-ms",
+        type=int,
+        help="intervalo (ms) para atualizar o indicador de follow-up no painel",
+    )
     parser.add_argument("--dry-run", action="store_true", help="plan only, do not execute actions")
     parser.add_argument("--preflight", action="store_true", help="check dependencies and exit")
+    parser.add_argument(
+        "--preflight-profile",
+        help="perfil do preflight: full, voice, ui, desktop (ou combinacoes)",
+    )
     parser.add_argument("--open-chat", action="store_true", help="open chat log and exit")
     parser.add_argument("--chat-ui", action="store_true", help="open chat UI and exit")
     parser.add_argument("--s3", help="run Agent S3 GUI loop with a task instruction")
@@ -93,6 +102,8 @@ def main() -> int:
         os.environ["JARVIS_AUDIO_DEVICE"] = str(args.audio_device)
     if args.audio_capture_sr is not None:
         os.environ["JARVIS_AUDIO_CAPTURE_SR"] = str(args.audio_capture_sr)
+    if args.gui_followup_poll_ms is not None:
+        os.environ["JARVIS_GUI_FOLLOWUP_POLL_MS"] = str(args.gui_followup_poll_ms)
 
     config = load_config()
     # Painel e dry-run não devem ficar presos em aprovação: desligamos aprovação aqui.
@@ -103,7 +114,7 @@ def main() -> int:
     ensure_dirs(config)
 
     if args.preflight:
-        report = run_preflight(config)
+        report = run_preflight(config, profile=args.preflight_profile)
         print(format_report(report))
         if args.preflight_strict and report.has_failures:
             return 2
@@ -143,8 +154,16 @@ def main() -> int:
         if chat_shortcut.start():
             print(f"Atalho global ativado: {combo} para abrir a Chat UI")
         else:
-            print("Aviso: atalho global indisponível (pynput ausente ou Wayland sem X11).")
-            print("Dica: configure um atalho do sistema para executar: python -m jarvis.entrada.chat_ui")
+            reason = getattr(chat_shortcut, "last_error", None)
+            if reason == "pynput_missing":
+                print("Aviso: atalho global indisponível (pynput ausente).")
+                print("Dica: instale com `pip install pynput` ou configure um atalho do sistema.")
+            elif reason == "wayland_no_x11":
+                print("Aviso: atalho global indisponível (Wayland sem X11).")
+                print("Dica: configure um atalho do sistema para executar: python -m jarvis.entrada.chat_ui")
+            else:
+                print("Aviso: atalho global indisponível (falha ao iniciar listener).")
+                print("Dica: configure um atalho do sistema para executar: python -m jarvis.entrada.chat_ui")
             chat_shortcut = None
 
     def drain_chat_inbox() -> None:
@@ -187,7 +206,11 @@ def main() -> int:
     if args.gui_panel:
         from .gui_panel import JarvisPanel
 
-        panel = JarvisPanel(orchestrator, chat_shortcut)
+        panel = JarvisPanel(
+            orchestrator,
+            chat_shortcut,
+            followup_poll_ms=args.gui_followup_poll_ms,
+        )
         panel.run()
         return 0
 

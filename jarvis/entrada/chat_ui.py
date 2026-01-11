@@ -77,6 +77,84 @@ def _format_log_with_timestamps(content: str) -> str:
     return "\n".join(formatted)
 
 
+def _line_tags(line: str) -> tuple[str, ...]:
+    if not line:
+        return ()
+    tags: list[str] = []
+    match = re.match(
+        r"^\[?\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]?\s*(?P<role>[^:]+):",
+        line,
+    )
+    role = match.group("role").strip().lower() if match else ""
+    if role:
+        if role in {"jarvis", "assistant"}:
+            tags.append("role_jarvis")
+        elif role in {"user", "usuario"}:
+            tags.append("role_user")
+        elif role in {"system", "sistema"}:
+            tags.append("role_system")
+        else:
+            tags.append("role_other")
+    if re.search(r"\b(erro|error|exception|traceback|falha)\b", line, re.IGNORECASE):
+        tags.append("error")
+    return tuple(tags)
+
+
+def _get_watchdog():
+    if Observer is None or FileSystemEventHandler is None:
+        return None, None
+    return Observer, FileSystemEventHandler
+
+
+def _setup_watchdog(root: tk.Tk, log_path: Path, on_change) -> callable | None:
+    ObserverCls, HandlerCls = _get_watchdog()
+    if ObserverCls is None or HandlerCls is None:
+        return None
+
+    class _Handler(HandlerCls):
+        def __init__(self):
+            self._scheduled = False
+
+        def _schedule(self):
+            if self._scheduled:
+                return
+            self._scheduled = True
+            root.after(50, self._run)
+
+        def _run(self):
+            self._scheduled = False
+            on_change()
+
+        def on_modified(self, event):
+            if getattr(event, "is_directory", False):
+                return
+            if Path(getattr(event, "src_path", "")) == log_path:
+                self._schedule()
+
+        def on_created(self, event):
+            if getattr(event, "is_directory", False):
+                return
+            if Path(getattr(event, "src_path", "")) == log_path:
+                self._schedule()
+
+    observer = ObserverCls()
+    handler = _Handler()
+    try:
+        observer.schedule(handler, str(log_path.parent), recursive=False)
+        observer.start()
+    except Exception:
+        return None
+
+    def _stop():
+        try:
+            observer.stop()
+            observer.join(timeout=1)
+        except Exception:
+            return None
+
+    return _stop
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Jarvis chat local")
     parser.add_argument("--log-path", help="path do chat log")
@@ -100,6 +178,11 @@ def main() -> int:
 
     text = tk.Text(root, wrap="word", state="disabled")
     text.pack(fill="both", expand=True, padx=10, pady=(10, 6))
+    text.tag_configure("role_jarvis", foreground="#0b5394")
+    text.tag_configure("role_user", foreground="#38761d")
+    text.tag_configure("role_system", foreground="#7f6000")
+    text.tag_configure("role_other", foreground="#3d3d3d")
+    text.tag_configure("error", foreground="#cc0000")
 
     input_frame = tk.Frame(root)
     input_frame.pack(fill="x", padx=10, pady=(0, 10))
@@ -136,16 +219,34 @@ def main() -> int:
         formatted_content = _format_log_with_timestamps(content)
         text.configure(state="normal")
         text.delete("1.0", "end")
-        text.insert("end", formatted_content)
+        for line in formatted_content.splitlines():
+            tags = _line_tags(line)
+            text.insert("end", line + "\n", tags)
         text.configure(state="disabled")
         text.see("end")
-        root.after(args.poll_ms, refresh)
 
     entry.bind("<Return>", lambda _: send_message())
-    refresh()
-    root.mainloop()
+    stop_watch = _setup_watchdog(root, log_path, refresh)
+    if stop_watch is None:
+        def poll() -> None:
+            refresh()
+            root.after(args.poll_ms, poll)
+        poll()
+    else:
+        refresh()
+    try:
+        root.mainloop()
+    finally:
+        if stop_watch:
+            stop_watch()
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+try:
+    from watchdog.events import FileSystemEventHandler  # type: ignore
+    from watchdog.observers import Observer  # type: ignore
+except Exception:
+    FileSystemEventHandler = None
+    Observer = None

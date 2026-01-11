@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+import types
 import wave
 
 import pytest
@@ -27,6 +28,8 @@ def _patch_audio_deps(monkeypatch):
     monkeypatch.setattr("jarvis.entrada.stt.sd", object())
     monkeypatch.setattr("jarvis.entrada.stt.np", object())
     monkeypatch.setattr("jarvis.entrada.stt.check_vad_available", lambda: False)
+    monkeypatch.delenv("JARVIS_AUDIO_DEVICE", raising=False)
+    monkeypatch.delenv("JARVIS_AUDIO_CAPTURE_SR", raising=False)
 
 
 def _make_stt(tmp_path: Path) -> SpeechToText:
@@ -111,13 +114,13 @@ def _make_stt(tmp_path: Path) -> SpeechToText:
 def test_check_speech_present_detects_voice(tmp_path):
     stt = _make_stt(tmp_path)
     stt._vad = _DummyVAD([False, False, True, True])
-    assert stt.check_speech_present(b"ignored")
+    assert stt.check_speech_present(b"\x01\x02")
 
 
 def test_check_speech_present_rejects_silence(tmp_path):
     stt = _make_stt(tmp_path)
     stt._vad = _DummyVAD([False, False, False])
-    assert not stt.check_speech_present(b"ignored")
+    assert not stt.check_speech_present(b"\x00\x00")
 
 
 def test_record_audio_prefers_streaming(tmp_path):
@@ -245,3 +248,18 @@ def test_write_wav_coerces_payloads(tmp_path):
     with wave.open(str(wav_path), "rb") as handle:
         frames = handle.readframes(10)
         assert frames == expected
+
+
+def test_transcribe_with_vad_blocks_without_audio_wake(tmp_path):
+    stt = _make_stt(tmp_path)
+    stt._min_audio_ms = 0
+    stt._wake_word_audio_enabled = True
+    stt._wake_word_detector = types.SimpleNamespace(detect=lambda audio, sr: False)
+    stt._record_until_silence = lambda max_seconds: (b"\x01\x02" * 1000, True)
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("nao deveria transcrever sem wake word no audio")
+
+    stt._transcribe_audio_bytes = _boom
+
+    assert stt.transcribe_with_vad(max_seconds=5, require_wake_word=True) == ""

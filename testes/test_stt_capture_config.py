@@ -50,13 +50,13 @@ def test_record_until_silence_uses_streaming_when_capture_sr_matches(monkeypatch
     class DummyStreaming:
         def record_until_silence(self, *args, **kwargs):
             called["stream"] += 1
-            return (b"bytes", True)
+            return (b"\x01\x02", True)
 
     stt._streaming_vad = DummyStreaming()
     monkeypatch.setattr(stt, "_resolve_capture_config", lambda: (None, stt_module.SAMPLE_RATE, "dev"))
 
     audio_bytes, speech_detected = stt._record_until_silence(3)
-    assert audio_bytes == b"bytes"
+    assert audio_bytes == b"\x01\x02"
     assert speech_detected is True
     assert called["stream"] == 1
 
@@ -72,6 +72,36 @@ def test_record_audio_bypasses_streaming_when_capture_sr_diff(monkeypatch):
 
     stt._streaming_vad = DummyStreaming()
     monkeypatch.setattr(stt, "_resolve_capture_config", lambda: (None, 44100, "dev"))
+    monkeypatch.setattr(stt_module, "sd", object())
+    monkeypatch.setattr(stt_module, "np", object())
+
+    def fake_fixed(seconds, **kwargs):
+        called["fixed"] += 1
+        return b"ok", True
+
+    monkeypatch.setattr(stt, "_record_fixed_duration_compat", fake_fixed)
+
+    audio_bytes = stt._record_audio(3)
+    assert audio_bytes == b"ok"
+    assert called["stream"] == 0
+    assert called["fixed"] == 1
+
+
+def test_record_audio_bypasses_streaming_when_device_set(monkeypatch):
+    stt = _make_stt()
+    called = {"stream": 0, "fixed": 0}
+
+    class DummyStreaming:
+        def record_until_silence(self, *args, **kwargs):
+            called["stream"] += 1
+            return b"bad"
+
+    stt._streaming_vad = DummyStreaming()
+    monkeypatch.setattr(
+        stt, "_resolve_capture_config", lambda: (3, stt_module.SAMPLE_RATE, "dev")
+    )
+    monkeypatch.setattr(stt_module, "sd", object())
+    monkeypatch.setattr(stt_module, "np", object())
 
     def fake_fixed(seconds, **kwargs):
         called["fixed"] += 1

@@ -3,6 +3,7 @@
 - Caminho: `jarvis/entrada/followup.py`
 - Papel: janela de follow-up para nao exigir wake word a cada comando.
 - Onde entra no fluxo: usada pelo orquestrador ao aceitar comandos de voz.
+- Atualizado em: 2026-01-10 (revisado com o codigo)
 
 ## Responsabilidades
 - Controlar tempo de follow-up (ativo/inativo).
@@ -30,6 +31,7 @@
 - Se followup_seconds = 0, nunca ativa.
 - Se max_commands <= 0, follow-up fica desativado.
 - A janela e limitada por tempo **e** quantidade de comandos.
+- A renovacao so ocorre quando o comando foi aceito com sucesso.
 
 
 ## Performance (estimativa)
@@ -37,10 +39,10 @@
 - Medir: use `/usr/bin/time -v <comando>` e monitore `top`/`htop`.
 
 ## Observabilidade
-- Nao possui log proprio; comportamento visto no fluxo de voz.
+- Nao possui log proprio; estado pode ser exibido pela UI (gui_panel).
 
 ## Problemas conhecidos (hoje)
-- Nao tem indicador visual do estado ativo.
+- (nenhum relevante no momento)
 
 ## Melhorias sugeridas
-- Expor estado ativo para UI (ex: indicador visual do microfone).
+- (nenhuma pendente relevante no momento)

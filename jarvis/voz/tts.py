@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import audioop
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +23,16 @@ def _env_bool(key: str, default: bool) -> bool:
     if value is None or value == "":
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_float_optional(key: str) -> float | None:
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 
 class TextToSpeech:
@@ -41,6 +52,13 @@ class TextToSpeech:
         self._piper_model: str | None = None
         self._debug_enabled = _env_bool("JARVIS_DEBUG", False)
         self._speak_lock = threading.Lock()
+        self._volume_override = _env_float_optional("JARVIS_TTS_VOLUME")
+        if self._volume_override is None:
+            self._volume = 1.0
+            self._volume_is_default = True
+        else:
+            self._volume = self._clamp_volume(self._volume_override)
+            self._volume_is_default = False
 
         # Piper model paths (can be overridden via environment)
         self._piper_models_dir = Path(
@@ -53,6 +71,32 @@ class TextToSpeech:
     def _debug(self, message: str) -> None:
         if self._debug_enabled:
             print(f"[tts] {message}")
+
+    @staticmethod
+    def _clamp_volume(volume: float) -> float:
+        if volume < 0.0:
+            return 0.0
+        if volume > 2.0:
+            return 2.0
+        return volume
+
+    def _scale_audio(self, audio_bytes: bytes) -> bytes:
+        if not audio_bytes or self._volume == 1.0:
+            return audio_bytes
+        try:
+            return audioop.mul(audio_bytes, 2, float(self._volume))
+        except Exception:
+            return audio_bytes
+
+    def _espeak_amplitude(self) -> int | None:
+        if self._volume_is_default:
+            return None
+        amplitude = int(self._volume * 100)
+        if amplitude < 0:
+            amplitude = 0
+        if amplitude > 200:
+            amplitude = 200
+        return amplitude
 
     def speak(self, text: str) -> None:
         """
@@ -96,9 +140,18 @@ class TextToSpeech:
             self._piper_available = False
             return False
 
+        aec_module = None
+        aec_enabled = False
+        try:
+            from . import vad as vad_module
+
+            aec_enabled = vad_module.is_aec_enabled()
+            aec_module = vad_module
+        except Exception:
+            aec_enabled = False
+
         try:
             # Piper reads text from stdin and outputs WAV to stdout
-            # We pipe it to aplay for playback
             piper_cmd = [
                 "piper",
                 "--model", str(model_path),
@@ -107,31 +160,70 @@ class TextToSpeech:
 
             aplay_cmd = ["aplay", "-r", "22050", "-f", "S16_LE", "-t", "raw", "-"]
 
-            # Run piper | aplay pipeline
+            if not aec_enabled and (self._volume_is_default or self._volume == 1.0):
+                # Run piper | aplay pipeline
+                piper_proc = subprocess.Popen(
+                    piper_cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                )
+
+                aplay_proc = subprocess.Popen(
+                    aplay_cmd,
+                    stdin=piper_proc.stdout,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+
+                # Send text to piper
+                piper_proc.stdin.write(text.encode("utf-8"))
+                piper_proc.stdin.close()
+
+                # Wait for completion (with timeout)
+                piper_rc = piper_proc.wait(timeout=30)
+                aplay_rc = aplay_proc.wait(timeout=30)
+                if piper_rc != 0 or aplay_rc != 0:
+                    self._debug(f"piper/aplay retornaram codigo {piper_rc}/{aplay_rc}")
+                return True
+
             piper_proc = subprocess.Popen(
                 piper_cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
             )
-
-            aplay_proc = subprocess.Popen(
-                aplay_cmd,
-                stdin=piper_proc.stdout,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-
-            # Send text to piper
             piper_proc.stdin.write(text.encode("utf-8"))
             piper_proc.stdin.close()
 
-            # Wait for completion (with timeout)
+            raw_audio = b""
+            if piper_proc.stdout is not None:
+                raw_audio = piper_proc.stdout.read()
             piper_rc = piper_proc.wait(timeout=30)
-            aplay_rc = aplay_proc.wait(timeout=30)
-            if piper_rc != 0 or aplay_rc != 0:
-                self._debug(f"piper/aplay retornaram codigo {piper_rc}/{aplay_rc}")
+            if piper_rc != 0:
+                self._debug(f"piper retornou codigo {piper_rc}")
 
+            if self._volume <= 0.0:
+                return True
+
+            scaled_audio = self._scale_audio(raw_audio)
+            if aec_enabled and aec_module is not None and scaled_audio:
+                try:
+                    aec_module.push_playback_reference(scaled_audio, 22050)
+                except Exception:
+                    pass
+            aplay_proc = subprocess.Popen(
+                aplay_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if aplay_proc.stdin is not None and scaled_audio:
+                aplay_proc.stdin.write(scaled_audio)
+                aplay_proc.stdin.close()
+            aplay_rc = aplay_proc.wait(timeout=30)
+            if aplay_rc != 0:
+                self._debug(f"aplay retornou codigo {aplay_rc}")
             return True
 
         except Exception as exc:
@@ -183,7 +275,11 @@ class TextToSpeech:
             if not self._espeak_available:
                 return
 
-        cmd = ["espeak-ng", "-v", "pt-br", text]
+        cmd = ["espeak-ng", "-v", "pt-br"]
+        amplitude = self._espeak_amplitude()
+        if amplitude is not None:
+            cmd.extend(["-a", str(amplitude)])
+        cmd.append(text)
         try:
             subprocess.Popen(
                 cmd,

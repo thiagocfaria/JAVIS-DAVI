@@ -4,6 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 import threading
 import time
+import audioop
+import struct
 
 import pytest
 
@@ -160,6 +162,28 @@ def test_speak_espeak_logs_failure_when_debug(monkeypatch, capsys):
     assert "espeak falhou" in captured.out
 
 
+def test_speak_espeak_uses_volume_env(monkeypatch):
+    monkeypatch.setenv("JARVIS_TTS_VOLUME", "0.5")
+    tts = TextToSpeech(_config("local"))
+
+    monkeypatch.setattr(tts_module.shutil, "which", lambda name: f"/bin/{name}")
+    calls = []
+
+    def fake_popen(cmd, *args, **kwargs):
+        calls.append(cmd)
+        class DummyProc:
+            pass
+        return DummyProc()
+
+    monkeypatch.setattr(tts_module.subprocess, "Popen", fake_popen)
+
+    tts._speak_espeak("ola")
+    assert calls
+    assert "-a" in calls[0]
+    amp_index = calls[0].index("-a") + 1
+    assert calls[0][amp_index] == "50"
+
+
 def test_speak_logs_fallback_when_piper_unavailable(monkeypatch, capsys):
     monkeypatch.setenv("JARVIS_DEBUG", "1")
     tts = TextToSpeech(_config("local"))
@@ -169,6 +193,62 @@ def test_speak_logs_fallback_when_piper_unavailable(monkeypatch, capsys):
     tts.speak("ola")
     captured = capsys.readouterr()
     assert "piper indisponivel" in captured.out
+
+
+def test_try_piper_scales_audio_when_volume_env(monkeypatch, tmp_path):
+    monkeypatch.setenv("JARVIS_TTS_VOLUME", "0.5")
+    tts = TextToSpeech(_config("local"))
+    model_path = tmp_path / "voice.onnx"
+    model_path.write_text("dummy", encoding="utf-8")
+
+    monkeypatch.setattr(tts, "_find_piper_model", lambda: model_path)
+    monkeypatch.setattr(tts_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    raw_audio = struct.pack("<h", 1000) * 4
+    expected = audioop.mul(raw_audio, 2, 0.5)
+    calls = []
+
+    class DummyStdin:
+        def __init__(self):
+            self.data = b""
+            self.closed = False
+
+        def write(self, data: bytes) -> None:
+            self.data += data
+
+        def close(self) -> None:
+            self.closed = True
+
+    class DummyStdout:
+        def __init__(self, data: bytes):
+            self._data = data
+
+        def read(self) -> bytes:
+            return self._data
+
+    class DummyProc:
+        def __init__(self, cmd, stdout_data: bytes | None = None):
+            self.cmd = cmd
+            self.stdin = DummyStdin()
+            self.stdout = DummyStdout(stdout_data) if stdout_data is not None else None
+
+        def wait(self, timeout=None) -> int:
+            return 0
+
+    def fake_popen(cmd, stdin=None, stdout=None, stderr=None, **kwargs):
+        if cmd[0] == "piper":
+            proc = DummyProc(cmd, stdout_data=raw_audio)
+        else:
+            proc = DummyProc(cmd)
+        calls.append({"cmd": cmd, "stdin": stdin, "proc": proc})
+        return proc
+
+    monkeypatch.setattr(tts_module.subprocess, "Popen", fake_popen)
+
+    assert tts._try_piper("ola") is True
+    assert calls[0]["cmd"][0] == "piper"
+    assert calls[1]["cmd"][0] == "aplay"
+    assert calls[1]["proc"].stdin.data == expected
 
 
 def test_speak_serializes_calls(monkeypatch):

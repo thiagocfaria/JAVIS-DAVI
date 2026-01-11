@@ -16,7 +16,7 @@ def test_check_stt_probe_warns_on_capture_failure(monkeypatch):
         "check_stt_deps",
         lambda: {"sounddevice": True, "numpy": True, "faster_whisper": True, "scipy": True},
     )
-    monkeypatch.setattr(preflight, "_probe_stt_capture", lambda seconds: False)
+    monkeypatch.setattr(preflight, "_probe_stt_capture", lambda seconds: (False, "default", 16000))
     result = preflight._check_stt(_make_config())
     assert result.status == "WARN"
     assert "captura falhou" in result.detail
@@ -29,7 +29,7 @@ def test_check_stt_probe_ok(monkeypatch):
         "check_stt_deps",
         lambda: {"sounddevice": True, "numpy": True, "faster_whisper": True, "scipy": True},
     )
-    monkeypatch.setattr(preflight, "_probe_stt_capture", lambda seconds: True)
+    monkeypatch.setattr(preflight, "_probe_stt_capture", lambda seconds: (True, "default", 16000))
     result = preflight._check_stt(_make_config())
     assert result.status == "OK"
     assert "captura ok" in result.detail

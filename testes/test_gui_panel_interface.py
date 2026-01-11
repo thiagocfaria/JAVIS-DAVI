@@ -14,6 +14,7 @@ def _build_dummy_tk(entry_value: str = "hello"):
     class DummyRoot:
         def __init__(self):
             self._exists = True
+            self._immediate_after = True
 
         def title(self, *args, **kwargs):
             return None
@@ -160,15 +161,53 @@ def test_gui_panel_toggle_microphone(monkeypatch):
     gui_panel = importlib.import_module("jarvis.entrada.gui_panel")
     importlib.reload(gui_panel)
 
+    config = types.SimpleNamespace(stt_mode="local")
+
     class DummyOrch:
+        def __init__(self) -> None:
+            self.config = config
+            self.stt = types.SimpleNamespace(config=config)
+
+        def handle_text(self, text: str) -> None:
+            return None
+
+    panel = gui_panel.JarvisPanel(DummyOrch())
+    assert panel.mic_button.text == "Microfone: Ligado"
+    panel._toggle_microphone()
+    assert panel.mic_button.text == "Microfone: Desligado"
+    assert panel._orchestrator.config.stt_mode == "none"
+    assert panel._orchestrator.stt.config.stt_mode == "none"
+    panel._toggle_microphone()
+    assert panel.mic_button.text == "Microfone: Ligado"
+    assert panel._orchestrator.config.stt_mode == "local"
+    assert panel._orchestrator.stt.config.stt_mode == "local"
+
+
+def test_gui_panel_toggle_microphone_fallback_when_clone_fails(monkeypatch):
+    tk_dummy = _build_dummy_tk(entry_value="")
+    monkeypatch.setitem(sys.modules, "tkinter", tk_dummy)
+
+    gui_panel = importlib.import_module("jarvis.entrada.gui_panel")
+    importlib.reload(gui_panel)
+
+    class UncloneableConfig:
+        def __init__(self) -> None:
+            self.stt_mode = "local"
+
+    config = UncloneableConfig()
+
+    class DummyOrch:
+        def __init__(self) -> None:
+            self.config = config
+            self.stt = types.SimpleNamespace(config=config)
+
         def handle_text(self, text: str) -> None:
             return None
 
     panel = gui_panel.JarvisPanel(DummyOrch())
     panel._toggle_microphone()
-    assert "Ligado" in panel.mic_button.text
-    panel._toggle_microphone()
-    assert "Desligado" in panel.mic_button.text
+    assert config.stt_mode == "none"
+    assert panel._last_mic_error is None
 
 
 def test_gui_panel_set_busy_updates_state(monkeypatch):
@@ -218,3 +257,49 @@ def test_gui_panel_cancel_toggles_stop_file(monkeypatch, tmp_path):
 
     panel._request_cancel()
     assert not stop_path.exists()
+
+
+def test_gui_panel_followup_indicator(monkeypatch):
+    tk_dummy = _build_dummy_tk(entry_value="")
+    monkeypatch.setitem(sys.modules, "tkinter", tk_dummy)
+
+    gui_panel = importlib.import_module("jarvis.entrada.gui_panel")
+    importlib.reload(gui_panel)
+
+    class DummyFollowup:
+        def __init__(self, active: bool) -> None:
+            self._active = active
+
+        def is_active(self):
+            return self._active
+
+    class DummyOrch:
+        def __init__(self, active: bool) -> None:
+            self._followup = DummyFollowup(active)
+
+        def handle_text(self, text: str) -> None:
+            return None
+
+    panel = gui_panel.JarvisPanel(DummyOrch(active=True))
+    panel._update_followup_indicator()
+    assert "ativo" in panel.followup_label.text
+
+    panel._orchestrator = DummyOrch(active=False)
+    panel._update_followup_indicator()
+    assert "inativo" in panel.followup_label.text
+
+
+def test_gui_panel_followup_poll_env(monkeypatch):
+    tk_dummy = _build_dummy_tk(entry_value="")
+    monkeypatch.setitem(sys.modules, "tkinter", tk_dummy)
+    monkeypatch.setenv("JARVIS_GUI_FOLLOWUP_POLL_MS", "777")
+
+    gui_panel = importlib.import_module("jarvis.entrada.gui_panel")
+    importlib.reload(gui_panel)
+
+    class DummyOrch:
+        def handle_text(self, text: str) -> None:
+            return None
+
+    panel = gui_panel.JarvisPanel(DummyOrch())
+    assert panel._followup_poll_ms == 777
