@@ -7,14 +7,15 @@ import time
 import audioop
 import struct
 
-import pytest
 
 from jarvis.voz import tts as tts_module
 from jarvis.voz.tts import TextToSpeech
+from jarvis.cerebro.config import Config
+from typing import cast
 
 
 def _config(tts_mode: str = "local"):
-    return SimpleNamespace(tts_mode=tts_mode)
+    return cast(Config, SimpleNamespace(tts_mode=tts_mode))
 
 
 def test_speak_skips_when_tts_mode_none(monkeypatch):
@@ -22,7 +23,9 @@ def test_speak_skips_when_tts_mode_none(monkeypatch):
     called = {"piper": 0, "espeak": 0}
 
     monkeypatch.setattr(tts, "_try_piper", lambda text: called.__setitem__("piper", 1))
-    monkeypatch.setattr(tts, "_speak_espeak", lambda text: called.__setitem__("espeak", 1))
+    monkeypatch.setattr(
+        tts, "_speak_espeak", lambda text: called.__setitem__("espeak", 1)
+    )
 
     tts.speak("hello")
     assert called["piper"] == 0
@@ -33,8 +36,10 @@ def test_speak_fallbacks_to_espeak(monkeypatch):
     tts = TextToSpeech(_config("local"))
     called = {"espeak": 0}
 
-    monkeypatch.setattr(tts, "_try_piper", lambda text: False)
-    monkeypatch.setattr(tts, "_speak_espeak", lambda text: called.__setitem__("espeak", 1))
+    monkeypatch.setattr(tts, "_try_piper", lambda text, **_: False)
+    monkeypatch.setattr(
+        tts, "_speak_espeak", lambda text: called.__setitem__("espeak", 1)
+    )
 
     tts.speak("hello")
     assert called["espeak"] == 1
@@ -44,6 +49,9 @@ def test_try_piper_returns_false_when_missing_binary(monkeypatch):
     tts = TextToSpeech(_config("local"))
 
     monkeypatch.setattr(tts_module.shutil, "which", lambda name: None)
+    import importlib.util
+
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
 
     assert tts._try_piper("hello") is False
 
@@ -62,7 +70,9 @@ def test_get_available_engines_lists_piper_and_espeak(monkeypatch, tmp_path):
     tts = TextToSpeech(_config("local"))
 
     monkeypatch.setattr(tts_module.shutil, "which", lambda name: f"/bin/{name}")
-    monkeypatch.setattr(tts, "_find_piper_model", lambda: Path(str(tmp_path / "voice.onnx")))
+    monkeypatch.setattr(
+        tts, "_find_piper_model", lambda: Path(str(tmp_path / "voice.onnx"))
+    )
 
     engines = tts.get_available_engines()
     assert "piper" in engines
@@ -70,11 +80,14 @@ def test_get_available_engines_lists_piper_and_espeak(monkeypatch, tmp_path):
 
 
 def test_try_piper_success_pipeline(monkeypatch, tmp_path):
+    monkeypatch.delenv("JARVIS_TTS_STREAMING", raising=False)
+    monkeypatch.delenv("JARVIS_TTS_BARGE_IN", raising=False)
     tts = TextToSpeech(_config("local"))
     model_path = tmp_path / "voice.onnx"
     model_path.write_text("dummy", encoding="utf-8")
 
     monkeypatch.setattr(tts, "_find_piper_model", lambda: model_path)
+    monkeypatch.setattr(tts, "_find_piper_binary", lambda: "/bin/piper")
     monkeypatch.setattr(tts_module.shutil, "which", lambda name: f"/bin/{name}")
 
     calls = []
@@ -107,10 +120,50 @@ def test_try_piper_success_pipeline(monkeypatch, tmp_path):
     monkeypatch.setattr(tts_module.subprocess, "Popen", fake_popen)
 
     assert tts._try_piper("ola") is True
-    assert calls[0]["cmd"][0] == "piper"
+    assert calls[0]["cmd"][0] == "/bin/piper"
     assert calls[1]["cmd"][0] == "aplay"
     assert calls[1]["stdin"] is calls[0]["proc"].stdout
     assert calls[0]["proc"].stdin.data == b"ola"
+
+
+def test_build_aplay_cmd_uses_device_env(monkeypatch):
+    monkeypatch.setenv("JARVIS_TTS_AUDIO_DEVICE", "hw:1,0")
+    tts = TextToSpeech(_config("local"))
+    cmd = tts._build_aplay_cmd(22050)
+    assert cmd[:3] == ["aplay", "-D", "hw:1,0"]
+
+
+def test_play_raw_audio_calls_on_audio_chunk(monkeypatch):
+    tts = TextToSpeech(_config("local"))
+    callbacks: list[bytes] = []
+
+    class DummyStdin:
+        def __init__(self):
+            self.data = b""
+
+        def write(self, data: bytes) -> None:
+            self.data += data
+
+        def close(self) -> None:
+            return None
+
+    class DummyProc:
+        def __init__(self):
+            self.stdin = DummyStdin()
+
+        def wait(self, timeout=None) -> int:
+            return 0
+
+    monkeypatch.setattr(tts_module.subprocess, "Popen", lambda *_, **__: DummyProc())
+    raw_audio = b"\x00\x00\x01\x00" * 50
+    assert tts._play_raw_audio(
+        raw_audio,
+        ["aplay", "-r", "22050", "-f", "S16_LE", "-t", "raw", "-"],
+        aec_enabled=False,
+        aec_module=None,
+        on_audio_chunk=lambda data: callbacks.append(data),
+    )
+    assert callbacks
 
 
 def test_speak_async_starts_thread(monkeypatch):
@@ -141,7 +194,11 @@ def test_try_piper_logs_failure_when_debug(monkeypatch, capsys, tmp_path):
 
     monkeypatch.setattr(tts, "_find_piper_model", lambda: model_path)
     monkeypatch.setattr(tts_module.shutil, "which", lambda name: f"/bin/{name}")
-    monkeypatch.setattr(tts_module.subprocess, "Popen", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("fail")))
+    monkeypatch.setattr(
+        tts_module.subprocess,
+        "Popen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("fail")),
+    )
 
     assert tts._try_piper("ola") is False
     captured = capsys.readouterr()
@@ -154,7 +211,11 @@ def test_speak_espeak_logs_failure_when_debug(monkeypatch, capsys):
     tts = TextToSpeech(_config("local"))
 
     monkeypatch.setattr(tts_module.shutil, "which", lambda name: f"/bin/{name}")
-    monkeypatch.setattr(tts_module.subprocess, "Popen", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("fail")))
+    monkeypatch.setattr(
+        tts_module.subprocess,
+        "Popen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("fail")),
+    )
 
     tts._speak_espeak("ola")
     captured = capsys.readouterr()
@@ -171,8 +232,10 @@ def test_speak_espeak_uses_volume_env(monkeypatch):
 
     def fake_popen(cmd, *args, **kwargs):
         calls.append(cmd)
+
         class DummyProc:
             pass
+
         return DummyProc()
 
     monkeypatch.setattr(tts_module.subprocess, "Popen", fake_popen)
@@ -187,7 +250,7 @@ def test_speak_espeak_uses_volume_env(monkeypatch):
 def test_speak_logs_fallback_when_piper_unavailable(monkeypatch, capsys):
     monkeypatch.setenv("JARVIS_DEBUG", "1")
     tts = TextToSpeech(_config("local"))
-    monkeypatch.setattr(tts, "_try_piper", lambda text: False)
+    monkeypatch.setattr(tts, "_try_piper", lambda text, **_: False)
     monkeypatch.setattr(tts, "_speak_espeak", lambda text: None)
 
     tts.speak("ola")
@@ -197,11 +260,14 @@ def test_speak_logs_fallback_when_piper_unavailable(monkeypatch, capsys):
 
 def test_try_piper_scales_audio_when_volume_env(monkeypatch, tmp_path):
     monkeypatch.setenv("JARVIS_TTS_VOLUME", "0.5")
+    monkeypatch.delenv("JARVIS_TTS_STREAMING", raising=False)
+    monkeypatch.delenv("JARVIS_TTS_BARGE_IN", raising=False)
     tts = TextToSpeech(_config("local"))
     model_path = tmp_path / "voice.onnx"
     model_path.write_text("dummy", encoding="utf-8")
 
     monkeypatch.setattr(tts, "_find_piper_model", lambda: model_path)
+    monkeypatch.setattr(tts, "_find_piper_binary", lambda: "/bin/piper")
     monkeypatch.setattr(tts_module.shutil, "which", lambda name: f"/bin/{name}")
 
     raw_audio = struct.pack("<h", 1000) * 4
@@ -236,7 +302,7 @@ def test_try_piper_scales_audio_when_volume_env(monkeypatch, tmp_path):
             return 0
 
     def fake_popen(cmd, stdin=None, stdout=None, stderr=None, **kwargs):
-        if cmd[0] == "piper":
+        if cmd[0] == "/bin/piper" or cmd[0].endswith("piper"):
             proc = DummyProc(cmd, stdout_data=raw_audio)
         else:
             proc = DummyProc(cmd)
@@ -246,7 +312,7 @@ def test_try_piper_scales_audio_when_volume_env(monkeypatch, tmp_path):
     monkeypatch.setattr(tts_module.subprocess, "Popen", fake_popen)
 
     assert tts._try_piper("ola") is True
-    assert calls[0]["cmd"][0] == "piper"
+    assert calls[0]["cmd"][0] == "/bin/piper"
     assert calls[1]["cmd"][0] == "aplay"
     assert calls[1]["proc"].stdin.data == expected
 
@@ -257,7 +323,7 @@ def test_speak_serializes_calls(monkeypatch):
     started = threading.Event()
     finish = threading.Event()
 
-    def fake_try_piper(text: str) -> bool:
+    def fake_try_piper(text: str, **_) -> bool:
         calls.append(text)
         if text == "first":
             started.set()

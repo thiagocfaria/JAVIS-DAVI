@@ -18,7 +18,7 @@ def _make_stt():
         stt_model_size="tiny",
         stt_audio_trim_backend="none",
     )
-    return SpeechToText(cfg)
+    return SpeechToText(cfg)  # type: ignore[arg-type]
 
 
 def test_whisper_kwargs_from_env(monkeypatch):

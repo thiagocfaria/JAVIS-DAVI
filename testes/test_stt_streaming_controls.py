@@ -18,7 +18,7 @@ def _make_stt() -> SpeechToText:
         stt_model_size="tiny",
         stt_audio_trim_backend="none",
     )
-    return SpeechToText(cfg)
+    return SpeechToText(cfg)  # type: ignore[arg-type]
 
 
 def test_early_transcribe_on_silence_allows_short(monkeypatch):

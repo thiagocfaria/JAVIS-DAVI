@@ -9,9 +9,7 @@ def test_aec_disabled_passthrough(monkeypatch):
     monkeypatch.delenv("JARVIS_AEC_BACKEND", raising=False)
     vad_module.reset_playback_reference()
     data = b"\x01\x02" * 100
-    assert (
-        vad_module.apply_aec_to_audio(data, 16000, frame_ms=30) == data
-    )
+    assert vad_module.apply_aec_to_audio(data, 16000, frame_ms=30) == data
 
 
 def test_simple_aec_reduces_echo(monkeypatch):

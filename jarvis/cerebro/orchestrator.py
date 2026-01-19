@@ -16,14 +16,16 @@ from __future__ import annotations
 import contextlib
 import os
 import re
+import threading
 import time
 import uuid
+import traceback
 from typing import Any, Callable, Union, cast
 
-from ..comunicacao.chat_log import ChatLog
-from ..entrada.audio_utils import BYTES_PER_SAMPLE, SAMPLE_RATE
-from ..entrada.followup import FollowUpSession
-from ..entrada.stt import SpeechToText
+from jarvis.interface.infra.chat_log import ChatLog
+from jarvis.interface.audio.audio_utils import BYTES_PER_SAMPLE, SAMPLE_RATE
+from jarvis.interface.entrada.followup import FollowUpSession
+from jarvis.interface.entrada.stt import SpeechToText
 from ..memoria.memory import build_memory_store
 from ..memoria.procedures import ProcedureStore
 from ..seguranca.kill_switch import stop_requested
@@ -34,6 +36,7 @@ from ..seguranca.sanitizacao import (
     redact_text,
     sanitize_external_text,
 )
+from ..telemetria.latency import RollingPercentiles
 from ..telemetria.telemetry import Telemetry
 from ..validacao.plano import validar_plano
 from ..validacao.validator import Validator
@@ -43,6 +46,7 @@ from .actions import Action, ActionPlan
 from .config import Config
 from .llm import BudgetedLLMClient, LLMClient, _safe_json_loads, build_local_llm_client
 from .orcamento import OrcamentoDiario
+
 
 # Config helpers (keep local to orchestrator).
 def _env_int_clamped(key: str, default: int, min_value: int, max_value: int) -> int:
@@ -54,6 +58,7 @@ def _env_int_clamped(key: str, default: int, min_value: int, max_value: int) -> 
     except ValueError:
         return default
     return max(min_value, min(value, max_value))
+
 
 # Try to import new automation module
 try:
@@ -166,6 +171,30 @@ class Orchestrator:
             "on",
         }
         self._speaker_verifier = ResemblyzerSpeakerVerifier()
+        self._stage_percentiles = RollingPercentiles()
+        self._voice_metrics_active = False
+        self._voice_eos_perf_ts: float | None = None
+        self._voice_first_audio_perf_ts: float | None = None
+        self._voice_ack_perf_ts: float | None = None
+        self._voice_phase1_perf_ts: float | None = None
+        self._voice_metrics_totals: dict[str, float] = {
+            "llm_ms": 0.0,
+            "tts_ms": 0.0,
+            "play_ms": 0.0,
+            "tts_first_audio_ms": 0.0,
+            "tts_ack_ms": 0.0,
+        }
+        self._voice_metrics_counts: dict[str, int] = {
+            "llm": 0,
+            "tts": 0,
+            "play": 0,
+            "tts_first_audio": 0,
+            "tts_ack": 0,
+        }
+        self._voice_overlap_lock = threading.Lock()
+        self._voice_overlap_timer: threading.Timer | None = None
+        self._voice_overlap_plan: ActionPlan | None = None
+        self._voice_overlap_norm: str | None = None
 
         # Initialize procedures store
         self.procedures = ProcedureStore(
@@ -189,6 +218,98 @@ class Orchestrator:
     def _debug(self, message: str) -> None:
         if self._debug_enabled:
             print(f"[orchestrator] {message}")
+
+    def _reset_voice_metrics(self) -> None:
+        self._voice_metrics_active = True
+        self._voice_eos_perf_ts = None
+        self._voice_first_audio_perf_ts = None
+        self._voice_ack_perf_ts = None
+        self._voice_phase1_perf_ts = None
+        self._voice_metrics_totals = {
+            "llm_ms": 0.0,
+            "tts_ms": 0.0,
+            "play_ms": 0.0,
+            "tts_first_audio_ms": 0.0,
+            "tts_ack_ms": 0.0,
+        }
+        self._voice_metrics_counts = {
+            "llm": 0,
+            "tts": 0,
+            "play": 0,
+            "tts_first_audio": 0,
+            "tts_ack": 0,
+        }
+
+    def _log_voice_stage_metrics(
+        self, stt_metrics: dict[str, float | None] | None
+    ) -> None:
+        llm_ms = (
+            self._voice_metrics_totals["llm_ms"]
+            if self._voice_metrics_counts["llm"] > 0
+            else None
+        )
+        tts_ms = (
+            self._voice_metrics_totals["tts_ms"]
+            if self._voice_metrics_counts["tts"] > 0
+            else None
+        )
+        play_ms = (
+            self._voice_metrics_totals["play_ms"]
+            if self._voice_metrics_counts["play"] > 0
+            else None
+        )
+        tts_first_audio_ms = (
+            self._voice_metrics_totals["tts_first_audio_ms"]
+            if self._voice_metrics_counts["tts_first_audio"] > 0
+            else None
+        )
+        tts_ack_ms = (
+            self._voice_metrics_totals["tts_ack_ms"]
+            if self._voice_metrics_counts["tts_ack"] > 0
+            else None
+        )
+        if stt_metrics is None:
+            stt_metrics = {}
+        eos_to_first_audio_ms: float | None = None
+        eos_to_ack_ms: float | None = None
+        eos_to_phase1_ms: float | None = None
+        eos_perf_ts = stt_metrics.get("eos_perf_ts") if isinstance(stt_metrics, dict) else None
+        first_audio_perf_ts = self._voice_first_audio_perf_ts
+        ack_perf_ts = self._voice_ack_perf_ts
+        phase1_perf_ts = self._voice_phase1_perf_ts
+        if isinstance(eos_perf_ts, (int, float)) and isinstance(
+            first_audio_perf_ts, (int, float)
+        ):
+            delta_ms = (float(first_audio_perf_ts) - float(eos_perf_ts)) * 1000.0
+            if delta_ms >= 0:
+                eos_to_first_audio_ms = float(delta_ms)
+        if isinstance(eos_perf_ts, (int, float)) and isinstance(ack_perf_ts, (int, float)):
+            delta_ms = (float(ack_perf_ts) - float(eos_perf_ts)) * 1000.0
+            if delta_ms >= 0:
+                eos_to_ack_ms = float(delta_ms)
+        if isinstance(eos_perf_ts, (int, float)) and isinstance(phase1_perf_ts, (int, float)):
+            delta_ms = (float(phase1_perf_ts) - float(eos_perf_ts)) * 1000.0
+            if delta_ms >= 0:
+                eos_to_phase1_ms = float(delta_ms)
+        stage_values = {
+            "capture_ms": stt_metrics.get("capture_ms") if isinstance(stt_metrics, dict) else None,
+            "vad_ms": stt_metrics.get("vad_ms") if isinstance(stt_metrics, dict) else None,
+            "endpoint_ms": stt_metrics.get("endpoint_ms") if isinstance(stt_metrics, dict) else None,
+            "stt_ms": stt_metrics.get("stt_ms") if isinstance(stt_metrics, dict) else None,
+            "llm_ms": llm_ms,
+            "tts_ms": tts_ms,
+            "play_ms": play_ms,
+            "tts_first_audio_ms": tts_first_audio_ms,
+            "eos_to_first_audio_ms": eos_to_first_audio_ms,
+            "tts_ack_ms": tts_ack_ms,
+            "eos_to_ack_ms": eos_to_ack_ms,
+            "eos_to_phase1_ms": eos_to_phase1_ms,
+        }
+        for stage, value in stage_values.items():
+            self._stage_percentiles.record(stage, value)
+        payload: dict[str, float | None | dict[str, float | None]] = dict(stage_values)
+        payload["p95"] = self._stage_percentiles.snapshot(stage_values.keys())
+        self.telemetry.log_event("voice_stage_metrics", payload)
 
     def handle_text(self, text: str) -> tuple[str, bool]:
         """Handle a text command."""
@@ -291,8 +412,8 @@ class Orchestrator:
             count_failure: bool = True,
         ) -> bool:
             nonlocal failures, command_status, command_success
-            plan = self._validate_plan(plan, source)
-            if plan is None:
+            validated_plan = self._validate_plan(plan, source)
+            if validated_plan is None:
                 self._record_attempt(attempts, source, False, self.last_error, None)
                 if count_failure:
                     failures += 1
@@ -303,13 +424,13 @@ class Orchestrator:
                 "plan.validated",
                 {
                     "source": source,
-                    "actions": len(plan.actions),
-                    "risk_level": plan.risk_level,
+                    "actions": len(validated_plan.actions),
+                    "risk_level": validated_plan.risk_level,
                 },
             )
-            self.telemetry.log_event("plan", plan.to_dict())
+            self.telemetry.log_event("plan", validated_plan.to_dict())
             plan_start = time.perf_counter()
-            executed = self._run_plan(plan)
+            executed = self._run_plan(validated_plan)
             plan_duration = time.perf_counter() - plan_start
             log_event(
                 "plan.executed",
@@ -317,12 +438,12 @@ class Orchestrator:
                     "source": source,
                     "success": executed,
                     "duration": plan_duration,
-                    "actions": len(plan.actions),
-                    "risk_level": plan.risk_level,
+                    "actions": len(validated_plan.actions),
+                    "risk_level": validated_plan.risk_level,
                 },
             )
             if not executed:
-                self._record_attempt(attempts, source, False, self.last_error, plan)
+                self._record_attempt(attempts, source, False, self.last_error, validated_plan)
                 if count_failure:
                     failures += 1
                 return False
@@ -345,6 +466,23 @@ class Orchestrator:
             command_success = True
             return command_status, command_success
 
+        # If the local LLM is not configured, avoid a confusing "Não consegui completar"
+        # for natural-language questions that the mock planner can't handle.
+        if not self.config.local_llm_base_url:
+            from .utils import normalize_text
+
+            normalized = normalize_text(text)
+            if normalized and not self._contains_action_verb(normalized):
+                # Keep it conservative: only trigger for longer free-form requests.
+                if len(normalized.split()) > 2:
+                    self._say(
+                        "Ainda não tenho o cérebro (LLM) configurado aqui, então só consigo executar comandos bem simples no modo voz.\n"
+                        "Exemplos: “abrir firefox”, “digitar oi”, “esperar 2”."
+                    )
+                    command_status = "no_llm_help"
+                    command_success = True
+                    return command_status, command_success
+
         procedure_match = self.procedures.match(text)
         if procedure_match:
             plan, _values = procedure_match
@@ -359,19 +497,29 @@ class Orchestrator:
             if try_plan(rule_plan, "rule", count_failure=False):
                 return command_status, command_success
 
-        plan = self._plan_with_llm(text, self.llm_local, source="local")
+        consume_overlap = getattr(self, "_consume_overlap_plan", None)
+        prefetched: ActionPlan | None = None
+        if callable(consume_overlap):
+            consume_overlap_typed = cast(
+                Callable[[str], ActionPlan | None],
+                consume_overlap,
+            )
+            prefetched = consume_overlap_typed(text)
+
+        plan = prefetched or self._plan_with_llm(text, self.llm_local, source="local")
+
         if plan is None:
             self._record_attempt(attempts, "local", False, self.last_error, None)
-        if (
-            plan
-            and self._is_mock_fallback(plan)
-            and not self._allow_mock_fallback(text)
-        ):
+        elif not isinstance(plan, ActionPlan):
+            self.last_error = "invalid_plan_type"
+            self._record_attempt(attempts, "local", False, self.last_error, None)
+            plan = None
+        elif self._is_mock_fallback(plan) and not self._allow_mock_fallback(text):
             self.telemetry.log_event("local_fallback_skip", {"reason": "mock_fallback"})
             self.last_error = "mock_fallback_skipped"
             self._record_attempt(attempts, "local", False, self.last_error, plan)
             plan = None
-        if plan:
+        else:
             self.telemetry.log_event("plan_source", {"source": "local"})
             if try_plan(plan, "local", count_failure=False):
                 return command_status, command_success
@@ -525,19 +673,27 @@ class Orchestrator:
             actions = [
                 Action(action_type="open_url", params={"url": "https://www.google.com"})
             ]
-            return ActionPlan(actions=actions, risk_level="low", notes="rule_based:browser")
+            return ActionPlan(
+                actions=actions, risk_level="low", notes="rule_based:browser"
+            )
 
         if verb and has_any_prefix(["youtub", "yt"]):
             actions = [
-                Action(action_type="open_url", params={"url": "https://www.youtube.com"})
+                Action(
+                    action_type="open_url", params={"url": "https://www.youtube.com"}
+                )
             ]
-            return ActionPlan(actions=actions, risk_level="low", notes="rule_based:youtube")
+            return ActionPlan(
+                actions=actions, risk_level="low", notes="rule_based:youtube"
+            )
 
         if verb and ("chatgpt" in t or has("chat", "gpt")):
             actions = [
                 Action(action_type="open_url", params={"url": "https://chatgpt.com"})
             ]
-            return ActionPlan(actions=actions, risk_level="low", notes="rule_based:chatgpt")
+            return ActionPlan(
+                actions=actions, risk_level="low", notes="rule_based:chatgpt"
+            )
 
         return None
 
@@ -877,27 +1033,208 @@ class Orchestrator:
     def _say(self, text: str) -> None:
         """Output text via TTS and console."""
         print(text)
-        self.tts.speak(text)
+        tts_async = os.environ.get("JARVIS_TTS_ASYNC", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if tts_async and hasattr(self.tts, "speak_async"):
+            self.tts.speak_async(text)
+        else:
+            self.tts.speak(text)
+        if not self._voice_metrics_active:
+            return
+        metrics = self.tts.get_last_metrics()
+        first_audio_perf_ts = metrics.get("tts_first_audio_perf_ts")
+        ack_perf_ts = metrics.get("tts_ack_perf_ts")
+        if (
+            self._voice_first_audio_perf_ts is None
+            and isinstance(first_audio_perf_ts, (int, float))
+        ):
+            self._voice_first_audio_perf_ts = float(first_audio_perf_ts)
+        if self._voice_ack_perf_ts is None and isinstance(ack_perf_ts, (int, float)):
+            self._voice_ack_perf_ts = float(ack_perf_ts)
+        tts_ms = metrics.get("tts_ms")
+        if tts_ms is not None:
+            self._voice_metrics_totals["tts_ms"] += float(tts_ms)
+            self._voice_metrics_counts["tts"] += 1
+        play_ms = metrics.get("play_ms")
+        if play_ms is not None:
+            self._voice_metrics_totals["play_ms"] += float(play_ms)
+            self._voice_metrics_counts["play"] += 1
+        tts_first_audio_ms = metrics.get("tts_first_audio_ms")
+        if tts_first_audio_ms is not None:
+            self._voice_metrics_totals["tts_first_audio_ms"] += float(
+                tts_first_audio_ms
+            )
+            self._voice_metrics_counts["tts_first_audio"] += 1
+        tts_ack_ms = metrics.get("tts_ack_ms")
+        if tts_ack_ms is not None:
+            self._voice_metrics_totals["tts_ack_ms"] += float(tts_ack_ms)
+            self._voice_metrics_counts["tts_ack"] += 1
 
     def transcribe_and_handle(self) -> None:
         """Capture voice and handle as command."""
+        stt_metrics: dict[str, float | None] = {}
+        overlap_enabled = os.environ.get("JARVIS_VOICE_OVERLAP_PLAN", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        phase1_enabled = os.environ.get("JARVIS_VOICE_PHASE1", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        overlap_min_chars = _env_int_clamped("JARVIS_VOICE_OVERLAP_MIN_CHARS", 12, 0, 9999)
+        overlap_stable_ms = _env_int_clamped("JARVIS_VOICE_OVERLAP_STABLE_MS", 350, 50, 3000)
+        partials_log = os.environ.get(
+            "JARVIS_STT_PARTIALS_LOG", ""
+        ).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        partials_stdout = os.environ.get(
+            "JARVIS_STT_PARTIALS_STDOUT", ""
+        ).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        partials_enabled = partials_log or partials_stdout or overlap_enabled or phase1_enabled
+        latest_partial: dict[str, object] = {"text": "", "ts": 0.0}
+        phase1_started = threading.Event()
+        overlap_lock = getattr(self, "_voice_overlap_lock", None)
+        if overlap_lock is None:
+            overlap_lock = threading.Lock()
+            try:
+                setattr(self, "_voice_overlap_lock", overlap_lock)
+            except Exception:
+                pass
+        overlap_timer: threading.Timer | None = None
+
+        def _on_partial(text: str) -> None:
+            nonlocal overlap_timer
+            if partials_stdout:
+                preview = (text or "").replace("\n", " ").strip()
+                if len(preview) > 160:
+                    preview = preview[:160] + "…"
+                print(f"[stt-partial] {preview}")
+            if partials_log:
+                try:
+                    self.chat.append("jarvis", text, {"type": "stt_partial"})
+                except Exception:
+                    pass
+            if not (overlap_enabled or phase1_enabled):
+                return
+            now = time.perf_counter()
+            with overlap_lock:
+                latest_partial["text"] = text
+                latest_partial["ts"] = now
+                if overlap_timer is not None:
+                    try:
+                        overlap_timer.cancel()
+                    except Exception:
+                        pass
+                    overlap_timer = None
+
+                def _stable_fire() -> None:
+                    try:
+                        with overlap_lock:
+                            current_text = str(latest_partial.get("text") or "")
+                        # Avoid phase1 false positives when a wake word is required.
+                        # When wake-word gating is on, only speak after final transcription produced text.
+                        if phase1_enabled and not phase1_started.is_set():
+                            # Speaking during recording can cause echo and confuse the STT.
+                            # If a wake word is required, only speak after the recording ended (on_eos).
+                            if not require_wake:
+                                self._try_voice_phase1_ack()
+                                phase1_started.set()
+                        if overlap_enabled and len(current_text.strip()) >= overlap_min_chars:
+                            self._prefetch_overlap_plan(current_text)
+                    except Exception:
+                        return
+
+                overlap_timer = threading.Timer(overlap_stable_ms / 1000.0, _stable_fire)
+                overlap_timer.daemon = True
+                overlap_timer.start()
+
+        reset_metrics = getattr(self, "_reset_voice_metrics", None)
+        if callable(reset_metrics):
+            reset_metrics()
         try:
             # Use VAD if available
             require_wake = self._followup.should_require_wake_word(
                 self.stt.requires_wake_word()
             )
             voice_seconds = _env_int_clamped("JARVIS_VOICE_MAX_SECONDS", 30, 3, 120)
-            result = self.stt.transcribe_with_vad(
-                max_seconds=voice_seconds,
-                return_audio=True,
-                require_wake_word=require_wake,
-            )
+            def _on_eos() -> None:
+                # Avoid phase1 false positives when a wake word is required.
+                if phase1_enabled and not phase1_started.is_set() and not require_wake:
+                    self._try_voice_phase1_ack()
+                    phase1_started.set()
+
+            try:
+                result = self.stt.transcribe_with_vad(
+                    max_seconds=voice_seconds,
+                    return_audio=True,
+                    require_wake_word=require_wake,
+                    on_partial=(
+                        _on_partial if partials_enabled else None
+                    ),
+                    on_eos=_on_eos if phase1_enabled else None,
+                )
+            except TypeError:
+                result = self.stt.transcribe_with_vad(
+                    max_seconds=voice_seconds,
+                    return_audio=True,
+                    require_wake_word=require_wake,
+                )
+            get_stt_metrics = getattr(self.stt, "get_last_metrics", None)
+            if callable(get_stt_metrics):
+                stt_metrics_result = get_stt_metrics()
+                if stt_metrics_result is not None and isinstance(stt_metrics_result, dict):
+                    stt_metrics = stt_metrics_result
+            eos_perf_ts = stt_metrics.get("eos_perf_ts")
+            if isinstance(eos_perf_ts, (int, float)):
+                self._voice_eos_perf_ts = float(eos_perf_ts)
             if isinstance(result, tuple):
                 text, audio_bytes, speech_detected = result
             else:
                 text, audio_bytes, speech_detected = result, b"", None
             if not text:
                 return
+            if phase1_enabled and not phase1_started.is_set():
+                self._try_voice_phase1_ack()
+                phase1_started.set()
+            confirm_low = os.environ.get(
+                "JARVIS_STT_CONFIRM_LOW_CONFIDENCE", ""
+            ).strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+            confidence_min = float(os.environ.get("JARVIS_STT_CONFIDENCE_MIN", "0.65"))
+            confidence: float | None = None
+            get_confidence = getattr(self.stt, "get_last_confidence", None)
+            if callable(get_confidence):
+                confidence_result = get_confidence()
+                if isinstance(confidence_result, (int, float)):
+                    confidence = float(confidence_result)
+            if confirm_low and confidence is not None and confidence < confidence_min:
+                from .utils import normalize_text
+
+                confirm = self._prompt_user(f"Voce quis dizer '{text}'? (sim/nao)")
+                if not normalize_text(confirm).startswith("s"):
+                    self._followup.reset()
+                    return
             verifier = self._speaker_verifier
             if verifier.is_enabled():
                 if not verifier.is_available():
@@ -927,7 +1264,128 @@ class Orchestrator:
             else:
                 self._followup.reset()
         except Exception as e:
+            if getattr(self, "_debug_enabled", False):
+                print(traceback.format_exc())
             self._say(f"Erro no reconhecimento de voz: {e}")
+        finally:
+            if overlap_timer is not None:
+                try:
+                    overlap_timer.cancel()
+                except Exception:
+                    pass
+            get_stt_metrics = getattr(self.stt, "get_last_metrics", None)
+            if not stt_metrics and callable(get_stt_metrics):
+                stt_metrics_result = get_stt_metrics()
+                if stt_metrics_result is not None and isinstance(stt_metrics_result, dict):
+                    stt_metrics = stt_metrics_result
+            if hasattr(self, "_voice_metrics_active"):
+                try:
+                    self._voice_metrics_active = False
+                except Exception:
+                    pass
+            log_metrics = getattr(self, "_log_voice_stage_metrics", None)
+            if callable(log_metrics) and stt_metrics:
+                log_metrics(stt_metrics)
+
+    def _try_voice_phase1_ack(self) -> None:
+        if not getattr(self, "_voice_metrics_active", False):
+            return
+        if self._voice_phase1_perf_ts is not None:
+            return
+        play = getattr(self.tts, "play_phase1_ack", None)
+        if not callable(play):
+            return
+        play()
+        metrics = self.tts.get_last_metrics()
+        ts = metrics.get("tts_first_audio_perf_ts")
+        if isinstance(ts, (int, float)):
+            self._voice_phase1_perf_ts = float(ts)
+
+    def _prefetch_overlap_plan(self, text: str) -> None:
+        from .utils import normalize_text
+
+        norm = normalize_text(text)
+        if not norm:
+            return
+        lock = getattr(self, "_voice_overlap_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            try:
+                setattr(self, "_voice_overlap_lock", lock)
+            except Exception:
+                pass
+        with lock:
+            if (
+                getattr(self, "_voice_overlap_norm", None) == norm
+                and getattr(self, "_voice_overlap_plan", None) is not None
+            ):
+                return
+        thread = threading.Thread(target=self._prefetch_overlap_plan_worker, args=(text, norm), daemon=True)
+        thread.start()
+
+    def _prefetch_overlap_plan_worker(self, text: str, norm: str) -> None:
+        plan = self._plan_with_llm_quiet(text, self.llm_local, source="local_overlap")
+        if plan is None:
+            return
+        lock = getattr(self, "_voice_overlap_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            try:
+                setattr(self, "_voice_overlap_lock", lock)
+            except Exception:
+                pass
+        with lock:
+            try:
+                setattr(self, "_voice_overlap_plan", plan)
+                setattr(self, "_voice_overlap_norm", norm)
+            except Exception:
+                pass
+
+    def _consume_overlap_plan(self, text: str) -> ActionPlan | None:
+        from .utils import normalize_text
+
+        norm = normalize_text(text)
+        if not norm:
+            return None
+        lock = getattr(self, "_voice_overlap_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            try:
+                setattr(self, "_voice_overlap_lock", lock)
+            except Exception:
+                pass
+        with lock:
+            if getattr(self, "_voice_overlap_norm", None) != norm:
+                return None
+            plan = getattr(self, "_voice_overlap_plan", None)
+            try:
+                setattr(self, "_voice_overlap_plan", None)
+                setattr(self, "_voice_overlap_norm", None)
+            except Exception:
+                pass
+            return plan
+
+    def _plan_with_llm_quiet(
+        self,
+        text: str,
+        llm_client: LLMClient,
+        source: str,
+    ) -> ActionPlan | None:
+        start_ts = time.perf_counter()
+        try:
+            prompt_text = self._compact_llm_input(text)
+            return llm_client.plan(prompt_text)
+        except Exception as exc:
+            self.telemetry.log_event(
+                "plan_error", {"error": str(exc), "source": source}
+            )
+            self.last_error = f"{source}_plan_error"
+            return None
+        finally:
+            if self._voice_metrics_active:
+                llm_ms = (time.perf_counter() - start_ts) * 1000.0
+                self._voice_metrics_totals["llm_ms"] += float(llm_ms)
+                self._voice_metrics_counts["llm"] += 1
 
     def _plan_with_llm(
         self,
@@ -936,8 +1394,9 @@ class Orchestrator:
         source: str,
     ) -> ActionPlan | None:
         """Generate action plan using a specific LLM client."""
+        start_ts = time.perf_counter()
         try:
-            prompt_text = text
+            prompt_text = self._compact_llm_input(text)
             return llm_client.plan(prompt_text)
         except Exception as exc:
             self.telemetry.log_event(
@@ -953,6 +1412,38 @@ class Orchestrator:
             else:
                 self._say("Nao consegui gerar um plano local. Vou tentar outra forma.")
             return None
+        finally:
+            if self._voice_metrics_active:
+                llm_ms = (time.perf_counter() - start_ts) * 1000.0
+                self._voice_metrics_totals["llm_ms"] += float(llm_ms)
+                self._voice_metrics_counts["llm"] += 1
+
+    @staticmethod
+    def _compact_llm_input(text: str) -> str:
+        """
+        Keep LLM input small for latency, without destroying meaning.
+
+        Only applies to very long text (e.g. pasted logs); typical voice commands
+        are unchanged.
+        """
+        raw = text.strip()
+        if not raw:
+            return raw
+        try:
+            max_chars = int(os.environ.get("JARVIS_LLM_COMMAND_MAX_CHARS", "4000"))
+        except ValueError:
+            max_chars = 4000
+        if max_chars <= 0 or len(raw) <= max_chars:
+            return raw
+        head = max(0, int(max_chars * 0.7))
+        tail = max(0, max_chars - head)
+        prefix = raw[:head].rstrip()
+        suffix = raw[-tail:].lstrip() if tail else ""
+        return (
+            f"{prefix}\n\n[...TRUNCADO: input muito longo para reduzir latencia...]\n\n{suffix}"
+            if suffix
+            else f"{prefix}\n\n[...TRUNCADO: input muito longo para reduzir latencia...]"
+        )
 
     def _try_parse_plan_from_text(self, text: str) -> ActionPlan | None:
         try:
@@ -1546,9 +2037,13 @@ class Orchestrator:
     def _show_status(self) -> None:
         """Show system status."""
         # Get LLM status
-        local_clients = []
-        if hasattr(self.llm_local, "get_available_clients"):
-            local_clients = self.llm_local.get_available_clients()
+        local_clients: list[str] = []
+        try:
+            clients_result = self.llm_local.get_available_clients()
+        except Exception:
+            clients_result = []
+        if isinstance(clients_result, list):
+            local_clients = clients_result
         local_status = ", ".join(local_clients) if local_clients else "mock"
 
         # Get memory status

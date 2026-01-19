@@ -8,7 +8,7 @@ import pytest
 import jarvis.cerebro.orchestrator as orch_module
 from jarvis.entrada.audio_utils import SAMPLE_RATE
 from jarvis.entrada.followup import FollowUpSession
-from typing import get_type_hints
+from typing import cast, get_type_hints
 
 from jarvis.voz.adapters.base import SampleRate, validate_audio_i16
 from jarvis.voz.adapters import wakeword_openwakeword as oww
@@ -27,7 +27,9 @@ def test_transcribe_uses_speaker_verifier_adapter():
         def requires_wake_word(self):
             return True
 
-        def transcribe_with_vad(self, max_seconds=5, return_audio=True, require_wake_word=True):
+        def transcribe_with_vad(
+            self, max_seconds=5, return_audio=True, require_wake_word=True
+        ):
             audio = b"\x01\x00" * SAMPLE_RATE
             return "ligar luz", audio, True
 
@@ -63,7 +65,7 @@ def test_transcribe_uses_speaker_verifier_adapter():
         handle_text=lambda text: ("ok", True),
     )
 
-    orch_module.Orchestrator.transcribe_and_handle(fake)
+    orch_module.Orchestrator.transcribe_and_handle(cast(orch_module.Orchestrator, fake))
 
     assert verifier.called is True
 
@@ -132,18 +134,22 @@ def test_porcupine_detector_rejects_invalid_audio(monkeypatch):
             return None
 
     monkeypatch.setattr(
-        ww, "pvporcupine", types.SimpleNamespace(create=lambda **kwargs: DummyPorcupine())
+        ww,
+        "pvporcupine",
+        types.SimpleNamespace(create=lambda **kwargs: DummyPorcupine()),
     )
     monkeypatch.setenv("JARVIS_PORCUPINE_ACCESS_KEY", "abc")
 
     detector = ww.build_porcupine_detector("jarvis")
     assert detector is not None
     assert detector.detect(b"\x00", 16000) is False
-    assert detector.detect(b"\x00\x00" * 4, 8000) is False
+    assert detector.detect(b"\x00\x00" * 4, cast(SampleRate, 8000)) is False
 
 
 def test_porcupine_detector_requires_access_key(monkeypatch):
-    monkeypatch.setattr(ww, "pvporcupine", types.SimpleNamespace(create=lambda **kwargs: object()))
+    monkeypatch.setattr(
+        ww, "pvporcupine", types.SimpleNamespace(create=lambda **kwargs: object())
+    )
     monkeypatch.delenv("JARVIS_PORCUPINE_ACCESS_KEY", raising=False)
 
     assert ww.build_porcupine_detector("jarvis") is None
@@ -165,7 +171,9 @@ def test_openwakeword_detector_detects_keyword(monkeypatch):
     monkeypatch.setattr(
         oww,
         "openwakeword",
-        types.SimpleNamespace(utils=types.SimpleNamespace(download_models=lambda: None)),
+        types.SimpleNamespace(
+            utils=types.SimpleNamespace(download_models=lambda: None)
+        ),
     )
 
     detector = oww.build_openwakeword_detector(
@@ -192,7 +200,9 @@ def test_openwakeword_detector_requires_models(monkeypatch):
     monkeypatch.setattr(
         oww,
         "openwakeword",
-        types.SimpleNamespace(utils=types.SimpleNamespace(download_models=lambda: None)),
+        types.SimpleNamespace(
+            utils=types.SimpleNamespace(download_models=lambda: None)
+        ),
     )
 
     detector = oww.build_openwakeword_detector(

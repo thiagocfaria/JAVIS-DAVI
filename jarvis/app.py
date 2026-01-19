@@ -1,4 +1,5 @@
 """Compat: entrypoint legacy para jarvis.app."""
+
 from __future__ import annotations
 
 from .entrada.app import main

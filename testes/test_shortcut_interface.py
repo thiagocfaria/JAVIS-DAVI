@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import types
 
-import pytest
 
 from jarvis.entrada import shortcut as shortcut_module
 from jarvis.entrada.shortcut import ChatShortcut

@@ -4,16 +4,21 @@ from array import array
 import types
 
 from jarvis.entrada import stt as stt_module
+from jarvis.cerebro.config import Config
+from typing import cast
 
 
 def _make_stt(monkeypatch):
     monkeypatch.setattr(stt_module, "check_vad_available", lambda: False)
     monkeypatch.setattr(stt_module, "jarvis_audio", None)
     monkeypatch.setattr(stt_module, "np", None)
-    config = types.SimpleNamespace(
-        stt_mode="local",
-        stt_model_size="tiny",
-        stt_audio_trim_backend="none",
+    config = cast(
+        Config,
+        types.SimpleNamespace(
+            stt_mode="local",
+            stt_model_size="tiny",
+            stt_audio_trim_backend="none",
+        ),
     )
     stt = stt_module.SpeechToText(config)
     stt._vad = None

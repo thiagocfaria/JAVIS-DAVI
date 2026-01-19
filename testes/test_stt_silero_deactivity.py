@@ -18,7 +18,7 @@ def _make_stt() -> SpeechToText:
         stt_model_size="tiny",
         stt_audio_trim_backend="none",
     )
-    return SpeechToText(cfg)
+    return SpeechToText(cfg)  # type: ignore[arg-type]
 
 
 def test_silero_deactivity_trims_audio(monkeypatch):
@@ -34,7 +34,7 @@ def test_silero_deactivity_trims_audio(monkeypatch):
             return b"trim", True
 
     dummy = DummySilero()
-    stt._silero_detector = dummy
+    stt._silero_detector = dummy  # type: ignore[assignment]
     stt._silero_deactivity_enabled = True
     stt._record_fixed_duration_compat = (  # type: ignore[assignment]
         lambda *args, **kwargs: (b"\x01\x02" * 10, True)
@@ -58,7 +58,7 @@ def test_silero_skipped_when_no_speech(monkeypatch):
             return b"trim", True
 
     dummy = DummySilero()
-    stt._silero_detector = dummy
+    stt._silero_detector = dummy  # type: ignore[assignment]
     stt._silero_deactivity_enabled = True
     stt._record_fixed_duration_compat = (  # type: ignore[assignment]
         lambda *args, **kwargs: (b"\x01\x02", False)
@@ -77,7 +77,7 @@ def test_silero_deactivity_can_drop_audio(monkeypatch):
         def trim_on_deactivity(self, audio_bytes, sample_rate, post_roll_ms=0):
             return b"", False
 
-    stt._silero_detector = DummySilero()
+    stt._silero_detector = DummySilero()  # type: ignore[assignment]
     stt._silero_deactivity_enabled = True
     stt._record_fixed_duration_compat = (  # type: ignore[assignment]
         lambda *args, **kwargs: (b"\x01\x02" * 10, True)

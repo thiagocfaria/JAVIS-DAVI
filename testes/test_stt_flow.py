@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from pathlib import Path
 import types
 import wave
@@ -69,6 +68,7 @@ def _make_stt(tmp_path: Path) -> SpeechToText:
         chat_open_command=None,
         # STT settings
         stt_mode="local",
+        stt_audio_trim_backend="none",
         # TTS settings
         tts_mode="local",
         # Security
@@ -148,7 +148,7 @@ def test_record_audio_prefers_streaming(tmp_path):
         called["fixed"] = True
         return b"\x01\x02" * 20000, True
 
-    stt._record_fixed_duration = fake_fixed
+    stt._record_fixed_duration = fake_fixed  # type: ignore[assignment]
     result = stt._record_audio(5)
     assert called["fixed"]
     assert result == b"\x01\x02" * 20000
@@ -188,7 +188,7 @@ def test_transcribe_once_skips_whisper_when_empty(tmp_path):
         touched["transcribed"] = True
         return "oops"
 
-    stt._transcribe_local = fake_transcribe
+    stt._transcribe_local = fake_transcribe  # type: ignore[assignment]
     assert stt.transcribe_once(5) == ""
     assert not touched["transcribed"]
 
@@ -254,7 +254,7 @@ def test_transcribe_with_vad_blocks_without_audio_wake(tmp_path):
     stt = _make_stt(tmp_path)
     stt._min_audio_ms = 0
     stt._wake_word_audio_enabled = True
-    stt._wake_word_detector = types.SimpleNamespace(detect=lambda audio, sr: False)
+    stt._wake_word_detector = types.SimpleNamespace(detect=lambda audio, sr: False)  # type: ignore[assignment]
     stt._record_until_silence = lambda max_seconds: (b"\x01\x02" * 1000, True)
 
     def _boom(*args, **kwargs):

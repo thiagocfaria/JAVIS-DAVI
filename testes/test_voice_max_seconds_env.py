@@ -42,7 +42,9 @@ class _DummySTT:
     def requires_wake_word(self) -> bool:
         return True
 
-    def transcribe_with_vad(self, max_seconds=5, return_audio=True, require_wake_word=True):
+    def transcribe_with_vad(
+        self, max_seconds=5, return_audio=True, require_wake_word=True
+    ):
         self.last_max_seconds = max_seconds
         audio = b"\x01\x00" * SAMPLE_RATE
         return "ligar luz", audio, True
@@ -52,7 +54,9 @@ class _DummySTT:
     ("env_value", "expected"),
     [(None, 30), ("abc", 30), ("1", 3), ("999", 120)],
 )
-def test_voice_max_seconds_env(monkeypatch: pytest.MonkeyPatch, env_value, expected) -> None:
+def test_voice_max_seconds_env(
+    monkeypatch: pytest.MonkeyPatch, env_value, expected
+) -> None:
     _set_env(monkeypatch, "JARVIS_VOICE_MAX_SECONDS", env_value)
 
     stt = _DummySTT()
@@ -86,7 +90,9 @@ class _DummyEnrollVerifier:
     ("env_value", "expected"),
     [(None, 12), ("abc", 12), ("1", 5), ("999", 60)],
 )
-def test_voice_enroll_max_seconds_env(monkeypatch: pytest.MonkeyPatch, env_value, expected) -> None:
+def test_voice_enroll_max_seconds_env(
+    monkeypatch: pytest.MonkeyPatch, env_value, expected
+) -> None:
     _set_env(monkeypatch, "JARVIS_VOICE_ENROLL_MAX_SECONDS", env_value)
 
     stt = _DummySTT()

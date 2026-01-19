@@ -44,7 +44,8 @@ def test_vad_aggressiveness_env_override(monkeypatch):
     monkeypatch.setenv("JARVIS_VAD_AGGRESSIVENESS", "0")
 
     detector = vad_module.VoiceActivityDetector()
-    assert detector._vad.aggressiveness == 0
+    assert detector._vad is not None
+    assert getattr(detector._vad, "aggressiveness", None) == 0
 
 
 def test_vad_aggressiveness_env_clamp(monkeypatch):
@@ -59,7 +60,8 @@ def test_vad_aggressiveness_env_clamp(monkeypatch):
     monkeypatch.setenv("JARVIS_VAD_AGGRESSIVENESS", "9")
 
     detector = vad_module.VoiceActivityDetector()
-    assert detector._vad.aggressiveness == 3
+    assert detector._vad is not None
+    assert getattr(detector._vad, "aggressiveness", None) == 3
 
 
 def test_vad_preprocess_noise_gate(monkeypatch):
@@ -81,8 +83,10 @@ def test_vad_preprocess_noise_gate(monkeypatch):
     frame = (np.ones(detector.frame_size, dtype=np.int16) * 2).tobytes()
     detector.is_speech(frame)
 
-    assert detector._vad.last_frame is not None
-    assert set(detector._vad.last_frame) == {0}
+    assert detector._vad is not None
+    last_frame = getattr(detector._vad, "last_frame", None)
+    assert last_frame is not None
+    assert set(last_frame) == {0}
 
 
 def test_streaming_vad_record_fixed_duration_speech_detected(monkeypatch):

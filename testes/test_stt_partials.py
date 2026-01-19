@@ -18,7 +18,7 @@ def _make_stt() -> SpeechToText:
         stt_model_size="tiny",
         stt_audio_trim_backend="none",
     )
-    return SpeechToText(cfg)
+    return SpeechToText(cfg)  # type: ignore[arg-type]
 
 
 def test_transcribe_audio_bytes_emits_partials(monkeypatch):

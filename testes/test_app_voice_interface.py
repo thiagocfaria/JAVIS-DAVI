@@ -4,9 +4,8 @@ import os
 import sys
 from types import SimpleNamespace
 
-import pytest
 
-from jarvis.entrada import app as app_module
+from jarvis.interface.entrada import app as app_module
 
 
 def _make_config(tmp_path, stt_mode: str = "local"):
@@ -226,11 +225,67 @@ def test_main_voice_loop_uses_sleep_arg(monkeypatch, tmp_path):
     monkeypatch.setattr(app_module, "Orchestrator", DummyOrchestrator)
     monkeypatch.setattr(app_module, "ChatInbox", DummyInbox)
     monkeypatch.setattr(app_module, "stop_requested", fake_stop)
-    monkeypatch.setattr(app_module.time, "sleep", lambda value: calls["sleep"].append(value))
-    monkeypatch.setattr(sys, "argv", ["jarvis", "--voice-loop", "--voice-loop-sleep", "0.2"])
+    monkeypatch.setattr(
+        app_module.time, "sleep", lambda value: calls["sleep"].append(value)
+    )
+    monkeypatch.setattr(
+        sys, "argv", ["jarvis", "--voice-loop", "--voice-loop-sleep", "0.2"]
+    )
 
     assert app_module.main() == 0
     assert calls["sleep"] == [0.2]
+
+
+def test_main_voice_loop_respects_max_iter(monkeypatch, tmp_path):
+    config = _make_config(tmp_path)
+    calls = {"transcribe": 0}
+
+    class DummyOrchestrator:
+        def __init__(self, cfg):
+            return None
+
+        def transcribe_and_handle(self):
+            calls["transcribe"] += 1
+
+        def handle_text(self, text: str) -> None:
+            return None
+
+        def run_s3_loop(self, text: str) -> bool:
+            return True
+
+    class DummyInbox:
+        def __init__(self, path):
+            self._path = path
+
+        def drain(self):
+            return []
+
+    monkeypatch.setattr(app_module, "load_config", lambda: config)
+    monkeypatch.setattr(app_module, "ensure_dirs", lambda cfg: None)
+    monkeypatch.setattr(
+        app_module,
+        "check_stt_deps",
+        lambda: {"sounddevice": True, "numpy": True, "faster_whisper": True},
+    )
+    monkeypatch.setattr(app_module, "Orchestrator", DummyOrchestrator)
+    monkeypatch.setattr(app_module, "ChatInbox", DummyInbox)
+    monkeypatch.setattr(app_module, "stop_requested", lambda path: False)
+    monkeypatch.setattr(app_module.time, "sleep", lambda _: None)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "jarvis",
+            "--voice-loop",
+            "--voice-loop-max-iter",
+            "2",
+            "--voice-loop-sleep",
+            "0",
+        ],
+    )
+
+    assert app_module.main() == 0
+    assert calls["transcribe"] == 2
 
 
 def test_main_sets_audio_env_from_cli(monkeypatch, tmp_path):
@@ -324,7 +379,8 @@ def test_main_open_chat_invokes_chatlog(monkeypatch, tmp_path):
     monkeypatch.setattr(app_module, "load_config", lambda: config)
     monkeypatch.setattr(app_module, "ensure_dirs", lambda cfg: None)
     monkeypatch.setattr(sys, "argv", ["jarvis", "--open-chat"])
-    import jarvis.comunicacao.chat_log as chat_log_module
+    import jarvis.interface.infra.chat_log as chat_log_module
+
     monkeypatch.setattr(chat_log_module, "ChatLog", DummyChatLog)
 
     assert app_module.main() == 0
@@ -341,8 +397,11 @@ def test_main_chat_ui_calls_chat_ui_main(monkeypatch, tmp_path):
 
     monkeypatch.setitem(sys.modules, "tkinter", type("TkDummy", (), {"Tk": DummyTk}))
 
-    import jarvis.entrada.chat_ui as chat_ui_module
-    monkeypatch.setattr(chat_ui_module, "main", lambda: called.__setitem__("chat_ui", 1) or 0)
+    import jarvis.interface.entrada.chat_ui as chat_ui_module
+
+    monkeypatch.setattr(
+        chat_ui_module, "main", lambda: called.__setitem__("chat_ui", 1) or 0
+    )
 
     monkeypatch.setattr(app_module, "load_config", lambda: config)
     monkeypatch.setattr(app_module, "ensure_dirs", lambda cfg: None)
@@ -389,7 +448,8 @@ def test_main_gui_panel_invokes_panel(monkeypatch, tmp_path):
         def drain(self):
             return []
 
-    import jarvis.entrada.gui_panel as gui_panel_module
+    import jarvis.interface.entrada.gui_panel as gui_panel_module
+
     monkeypatch.setattr(gui_panel_module, "JarvisPanel", DummyPanel)
 
     monkeypatch.setattr(app_module, "load_config", lambda: config)
@@ -440,7 +500,8 @@ def test_main_gui_panel_sets_followup_poll_env(monkeypatch, tmp_path):
         def drain(self):
             return []
 
-    import jarvis.entrada.gui_panel as gui_panel_module
+    import jarvis.interface.entrada.gui_panel as gui_panel_module
+
     monkeypatch.setattr(gui_panel_module, "JarvisPanel", DummyPanel)
 
     monkeypatch.setattr(app_module, "load_config", lambda: config)

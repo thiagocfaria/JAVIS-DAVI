@@ -4,8 +4,6 @@ import importlib
 import sys
 import types
 
-import pytest
-
 
 def _build_dummy_tk(entry_value: str = "hello"):
     module = types.SimpleNamespace()
@@ -130,7 +128,7 @@ def test_gui_panel_on_send_calls_orchestrator(monkeypatch):
     gui_panel = importlib.import_module("jarvis.entrada.gui_panel")
     importlib.reload(gui_panel)
 
-    calls = {"text": None}
+    calls: dict[str, str | None] = {"text": None}
 
     class DummyOrch:
         def handle_text(self, text: str) -> None:

@@ -62,8 +62,16 @@ def test_verify_speaker_uses_threshold(monkeypatch):
     monkeypatch.setenv("JARVIS_SPK_MIN_AUDIO_MS", "0")
     monkeypatch.setattr(sv, "is_available", lambda: True)
     monkeypatch.setattr(sv, "_load_voiceprint", lambda: [0.1, 0.2])
-    monkeypatch.setattr(sv, "_pcm16_to_float", lambda audio: types.SimpleNamespace(size=1))
-    monkeypatch.setattr(sv, "_get_encoder", lambda: types.SimpleNamespace(embed_utterance=lambda wav: np.array([0.1, 0.2], dtype=np.float32)))
+    monkeypatch.setattr(
+        sv, "_pcm16_to_float", lambda audio: types.SimpleNamespace(size=1)
+    )
+    monkeypatch.setattr(
+        sv,
+        "_get_encoder",
+        lambda: types.SimpleNamespace(
+            embed_utterance=lambda wav: np.array([0.1, 0.2], dtype=np.float32)
+        ),
+    )
     monkeypatch.setattr(sv, "_cosine_similarity", lambda a, b: 0.8)
     monkeypatch.setattr(sv, "np", np)
 
@@ -81,7 +89,7 @@ def test_verify_speaker_resamples_when_sample_rate_diff(monkeypatch):
     dummy_wav = types.SimpleNamespace(size=1)
     monkeypatch.setattr(sv, "_pcm16_to_float", lambda audio: dummy_wav)
 
-    called = {"args": None}
+    called: dict[str, tuple | None] = {"args": None}
 
     def fake_resample(wav, source_sr, target_sr):
         called["args"] = (wav, source_sr, target_sr)
@@ -95,7 +103,9 @@ def test_verify_speaker_resamples_when_sample_rate_diff(monkeypatch):
     )
     monkeypatch.setattr(sv, "_cosine_similarity", lambda a, b: 0.9)
     monkeypatch.setattr(
-        sv, "np", types.SimpleNamespace(array=lambda *args, **kwargs: "ref", float32="float32")
+        sv,
+        "np",
+        types.SimpleNamespace(array=lambda *args, **kwargs: "ref", float32="float32"),
     )
 
     score, ok = sv.verify_speaker(b"\x00\x00", sample_rate=44100)
@@ -111,7 +121,11 @@ def test_verify_speaker_fails_short_audio(monkeypatch):
     monkeypatch.setenv("JARVIS_SPK_MIN_AUDIO_MS", "1000")
     monkeypatch.setattr(sv, "is_available", lambda: True)
     monkeypatch.setattr(sv, "_load_voiceprint", lambda: [0.1, 0.2])
-    monkeypatch.setattr(sv, "_get_encoder", lambda: (_ for _ in ()).throw(RuntimeError("should not call")))
+    monkeypatch.setattr(
+        sv,
+        "_get_encoder",
+        lambda: (_ for _ in ()).throw(RuntimeError("should not call")),
+    )
 
     score, ok = sv.verify_speaker(b"\x00\x00" * 100, sample_rate=16000)
     assert ok is False
@@ -121,7 +135,9 @@ def test_verify_speaker_fails_short_audio(monkeypatch):
 def test_load_voiceprint_uses_cache(monkeypatch, tmp_path):
     monkeypatch.setenv("JARVIS_CONFIG_DIR", str(tmp_path))
     path = tmp_path / "voiceprint.json"
-    path.write_text(json.dumps({"embedding": [0.1, 0.2]}, ensure_ascii=True), encoding="utf-8")
+    path.write_text(
+        json.dumps({"embedding": [0.1, 0.2]}, ensure_ascii=True), encoding="utf-8"
+    )
     monkeypatch.setattr(sv, "_voiceprint_cache", None)
     monkeypatch.setattr(sv, "_voiceprint_mtime", None)
 

@@ -5,8 +5,6 @@ import json
 import sys
 import types
 
-import pytest
-
 
 def _build_dummy_tk(entry_value: str = "hello"):
     module = types.SimpleNamespace()

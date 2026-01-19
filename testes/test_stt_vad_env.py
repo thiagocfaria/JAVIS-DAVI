@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
 
 from jarvis.entrada.stt import SpeechToText
+from jarvis.cerebro.config import Config
+from typing import cast
 
 
 class _DummyVAD:
@@ -37,7 +38,7 @@ def test_streaming_vad_uses_env(monkeypatch) -> None:
         stt_model_size="tiny",
         stt_audio_trim_backend="none",
     )
-    SpeechToText(cfg)
+    SpeechToText(cast(Config, cfg))
 
     assert captured["silence_duration_ms"] == 500
     assert captured["pre_roll_ms"] == 250

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
 
 from jarvis.entrada import stt as stt_module
 from jarvis.entrada.stt import SpeechToText
@@ -14,7 +13,7 @@ def _make_stt():
         stt_model_size="tiny",
         stt_audio_trim_backend="none",
     )
-    return SpeechToText(cfg)
+    return SpeechToText(cfg)  # type: ignore[arg-type]
 
 
 def test_record_until_silence_bypasses_streaming_when_capture_sr_diff(monkeypatch):
@@ -53,7 +52,9 @@ def test_record_until_silence_uses_streaming_when_capture_sr_matches(monkeypatch
             return (b"\x01\x02", True)
 
     stt._streaming_vad = DummyStreaming()
-    monkeypatch.setattr(stt, "_resolve_capture_config", lambda: (None, stt_module.SAMPLE_RATE, "dev"))
+    monkeypatch.setattr(
+        stt, "_resolve_capture_config", lambda: (None, stt_module.SAMPLE_RATE, "dev")
+    )
 
     audio_bytes, speech_detected = stt._record_until_silence(3)
     assert audio_bytes == b"\x01\x02"
