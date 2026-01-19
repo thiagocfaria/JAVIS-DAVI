@@ -1,15 +1,17 @@
-# entrada/app.py
+# interface/entrada/app.py
 
-- Caminho: `jarvis/entrada/app.py`
+- Caminho: `jarvis/interface/entrada/app.py`
 - Papel: entrypoint da interface (CLI) para voz, texto, painel e preflight.
 - Onde entra no fluxo: recebe comandos e aciona o orquestrador (fora do escopo da interface).
-- Atualizado em: 2026-01-10 (revisado com o codigo e flags conferidas)
+- Atualizado em: 2026-01-14 (revisado com o codigo e flags conferidas)
 
 ## Responsabilidades
-- Parsear flags de fluxo (`--voice`, `--voice-loop`, `--loop`, `--gui-panel`, `--chat-ui`).
+- Parsear flags de fluxo (`--text`, `--voice`, `--voice-loop`, `--loop`, `--gui-panel`, `--chat-ui`).
 - Suportar rotas auxiliares (`--open-chat`, `--s3`) e modos (`--dry-run`).
 - Permitir preflight por perfil via `--preflight-profile` (voz/UI/desktop).
+- Permitir `--preflight-strict` para sair com erro quando houver FAIL.
 - Controlar pausa do voice-loop com `--voice-loop-sleep`.
+- Limitar iteracoes do voice-loop com `--voice-loop-max-iter` (ou env `JARVIS_VOICE_LOOP_MAX_ITER`).
 - Permitir override de device/SR via CLI (`--audio-device`, `--audio-capture-sr`).
 - Permitir ajustar o polling do follow-up no painel (`--gui-followup-poll-ms`).
 - Garantir que STT esta disponivel antes de usar voz.
@@ -30,22 +32,25 @@
 
 ## Dependencias diretas
 - `jarvis.cerebro.orchestrator.Orchestrator`
-- `jarvis.comunicacao.chat_inbox.ChatInbox`
-- `jarvis.entrada.preflight.run_preflight`
-- `jarvis.entrada.shortcut.ChatShortcut`
+- `jarvis.interface.infra.chat_inbox.ChatInbox`
+- `jarvis.interface.entrada.preflight.run_preflight`
+- `jarvis.interface.entrada.shortcut.ChatShortcut`
 
 ## Testes relacionados
 - `testes/test_app_voice_interface.py`
 
 ## Comandos uteis
-- Preflight: `PYTHONPATH=. python -m jarvis.entrada.app --preflight`
-- Preflight por perfil (voz): `PYTHONPATH=. python -m jarvis.entrada.app --preflight --preflight-profile voice`
-- Voz unica: `PYTHONPATH=. python -m jarvis.entrada.app --voice`
-- Voice loop: `PYTHONPATH=. python -m jarvis.entrada.app --voice-loop --voice-loop-sleep 0.5`
-- Voice loop com device/SR: `PYTHONPATH=. python -m jarvis.entrada.app --voice-loop --audio-device 3 --audio-capture-sr 44100`
-- Chat UI: `PYTHONPATH=. python -m jarvis.entrada.app --chat-ui`
-- Painel: `PYTHONPATH=. python -m jarvis.entrada.app --gui-panel`
-- Painel (polling follow-up): `PYTHONPATH=. python -m jarvis.entrada.app --gui-panel --gui-followup-poll-ms 750`
+- Preflight: `PYTHONPATH=. python -m jarvis.interface.entrada.app --preflight`
+- Preflight por perfil (voz): `PYTHONPATH=. python -m jarvis.interface.entrada.app --preflight --preflight-profile voice`
+- Preflight estrito: `PYTHONPATH=. python -m jarvis.interface.entrada.app --preflight --preflight-strict`
+- Texto unico: `PYTHONPATH=. python -m jarvis.interface.entrada.app --text "oi jarvis"`
+- Voz unica: `PYTHONPATH=. python -m jarvis.interface.entrada.app --voice`
+- Voice loop: `PYTHONPATH=. python -m jarvis.interface.entrada.app --voice-loop --voice-loop-sleep 0.5`
+- Voice loop limitado: `PYTHONPATH=. python -m jarvis.interface.entrada.app --voice-loop --voice-loop-max-iter 2`
+- Voice loop com device/SR: `PYTHONPATH=. python -m jarvis.interface.entrada.app --voice-loop --audio-device 3 --audio-capture-sr 44100`
+- Chat UI: `PYTHONPATH=. python -m jarvis.interface.entrada.app --chat-ui`
+- Painel: `PYTHONPATH=. python -m jarvis.interface.entrada.app --gui-panel`
+- Painel (polling follow-up): `PYTHONPATH=. python -m jarvis.interface.entrada.app --gui-panel --gui-followup-poll-ms 750`
 - Teste: `PYTHONPATH=. pytest -q testes/test_app_voice_interface.py`
 
 ## Qualidade e limites

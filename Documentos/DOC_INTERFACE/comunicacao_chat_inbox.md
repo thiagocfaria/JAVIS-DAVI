@@ -1,6 +1,6 @@
-# comunicacao/chat_inbox.py
+# interface/infra/chat_inbox.py
 
-- Caminho: `jarvis/comunicacao/chat_inbox.py`
+- Caminho: `jarvis/interface/infra/chat_inbox.py`
 - Papel: ler novos comandos escritos em arquivo texto.
 - Onde entra no fluxo: consumido pelo app antes do loop de voz.
 - Atualizado em: 2026-01-10 (revisado com o codigo)

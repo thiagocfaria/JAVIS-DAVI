@@ -99,11 +99,14 @@ def build_porcupine_detector(
 
     keyword_path = keyword_path or _env_str("JARVIS_PORCUPINE_KEYWORD_PATH")
     sensitivity = _clamp_sensitivity(
-        sensitivity if sensitivity is not None else _env_float("JARVIS_PORCUPINE_SENSITIVITY")
+        sensitivity
+        if sensitivity is not None
+        else _env_float("JARVIS_PORCUPINE_SENSITIVITY")
     )
     wake_word = (wake_word or "").strip() or "jarvis"
 
-    kwargs: dict[str, object] = {"access_key": access_key}
+    # access_key is guaranteed to be str here (checked above)
+    kwargs: dict[str, str | list[str] | list[float]] = {"access_key": access_key}
     if keyword_path:
         kwargs["keyword_paths"] = [keyword_path]
     else:
@@ -112,7 +115,7 @@ def build_porcupine_detector(
         kwargs["sensitivities"] = [sensitivity]
 
     try:
-        porcupine = pvporcupine.create(**kwargs)
+        porcupine = pvporcupine.create(**kwargs)  # type: ignore[arg-type]
     except Exception as exc:
         if debug:
             print(f"[wakeword] falha ao iniciar porcupine: {exc}")

@@ -1,0 +1,18 @@
+{
+  "repeat": 3,
+  "latency_ms_avg": 4199.409046667522,
+  "latency_ms_p50": 4051.6912120001507,
+  "latency_ms_p95": 5073.9739888042095,
+  "cpu_time_s_avg": 0.03721833333333332,
+  "rss_kb": 103460,
+  "psutil_cpu_percent": 0.9,
+  "psutil_rss_bytes": 106770432,
+  "psutil_vms_bytes": 906194944,
+  "psutil_available": true,
+  "scenario": "tts",
+  "text": "ola jarvis, teste de desempenho de voz",
+  "tts_mode": "local",
+  "tts_first_audio_ms_avg": 1736.0554666665848,
+  "tts_first_audio_ms_p50": 1671.8670160007605,
+  "tts_first_audio_ms_p95": 2240.7029620000685
+}

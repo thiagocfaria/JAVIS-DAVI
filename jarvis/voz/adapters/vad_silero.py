@@ -40,7 +40,10 @@ def _extract_get_speech_timestamps(utils: Any) -> Callable[..., Any] | None:
             return func
     if isinstance(utils, (list, tuple)):
         for item in utils:
-            if callable(item) and getattr(item, "__name__", "") == "get_speech_timestamps":
+            if (
+                callable(item)
+                and getattr(item, "__name__", "") == "get_speech_timestamps"
+            ):
                 return item
     if callable(utils) and getattr(utils, "__name__", "") == "get_speech_timestamps":
         return utils
@@ -91,7 +94,10 @@ class SileroDeactivityDetector:
         threshold = max(0.0, min(1.0, 1.0 - self._sensitivity))
         try:
             timestamps = self._get_speech_timestamps(
-                audio_tensor, self._model, sampling_rate=sample_rate, threshold=threshold
+                audio_tensor,
+                self._model,
+                sampling_rate=sample_rate,
+                threshold=threshold,
             )
         except TypeError:
             try:
@@ -144,12 +150,19 @@ def build_silero_deactivity_detector(
             print("[silero] modelo nao encontrado no cache; auto_download=0")
         return None
     try:
-        model, utils = torch.hub.load(
+        if torch is None:
+            return None
+        hub_result = torch.hub.load(
             repo_or_dir="snakers4/silero-vad",
             model="silero_vad",
             trust_repo=True,
             onnx=use_onnx,
         )
+        if isinstance(hub_result, tuple):
+            model, utils = hub_result
+        else:
+            model = hub_result
+            utils = None
     except Exception as exc:
         if debug:
             print(f"[silero] falha ao carregar modelo: {exc}")

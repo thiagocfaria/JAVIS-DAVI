@@ -1,6 +1,6 @@
-# entrada/chat_ui.py
+# interface/entrada/chat_ui.py
 
-- Caminho: `jarvis/entrada/chat_ui.py`
+- Caminho: `jarvis/interface/entrada/chat_ui.py`
 - Papel: UI simples (tkinter) para enviar texto e ver log local.
 - Onde entra no fluxo: escreve no inbox e mostra chat.log.
 - Atualizado em: 2026-01-10 (revisado com o codigo)
@@ -29,7 +29,7 @@
 - `testes/test_chat_ui_interface.py`
 
 ## Comandos uteis
-- Rodar UI: `PYTHONPATH=. python -m jarvis.entrada.chat_ui`
+- Rodar UI: `PYTHONPATH=. python -m jarvis.interface.entrada.chat_ui`
 - Teste: `PYTHONPATH=. pytest -q testes/test_chat_ui_interface.py`
 
 ## Qualidade e limites

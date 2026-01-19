@@ -1,6 +1,6 @@
-# entrada/followup.py
+# interface/entrada/followup.py
 
-- Caminho: `jarvis/entrada/followup.py`
+- Caminho: `jarvis/interface/entrada/followup.py`
 - Papel: janela de follow-up para nao exigir wake word a cada comando.
 - Onde entra no fluxo: usada pelo orquestrador ao aceitar comandos de voz.
 - Atualizado em: 2026-01-10 (revisado com o codigo)

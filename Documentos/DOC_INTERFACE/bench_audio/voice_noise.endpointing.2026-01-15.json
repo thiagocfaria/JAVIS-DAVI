@@ -1,0 +1,22 @@
+{
+  "repeat": 10,
+  "latency_ms_avg": 0.08664029992360156,
+  "latency_ms_p50": 0.08497099952364806,
+  "latency_ms_p95": 0.13315480082383147,
+  "cpu_time_s_avg": 8.910000000001278e-05,
+  "rss_kb": 105408,
+  "psutil_cpu_percent": 0.0,
+  "psutil_rss_bytes": 107560960,
+  "psutil_vms_bytes": 907620352,
+  "psutil_available": true,
+  "endpoint_ms_avg": 390,
+  "endpoint_ms_p50": 390.0,
+  "endpoint_ms_p95": 390.0,
+  "scenario": "endpointing",
+  "audio": "Documentos/DOC_INTERFACE/bench_audio/voice_noise.wav",
+  "speech_detected": true,
+  "endpoint_reached": true,
+  "frame_ms": 30,
+  "silence_ms": 400,
+  "silence_frames": 13
+}

@@ -16,7 +16,7 @@ Objetivo: juntar funcionalidades parecidas para integrar uma unica vez e nao per
 - Regra de uniao: somente um canal de entrada ativo por vez.
 
 3) VAD/turn detection (fim de fala)
-- Fonte principal: LiveKit (quando remoto) ou `jarvis/voz/vad.py` (local).
+- Fonte principal: LiveKit (quando remoto) ou `jarvis/interface/entrada/vad.py` (local).
 - Complementos: thresholds do RealtimeSTT (endpointing curto).
 - Regra de uniao: um VAD por fluxo; usar pre/post-roll unico.
 
@@ -77,30 +77,14 @@ Plano de implementacao (UI -> Jarvis):
 8) [ ] Validacao final (comandos simples + streaming)
 
 ### 2) Voz realtime: transporte + turn detection (LiveKit)
-Checklist (importar do LiveKit no nosso interface):
-1) [ ] Transporte WebRTC (RoomIO/audio input/output)
-2) [ ] Canal de texto nativo (TextInput/TextOutput)
-3) [ ] Turn detection avancado (realtime_llm / vad / stt)
-4) [ ] VAD com eventos e probabilidade
-5) [ ] Pre-connect audio buffer
-6) [ ] Preemptive generation
-7) [ ] Barge-in / interrupcoes (com falso-positivo)
-8) [ ] AudioOutput com eventos de playout + pause
-9) [ ] Transcript synchronizer (texto alinhado com TTS)
-10) [ ] Noise cancellation / frame processor (AEC/NS)
-11) [ ] Telemetria e metrics de voz
-12) [ ] Eventos de STT por etapa (interim/preflight/final)
-13) [ ] Parametros de interrupcao (min_interruption_duration/words)
-14) [ ] False interruption timeout + resume
-15) [ ] Aligned transcript por palavra (TimedString)
-16) [ ] Resample 48k -> 16k no ingresso de audio WebRTC
-17) [ ] Min/max endpointing delay configuravel
-18) [ ] Stream pacer do TTS (controle de ritmo e interrupcoes)
-19) [ ] User away timeout / silencio longo
+**Nao implementar no modo local.** LiveKit/WebRTC so faz sentido se o Jarvis for usado remotamente (internet/multiusuario).
 
-O que manter do Jarvis:
-- STT local (faster-whisper) e TTS local (Piper/espeak), sem custo por chamada.
-- Orquestrador e politica local (controle de seguranca).
+**Funcionalidades similares ja implementadas no Jarvis (mantidas):**
+- ✅ **Barge-in/interrupcoes**: Implementado via `JARVIS_TTS_BARGE_IN` em `jarvis/interface/saida/tts.py` - permite interromper TTS criando arquivo `~/.jarvis/STOP`. **Faz sentido manter** (melhora UX local).
+- ✅ **Noise cancellation/AEC**: Implementado via `JARVIS_AEC_BACKEND=simple` em `jarvis/interface/entrada/vad.py` - remove eco do audio. **Faz sentido manter** (melhora qualidade de audio local).
+- ✅ **Telemetria e metricas**: Implementado em `jarvis/interface/entrada/stt.py` e `jarvis/interface/saida/tts.py` - metricas `capture_ms`, `vad_ms`, `stt_ms`, `tts_ms`, `play_ms`, `tts_first_audio_ms`. **Faz sentido manter** (essencial para medir performance).
+- ✅ **Pre-roll buffer**: Implementado via `JARVIS_VAD_PRE_ROLL_MS` em `jarvis/interface/entrada/vad.py` - evita cortar inicio da fala. **Faz sentido manter** (melhora qualidade de captura).
+- ✅ **Eventos de STT parciais**: Implementado via `on_partial` callback em `jarvis/interface/entrada/stt.py` - recebe transcricoes parciais durante gravacao. **Faz sentido manter** (melhora UX com feedback em tempo real).
 
 ### 3) STT streaming (RealtimeSTT)
 Checklist (o que importar e onde substituir no Jarvis):
@@ -114,16 +98,17 @@ Checklist (o que importar e onde substituir no Jarvis):
 7) [x] Normalizacao de audio (peak normalization)
 8) [x] Limite de latencia (allowed_latency_limit)
 9) [x] Early transcription on silence
-10) [x] Handle buffer overflow + buffer_size
+10) [x] Handle buffer overflow + max_buffer_seconds
 11) [x] Warmup do modelo
-12) [x] Fonte de audio externa (use_microphone=False)
-13) [x] Beam size e batch size (quality x latency)
+12) [x] Fonte de audio externa (use_microphone=False) - env `JARVIS_STT_STREAMING_USE_MICROPHONE=0`
+13) [x] Beam size e best_of (quality x latency)
 14) [x] VAD filter do faster-whisper
 15) [x] Prompt inicial e suppress_tokens
 16) [x] Silero deactivity detection (opcional)
+17) [x] Backend RealtimeSTT opcional (env `JARVIS_STT_STREAMING=1`)
 
 Checklist (o que NAO importar):
-1) [ ] PyAudio e audio_input.py
+1) [ ] Nao tornar PyAudio obrigatorio fora do modo streaming
 2) [ ] client/server WebSocket do RealtimeSTT
 3) [ ] Silero VAD obrigatorio
 4) [ ] Multiprocessing + KMP_DUPLICATE_LIB_OK
@@ -139,18 +124,18 @@ Ordem recomendada (producao, sem MVP):
 
 ### 4) TTS streaming (RealtimeTTS)
 Checklist (importar do RealtimeTTS no nosso interface):
-1) [ ] Pipeline de TTS com streaming de texto
-2) [ ] Fragmentacao por sentenca + buffer_threshold
-3) [ ] Callbacks de audio chunk
-4) [ ] Pause/Resume/Stop imediato
-5) [ ] Word timing (quando suportado)
-6) [ ] Controle de tamanho de chunk (frames_per_buffer/playout_chunk_size)
-7) [ ] Fade-in/out e trim de silencio
-8) [ ] Medir latencia ate o primeiro chunk
-9) [ ] Modo silencioso (muted)
-10) [ ] Audio output device selection (opcional)
-11) [ ] Integracao Piper local (mantendo self-hosted)
-12) [ ] AEC reference (preservar)
+1) [x] Pipeline de TTS com streaming de texto
+2) [x] Fragmentacao por sentenca + buffer_threshold
+3) [x] Callbacks de audio chunk
+4) [x] Pause/Resume/Stop imediato
+5) [x] Word timing (quando suportado)
+6) [x] Controle de tamanho de chunk (frames_per_buffer/playout_chunk_size)
+7) [x] Fade-in/out e trim de silencio
+8) [x] Medir latencia ate o primeiro chunk
+9) [x] Modo silencioso (muted)
+10) [x] Audio output device selection (opcional)
+11) [x] Integracao Piper local (mantendo self-hosted)
+12) [x] AEC reference (preservar)
 
 Checklist (o que NAO importar):
 1) [ ] PyAudio como dependencia obrigatoria
@@ -161,6 +146,15 @@ O que manter do Jarvis:
 - Piper local + espeak fallback (sem custo e offline).
 - Controle de volume + AEC playback reference.
 
+Feito (status atual):
+- Chunking por sentenca (`JARVIS_TTS_CHUNKING`) e controle de chunk do streaming (`JARVIS_TTS_STREAM_CHUNK_BYTES`).
+- TTFA medido via `tts_first_audio_ms` e modo silencioso via `tts_mode=none` ou `JARVIS_TTS_VOLUME=0`.
+- Streaming de texto com `speak_stream(...)` + pause/resume/stop em tempo real.
+- Trim de silencio e fade-in/out (controlados por env).
+- Callbacks de audio chunk via `on_audio_chunk` (streaming e playback).
+- Word timing estimado via `JARVIS_TTS_WORD_TIMING=1` (usando `JARVIS_TTS_WPM`).
+- Selecionar device de saida via `JARVIS_TTS_AUDIO_DEVICE` (aplay).
+
 Ordem recomendada (producao, sem MVP):
 1) Streaming + fragmentacao (itens 1, 2, 3)
 2) Controle de interrupcao + AEC (itens 4, 12)
@@ -169,6 +163,7 @@ Ordem recomendada (producao, sem MVP):
 5) UX de legenda (item 5)
 
 ### 5) Emoção/tonalidade (SpeechBrain + openSMILE)
+Nota: backend heuristico CPU-first implementado no fluxo principal; SpeechBrain/openSMILE ficam como upgrade futuro.
 Checklist (SpeechBrain - emocao por utterance):
 1) [ ] Definir o modelo base e baixar os pesos
 2) [ ] Definir dependencia minima
@@ -205,19 +200,25 @@ Checklist (openSMILE como suporte leve):
 4) [ ] Usar como fallback rapido
 
 Checklist (estrutura de modulo no Jarvis):
-1) [ ] Criar modulo `jarvis/voz/emocao.py`
-2) [ ] Configurar entrada padrao
-3) [ ] Configurar saida padrao
-4) [ ] Integrar no fluxo de voz
-5) [ ] Adicionar flags/env
-6) [ ] Registrar telemetria
-7) [ ] Expor para UI
+1) [x] Criar modulo `jarvis/interface/entrada/emocao.py`
+2) [x] Configurar entrada padrao
+3) [x] Configurar saida padrao
+4) [x] Integrar no fluxo de voz
+5) [x] Adicionar flags/env
+6) [x] Registrar telemetria
+7) [x] Expor para UI
 
 Checklist (testes manuais - sem GPU):
 1) [ ] Teste com audio curto
 2) [ ] Teste com fala normal
 3) [ ] Teste sem VAD (silencio)
 4) [ ] Teste de falha segura
+
+### 6) Turn-taking leve + lock de locutor (interface)
+- Turn-taking: `SpeechToText.get_last_turn_info()` retorna `is_complete`, `hold_ms` e `reason`.
+- Uso futuro no cerebro: se `is_complete=False`, aguardar `hold_ms`; se nao vier nova fala, perguntar continuacao.
+- Lock de locutor: `SpeechToText.get_last_speaker_state()` indica `ok/score/locked` para ignorar falas de fundo.
+- Idioma unico: `SpeechToText.get_last_language_state()` pode retornar `action=confirm_switch` para pedir confirmacao antes de trocar idioma ativo.
 
 Checklist (o que NAO importar):
 1) [ ] Treinamento completo (recipes) no fluxo principal
@@ -285,16 +286,16 @@ Checklist (como empacotar corretamente):
 ## Matriz de substituicao (Jarvis vs repo)
 | Funcionalidade | Jarvis atual | Repositorio(s) | Acao | Observacao |
 | --- | --- | --- | --- | --- |
-| UI/Chat | chat_log + UI simples | vercel-ai-chatbot | Hibrido | Manter log local + streaming na UI | 
-| Transporte audio | sounddevice local | livekit-agents | Hibrido | LiveKit remoto, sounddevice local | 
-| VAD/turn detection | webrtcvad (local) | livekit-agents + RealtimeSTT | Hibrido | Um VAD por fluxo; endpointing curto | 
-| Wake word | filtro por texto + Porcupine/OpenWakeWord (audio) | RealtimeSTT | Hibrido | Audio primeiro, texto como fallback | 
-| STT parcial | parciais via callback | RealtimeSTT | Adicionar | Parciais so atualizam UI | 
-| STT final | faster-whisper local | RealtimeSTT (backend) | Manter | Final sempre no Jarvis | 
-| TTS | Piper/espeak local | RealtimeTTS | Hibrido | Streaming + AEC + fallback local | 
-| Emoção | nao tem | SpeechBrain + openSMILE | Adicionar | Metadata apenas | 
-| Observabilidade | Telemetry | scripts/bench | Manter | Medir sem interferir | 
-| Desktop app | nao tem | Tauri | Adicionar | UI bundlada + sidecar | 
+| UI/Chat | chat_log + UI simples | vercel-ai-chatbot | Hibrido | Manter log local + streaming na UI |
+| Transporte audio | sounddevice local | livekit-agents | Hibrido | LiveKit remoto, sounddevice local |
+| VAD/turn detection | webrtcvad (local) | livekit-agents + RealtimeSTT | Hibrido | Um VAD por fluxo; endpointing curto |
+| Wake word | filtro por texto + Porcupine/OpenWakeWord (audio) | RealtimeSTT | Hibrido | Audio primeiro, texto como fallback |
+| STT parcial | parciais via callback | RealtimeSTT | Adicionar | Parciais so atualizam UI |
+| STT final | faster-whisper local | RealtimeSTT (backend) | Manter | Final sempre no Jarvis |
+| TTS | Piper/espeak local | RealtimeTTS | Hibrido | Streaming + AEC + fallback local |
+| Emoção | nao tem | SpeechBrain + openSMILE | Adicionar | Metadata apenas |
+| Observabilidade | Telemetry | scripts/bench | Manter | Medir sem interferir |
+| Desktop app | nao tem | Tauri | Adicionar | UI bundlada + sidecar |
 
 ## Repositorios (referencias e caminhos locais)
 - Vercel AI Chatbot: https://github.com/vercel/ai-chatbot
@@ -302,7 +303,8 @@ Checklist (como empacotar corretamente):
 - LiveKit Agents: https://github.com/livekit/agents
   - Local: `jarvis/REPOSITORIOS_CLONAR/livekit-agents`
 - RealtimeSTT: https://github.com/KoljaB/RealtimeSTT
-  - Local: `jarvis/REPOSITORIOS_CLONAR/realtimestt`
+  - Local (clone, transicao): `jarvis/REPOSITORIOS_CLONAR/realtimestt`
+  - Extraido (copia vendorizada usada pelo Jarvis): `jarvis/third_party/realtimestt`
 - RealtimeTTS: https://github.com/KoljaB/RealtimeTTS
   - Local: `jarvis/REPOSITORIOS_CLONAR/realtimetts`
 - RealtimeVoiceChat (extra): https://github.com/KoljaB/RealtimeVoiceChat

@@ -1,0 +1,14 @@
+{
+  "repeat": 5,
+  "latency_ms_avg": 3353.927131000455,
+  "latency_ms_p50": 3181.1733200011076,
+  "latency_ms_p95": 4906.85045350092,
+  "cpu_time_s_avg": 7.9781348,
+  "rss_kb": 854900,
+  "psutil_cpu_percent": 237.9,
+  "psutil_rss_bytes": 822075392,
+  "psutil_vms_bytes": 6332489728,
+  "psutil_available": true,
+  "scenario": "stt",
+  "audio": "Documentos/DOC_INTERFACE/bench_audio/voice_clean.wav"
+}

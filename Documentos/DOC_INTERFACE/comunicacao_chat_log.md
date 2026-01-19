@@ -1,6 +1,6 @@
-# comunicacao/chat_log.py
+# interface/infra/chat_log.py
 
-- Caminho: `jarvis/comunicacao/chat_log.py`
+- Caminho: `jarvis/interface/infra/chat_log.py`
 - Papel: log append-only com mensagens do Jarvis.
 - Onde entra no fluxo: usado para feedback e historico visivel.
 - Atualizado em: 2026-01-10 (revisado com o codigo)
@@ -31,7 +31,7 @@
 - `testes/test_chat_log.py`
 
 ## Comandos uteis
-- Abrir log: `PYTHONPATH=. python -m jarvis.entrada.app --open-chat`
+- Abrir log: `PYTHONPATH=. python -m jarvis.interface.entrada.app --open-chat`
 - Teste: `PYTHONPATH=. pytest -q testes/test_chat_log.py`
 
 ## Qualidade e limites

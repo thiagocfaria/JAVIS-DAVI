@@ -1,6 +1,6 @@
-# voz/vad.py
+# interface/entrada/vad.py
 
-- Caminho: `jarvis/voz/vad.py`
+- Caminho: `jarvis/interface/entrada/vad.py`
 - Papel: VAD (detectar fala) e gravacao streaming.
 - Onde entra no fluxo: usado pelo STT para cortar silencio.
 - Atualizado em: 2026-01-10 (revisado com o codigo)
@@ -19,6 +19,7 @@
 ## Configuracao
 - Parametros no init: aggressiveness, sample_rate, silence_duration, pre/post-roll, device.
 - Defaults do StreamingVAD: sample_rate=16000, frame=30ms, silence=800ms, max=30s, pre=200ms, post=200ms.
+- Env opcional: `JARVIS_VAD_STRATEGY=webrtc|silero|whisper|realtimestt` (se nao for `webrtc`, o STT nao usa StreamingVAD).
 - Env opcional: `JARVIS_VAD_METRICS=1` para logar frames/duracao.
 - Env opcional: `JARVIS_VAD_AGGRESSIVENESS=0..3` (default 2) para ajustar sensibilidade.
 - Env opcional: `JARVIS_VAD_SILENCE_MS`, `JARVIS_VAD_PRE_ROLL_MS`, `JARVIS_VAD_POST_ROLL_MS`, `JARVIS_VAD_MAX_SECONDS` (ajusta o StreamingVAD).
@@ -31,6 +32,10 @@
   - `JARVIS_AUDIO_AGC_TARGET_RMS` (default 0.06)
   - `JARVIS_AUDIO_AGC_MAX_GAIN` (default 6.0)
   - `JARVIS_AUDIO_NS_GATE_RMS` (default 0.01)
+  - `JARVIS_AUDIO_NS_ADAPTIVE=1` (mede ruido inicial e ajusta gate dinamicamente)
+  - `JARVIS_AUDIO_NS_ADAPTIVE_MS` (janela inicial em ms; default 1000)
+  - `JARVIS_AUDIO_NS_ADAPTIVE_MULT` (multiplicador do ruido base; default 2.0)
+  - `JARVIS_VAD_RMS_SILENCE` (se >0, trata frame com RMS baixo como silencio)
 
 ## Dependencias diretas
 - `webrtcvad`
@@ -52,6 +57,8 @@
 - Quando `empty_if_no_speech=True` (padrao), retorna `b""` se nao houve fala.
 - Streaming VAD precisa de `sounddevice`; se faltar backend de audio, gravação falha com `VADError`.
 - AEC simples so roda em 16 kHz e depende de referencia de playback (piper).
+- Gate de ruido adaptativo so atua antes da primeira fala; depois que o VAD detecta fala, o gate e desativado.
+- `JARVIS_VAD_RMS_SILENCE` pode reduzir falsos positivos em ruido alto, mas pode cortar fala muito baixa.
 
 
 ## Performance (estimativa)
@@ -60,6 +67,7 @@
 
 ## Observabilidade
 - Metrics via `JARVIS_VAD_METRICS=1` (frames e duracao).
+- `StreamingVAD.get_last_metrics()` retorna `vad_ms` e `endpoint_ms` da ultima captura.
 - Sem log proprio; erros viram excecao.
 
 ## Problemas conhecidos (hoje)

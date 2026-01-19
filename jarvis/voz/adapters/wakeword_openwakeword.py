@@ -103,14 +103,21 @@ def build_openwakeword_detector(
         or "onnx"
     )
     sensitivity = _clamp_sensitivity(
-        sensitivity if sensitivity is not None else _env_float("JARVIS_OPENWAKEWORD_SENSITIVITY")
+        sensitivity
+        if sensitivity is not None
+        else _env_float("JARVIS_OPENWAKEWORD_SENSITIVITY")
     )
     if auto_download is None:
         auto_download = _env_bool("JARVIS_OPENWAKEWORD_AUTO_DOWNLOAD")
 
     if auto_download or model_paths:
         try:
-            openwakeword.utils.download_models()
+            # openwakeword.utils may not exist in all versions
+            utils_module = getattr(openwakeword, "utils", None)
+            if utils_module is not None:
+                download_func = getattr(utils_module, "download_models", None)
+                if download_func is not None:
+                    download_func()
         except Exception as exc:
             if debug:
                 print(f"[wakeword] falha ao baixar modelos openwakeword: {exc}")

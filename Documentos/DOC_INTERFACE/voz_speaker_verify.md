@@ -1,6 +1,6 @@
-# voz/speaker_verify.py
+# interface/entrada/speaker_verify.py
 
-- Caminho: `jarvis/voz/speaker_verify.py`
+- Caminho: `jarvis/interface/entrada/speaker_verify.py`
 - Papel: verificar se a voz do comando e do locutor cadastrado.
 - Onde entra no fluxo: filtro opcional antes de aceitar comando de voz.
 - Atualizado em: 2026-01-10 (politica de audio curto ajustada)
@@ -36,7 +36,7 @@
 
 ## Comandos uteis
 - Teste: `PYTHONPATH=. pytest -q testes/test_speaker_verify_interface.py`
-- Verificar path: `python -c "from jarvis.voz.speaker_verify import voiceprint_path; print(voiceprint_path())"`
+- Verificar path: `python -c "from jarvis.interface.entrada.speaker_verify import voiceprint_path; print(voiceprint_path())"`
 
 ## Qualidade e limites
 - Se nao houver voiceprint, verif falha.

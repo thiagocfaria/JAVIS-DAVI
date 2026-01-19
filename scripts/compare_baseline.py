@@ -33,7 +33,9 @@ def compare_metrics(
         "improvements": [],
     }
 
-    baseline_metrics = baseline.get("metrics", {}).get(metric_type, {}).get("baseline", {})
+    baseline_metrics = (
+        baseline.get("metrics", {}).get(metric_type, {}).get("baseline", {})
+    )
     threshold = baseline.get("regression_threshold", {})
 
     for key, current_value in results.items():
@@ -122,7 +124,11 @@ def main() -> None:
                     f"({imp['diff_pct']:.2f}%)"
                 )
 
-        if report["comparisons"] and not report["regressions"] and not report["improvements"]:
+        if (
+            report["comparisons"]
+            and not report["regressions"]
+            and not report["improvements"]
+        ):
             print("→ Sem mudanças significativas")
 
     print("\n" + "=" * 60)
@@ -132,15 +138,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-

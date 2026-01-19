@@ -4,11 +4,16 @@ Este documento lista todos os testes que cobrem a interface de entrada/saida. Us
 
 ## Comando geral
 - `PYTHONPATH=. pytest -q testes/`
+## Lint/format (rapido)
+- `./.venv/bin/ruff check .`
+- `./.venv/bin/black --check .`
 
 ## Requisitos para nao pular testes
 - Instale deps de voz/UI: `numpy`, `scipy`, `sounddevice`, `webrtcvad`, `faster-whisper`, `resemblyzer`, `pynput`, `python3-tk`.
 - Sem essas deps, alguns testes usam `importorskip` e podem ser pulados.
-- Para testes massivos/perf: `psutil`, `py-spy` e (opcional) `pvporcupine` para wake word por audio.
+- Para streaming RealtimeSTT (opcional): `RealtimeSTT` + `pyaudio`.
+- Para wake word por audio (opcional): `pvporcupine` ou `openwakeword`.
+- Para testes massivos/perf: `psutil`, `py-spy`.
 
 ## Rodada massiva (release)
 - Suite completa: `PYTHONPATH=. ./.venv/bin/pytest -q testes/`
@@ -31,22 +36,30 @@ Este documento lista todos os testes que cobrem a interface de entrada/saida. Us
 | `testes/test_stt_flow.py` | Fluxo STT: streaming VAD, fallback, coercao de bytes e escrita WAV. | `PYTHONPATH=. pytest -q testes/test_stt_flow.py` |
 | `testes/test_stt_filters.py` | Wake word (exigir/normalizar) e limpeza de texto. | `PYTHONPATH=. pytest -q testes/test_stt_filters.py` |
 | `testes/test_stt_rust_trim.py` | Trim Rust: cortar silencio e normalizar payload. | `PYTHONPATH=. pytest -q testes/test_stt_rust_trim.py` |
+| `testes/test_stt_trim_guard.py` | Guardas quando o trim Rust retorna None/invalid. | `PYTHONPATH=. pytest -q testes/test_stt_trim_guard.py` |
 | `testes/test_stt_capture_config.py` | Config de device/sample rate e bypass de streaming fora de 16 kHz. | `PYTHONPATH=. pytest -q testes/test_stt_capture_config.py` |
 | `testes/test_stt_speech_fallback.py` | Fallback de `check_speech_present` sem VAD/Rust (limiar de pico). | `PYTHONPATH=. pytest -q testes/test_stt_speech_fallback.py` |
 | `testes/test_stt_metrics.py` | Logs de duracao (captura/transcricao) via env. | `PYTHONPATH=. pytest -q testes/test_stt_metrics.py` |
 | `testes/teste_stt_gap_latency.py` | Debounce entre gravacoes, limite de latencia e normalizacao opcional. | `PYTHONPATH=. pytest -q testes/teste_stt_gap_latency.py` |
 | `testes/test_stt_vad_env.py` | Parametros de VAD via env (silence/pre/post/max). | `PYTHONPATH=. pytest -q testes/test_stt_vad_env.py` |
+| `testes/test_vad_strategy.py` | Estrategia unica de VAD via env. | `PYTHONPATH=. pytest -q testes/test_vad_strategy.py` |
 | `testes/test_stt_whisper_kwargs.py` | Parametros do Whisper via env (beam/best/temperatura/prompt/suppress). | `PYTHONPATH=. pytest -q testes/test_stt_whisper_kwargs.py` |
 | `testes/test_stt_streaming_controls.py` | Early transcribe, limite de buffer e transcricao por bytes. | `PYTHONPATH=. pytest -q testes/test_stt_streaming_controls.py` |
 | `testes/test_stt_partials.py` | Parciais via callback e modelo realtime opcional. | `PYTHONPATH=. pytest -q testes/test_stt_partials.py` |
+| `testes/test_stt_realtimestt_backend.py` | Backend RealtimeSTT: uso quando habilitado e fallback quando ausente. | `PYTHONPATH=. pytest -q testes/test_stt_realtimestt_backend.py` |
 | `testes/test_stt_silero_deactivity.py` | Trim opcional de fim de fala com Silero. | `PYTHONPATH=. pytest -q testes/test_stt_silero_deactivity.py` |
 | `testes/test_audio_resample.py` | Reamostragem 44.1k -> 16k. | `PYTHONPATH=. pytest -q testes/test_audio_resample.py` |
 | `testes/test_audio_utils.py` | Coercao de listas de int16 e rejeicao de out-of-range. | `PYTHONPATH=. pytest -q testes/test_audio_utils.py` |
 | `testes/test_vad_pre_roll.py` | Pre/post-roll do VAD e corte correto. | `PYTHONPATH=. pytest -q testes/test_vad_pre_roll.py` |
 | `testes/test_vad_streaming_interface.py` | VAD streaming: frames, record_fixed_duration e record_until_silence. | `PYTHONPATH=. pytest -q testes/test_vad_streaming_interface.py` |
 | `testes/test_vad_metrics.py` | Logs de frames/duracao via env. | `PYTHONPATH=. pytest -q testes/test_vad_metrics.py` |
+| `testes/test_aec_interface.py` | AEC simples: passthrough quando desativado e reducao de eco quando ativo. | `PYTHONPATH=. pytest -q testes/test_aec_interface.py` |
 | `testes/test_tts_interface.py` | TTS: selecao Piper/espeak, fallback, modo none e serializacao. | `PYTHONPATH=. pytest -q testes/test_tts_interface.py` |
+| `testes/test_tts_verification.py` | Verificacao pós-correcao de bugs TTS: race conditions no chunking, processos orfaos e cleanup de recursos. Usa threading para testar chamadas simultaneas. | `PYTHONPATH=. python testes/test_tts_verification.py` |
 | `testes/test_speaker_verify_interface.py` | Enrollment e verificacao de locutor (voiceprint). | `PYTHONPATH=. pytest -q testes/test_speaker_verify_interface.py` |
+| `testes/test_speaker_lock_interface.py` | Lock de locutor: rejeita fala quando o lock esta ativo e verifica auto-enroll. | `PYTHONPATH=. pytest -q testes/test_speaker_lock_interface.py` |
+| `testes/test_emocao_interface.py` | Detector leve de emocao/tonalidade (heuristica CPU-first). | `PYTHONPATH=. pytest -q testes/test_emocao_interface.py` |
+| `testes/test_turn_taking_interface.py` | Turn-taking leve: heuristica de frase incompleta/complete. | `PYTHONPATH=. pytest -q testes/test_turn_taking_interface.py` |
 | `testes/test_voice_adapters.py` | Adapters de voz (wake word/speaker), validacao de audio e encaixe no orchestrator. | `PYTHONPATH=. pytest -q testes/test_voice_adapters.py` |
 | `testes/test_followup_mode.py` | Janela de follow-up e reset por falha. | `PYTHONPATH=. pytest -q testes/test_followup_mode.py` |
 | `testes/test_voice_max_seconds_env.py` | max_seconds via env (voz/enroll) e clamp. | `PYTHONPATH=. pytest -q testes/test_voice_max_seconds_env.py` |
@@ -56,13 +69,24 @@ Este documento lista todos os testes que cobrem a interface de entrada/saida. Us
 ## Benchmark/diagnostico
 - `scripts/bench_interface.py` - mede latencia, CPU e RSS em cenarios de voz.
   - STT: `PYTHONPATH=. python scripts/bench_interface.py stt --audio samples/voz_16k.wav --repeat 5`
+  - STT (RealtimeSTT, streaming por arquivo): `PYTHONPATH=. python scripts/bench_interface.py stt_realtimestt --audio samples/voz_16k.wav --repeat 3`
+    - Para simular tempo real (pacing por chunk): `JARVIS_BENCH_REALTIME_PACE=1` (padrao).
+    - Para medir apenas compute (feed acelerado): `JARVIS_BENCH_REALTIME_PACE=0`.
+    - Para evitar downloads: o benchmark seta `HF_HUB_OFFLINE=1` por padrao; para permitir downloads: `JARVIS_BENCH_ALLOW_DOWNLOADS=1`.
   - VAD: `PYTHONPATH=. python scripts/bench_interface.py vad --audio samples/voz_16k.wav --repeat 10`
+  - Endpointing: `PYTHONPATH=. python scripts/bench_interface.py endpointing --audio samples/voz_16k.wav --repeat 10`
   - TTS: `PYTHONPATH=. python scripts/bench_interface.py tts --text "ola" --repeat 3`
+  - Numero unico (EoS -> primeiro audio): `PYTHONPATH=. python scripts/bench_interface.py eos_to_first_audio --audio samples/voz_16k.wav --text "ok" --repeat 5`
+  - LLM planner (tempo de “pensar”): `PYTHONPATH=. python scripts/bench_interface.py llm_plan --text "digite oi" --repeat 30`
   - Speaker: `PYTHONPATH=. python scripts/bench_interface.py speaker --audio samples/voz_16k.wav --repeat 5`
   - Profiling profundo: `py-spy record -o profile.svg -- python scripts/bench_interface.py stt --audio samples/voz_16k.wav`
+- `scripts/auto_voice_bench.py` - grava voz real (silencio + ruido) e roda os benchmarks de STT/VAD.
+  - Inclui endpointing quando disponivel.
+  - Exemplo: `PYTHONPATH=. python scripts/auto_voice_bench.py --device 6 --with-noise --output-dir Documentos/DOC_INTERFACE/bench_audio --phrase "oi jarvis teste automatico" --seconds 4`
 
 ## Testes reais (manual)
 - Voice-loop real (microfone + alto-falante): `PYTHONPATH=. python -m jarvis.app --voice-loop` e validar STT/TTS reais.
+  - Observacao: por padrao o loop e infinito. Para limitar: `--voice-loop-max-iter 2` ou `JARVIS_VOICE_LOOP_MAX_ITER=2`.
 - Wake word por audio (Porcupine): `JARVIS_WAKE_WORD_AUDIO=1` e validar deteccao sem transcrever ruido.
 - Speaker verify real: `JARVIS_SPK_VERIFY=1`, registrar voz e testar fala autorizada vs. nao autorizada.
 - AEC simples: tocar audio de retorno e confirmar reducao de eco/ruido com microfone real.

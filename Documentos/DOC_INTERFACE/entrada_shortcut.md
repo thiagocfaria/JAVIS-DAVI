@@ -1,6 +1,6 @@
-# entrada/shortcut.py
+# interface/entrada/shortcut.py
 
-- Caminho: `jarvis/entrada/shortcut.py`
+- Caminho: `jarvis/interface/entrada/shortcut.py`
 - Papel: atalho global (Ctrl+Shift+J) para abrir Chat UI.
 - Onde entra no fluxo: opcional, iniciado pelo CLI.
 - Atualizado em: 2026-01-10 (revisado com o codigo)
@@ -30,7 +30,7 @@
 - `testes/test_preflight_shortcut_ui.py` (preflight depende do check)
 
 ## Comandos uteis
-- Start via app: `PYTHONPATH=. python -m jarvis.entrada.app --enable-shortcut --chat-ui`
+- Start via app: `PYTHONPATH=. python -m jarvis.interface.entrada.app --enable-shortcut --chat-ui`
 - Teste: `PYTHONPATH=. pytest -q testes/test_shortcut_interface.py`
 
 ## Qualidade e limites

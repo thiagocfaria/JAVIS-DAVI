@@ -1,6 +1,6 @@
-# entrada/gui_panel.py
+# interface/entrada/gui_panel.py
 
-- Caminho: `jarvis/entrada/gui_panel.py`
+- Caminho: `jarvis/interface/entrada/gui_panel.py`
 - Papel: painel flutuante para enviar comandos rapidamente.
 - Onde entra no fluxo: chama `orchestrator.handle_text`.
 - Atualizado em: 2026-01-10 (revisado com o codigo)
@@ -21,7 +21,7 @@
 
 ## Configuracao
 - Env: `JARVIS_GUI_FOLLOWUP_POLL_MS` (intervalo do polling em ms; default 500).
-- CLI: `--gui-followup-poll-ms` (define o mesmo intervalo via `jarvis.entrada.app`).
+- CLI: `--gui-followup-poll-ms` (define o mesmo intervalo via `jarvis.interface.entrada.app`).
 
 ## Dependencias diretas
 - `tkinter`
@@ -30,7 +30,7 @@
 - `testes/test_gui_panel_interface.py`
 
 ## Comandos uteis
-- Rodar via app: `PYTHONPATH=. python -m jarvis.entrada.app --gui-panel`
+- Rodar via app: `PYTHONPATH=. python -m jarvis.interface.entrada.app --gui-panel`
 - Teste: `PYTHONPATH=. pytest -q testes/test_gui_panel_interface.py`
 
 ## Qualidade e limites

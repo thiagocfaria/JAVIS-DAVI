@@ -1,6 +1,6 @@
-# entrada/audio_utils.py
+# interface/audio/audio_utils.py
 
-- Caminho: `jarvis/entrada/audio_utils.py`
+- Caminho: `jarvis/interface/audio/audio_utils.py`
 - Papel: contrato de audio (SAMPLE_RATE, BYTES_PER_SAMPLE) e coercoes para PCM bytes.
 - Onde entra no fluxo: usado por STT, VAD, trim Rust e testes.
 - Atualizado em: 2026-01-10 (revisado com o codigo)

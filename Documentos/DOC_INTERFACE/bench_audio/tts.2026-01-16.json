@@ -1,0 +1,15 @@
+{
+  "repeat": 3,
+  "latency_ms_avg": 0.4924736664785693,
+  "latency_ms_p50": 0.4403450002428144,
+  "latency_ms_p95": 0.8523325996065978,
+  "cpu_time_s_avg": 0.00026066666666664057,
+  "rss_kb": 99740,
+  "psutil_cpu_percent": 0.0,
+  "psutil_rss_bytes": 102268928,
+  "psutil_vms_bytes": 901300224,
+  "psutil_available": true,
+  "scenario": "tts",
+  "text": "ola jarvis, teste de desempenho de voz",
+  "tts_mode": "local"
+}
