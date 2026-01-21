@@ -33,6 +33,7 @@ class TestChatInbox(unittest.TestCase):
                 handle.write("novo\n")
             self.assertEqual(inbox2.drain(), ["novo"])
 
+
 def test_append_line_writes() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         path = Path(tmpdir) / "inbox.txt"

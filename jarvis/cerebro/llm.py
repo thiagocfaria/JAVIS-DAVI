@@ -4,14 +4,15 @@ LLM module for self-hosted inference.
 Uses OpenAI-compatible local/VPS servers (llama.cpp, vLLM, etc.)
 with a Mock fallback. No external paid API integrations.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import time
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 from urllib import request
 
 from ..telemetria.telemetry import Telemetry
@@ -23,9 +24,11 @@ from .orcamento import OrcamentoDiario
 # RESPONSE CACHE (for rate limiting and performance)
 # ============================================================================
 
+
 @dataclass
 class CacheEntry:
     """Cached LLM response."""
+
     plan: ActionPlan
     timestamp: float
     ttl_seconds: int = 3600  # 1 hour default
@@ -74,6 +77,7 @@ class ResponseCache:
 # ============================================================================
 # BASE LLM CLIENT
 # ============================================================================
+
 
 class LLMClient:
     """Base class for LLM clients."""
@@ -141,6 +145,16 @@ class BudgetedLLMClient(LLMClient):
     def is_available(self) -> bool:
         return self._wrapped.is_available()
 
+    def get_available_clients(self) -> list[str]:
+        getter = getattr(self._wrapped, "get_available_clients", None)
+        if not callable(getter):
+            return []
+        try:
+            result = getter()
+        except Exception:
+            return []
+        return result if isinstance(result, list) else []
+
 
 def _normalize_confidence(value: float | None) -> float | None:
     if value is None:
@@ -154,7 +168,9 @@ def _normalize_confidence(value: float | None) -> float | None:
     return parsed
 
 
-def _merge_confidence(model_confidence: float | None, quality_confidence: float) -> float:
+def _merge_confidence(
+    model_confidence: float | None, quality_confidence: float
+) -> float:
     if model_confidence is None:
         return quality_confidence
     return min(model_confidence, quality_confidence)
@@ -164,10 +180,11 @@ def _merge_confidence(model_confidence: float | None, quality_confidence: float)
 # MOCK LLM (Local fallback - regex based)
 # ============================================================================
 
+
 class MockLLM(LLMClient):
     """
     Local regex-based command parser.
-    
+
     Used as fallback when no local LLM is available.
     Handles simple commands without calling external APIs.
     """
@@ -178,7 +195,9 @@ class MockLLM(LLMClient):
         normalized = text.strip()
 
         # Split on "e" (and) or "then"
-        parts = re.split(r"\s+e\s+|\s+then\s+|\s+depois\s+", normalized, flags=re.IGNORECASE)
+        parts = re.split(
+            r"\s+e\s+|\s+then\s+|\s+depois\s+", normalized, flags=re.IGNORECASE
+        )
 
         for part in parts:
             action = self._parse_single_command(part.strip())
@@ -285,6 +304,7 @@ class MockLLM(LLMClient):
 # OPENAI COMPATIBLE LLM (self-hosted servers)
 # ============================================================================
 
+
 class OpenAICompatLLM(LLMClient):
     """OpenAI-compatible API client (self-hosted LLM servers)."""
 
@@ -308,22 +328,43 @@ class OpenAICompatLLM(LLMClient):
         return bool(self.base_url)
 
     def plan(self, text: str) -> ActionPlan:
-        prompt = (
-            "You are a desktop automation planner. Return ONLY JSON. "
-            "Schema: {actions:[{type,params}], risk_level, confidence, notes}. "
-            "Types: open_app, open_url, type_text, hotkey, wait, click, scroll, "
-            "navigate, web_click, web_fill, web_screenshot. "
-            f"Command: {text}"
+        style = (os.environ.get("JARVIS_LLM_PROMPT_STYLE", "compact") or "compact").strip().lower()
+        allowed_types = (
+            "open_app, open_url, type_text, hotkey, wait, click, scroll, "
+            "navigate, web_click, web_fill, web_screenshot"
         )
+        if style == "verbose":
+            prompt = (
+                "You are a desktop automation planner. Return ONLY JSON. "
+                "Schema: {actions:[{type,params}], risk_level, confidence, notes}. "
+                f"Types: {allowed_types}. "
+                f"Command: {text}"
+            )
+            messages = [
+                {"role": "system", "content": "Return JSON only."},
+                {"role": "user", "content": prompt},
+            ]
+        else:
+            system = (
+                "Return ONLY a valid JSON object (no markdown). "
+                "Schema: {actions:[{type,params}], risk_level, confidence, notes}. "
+                f"Allowed action types: {allowed_types}."
+            )
+            messages = [
+                {"role": "system", "content": system},
+                {"role": "user", "content": text},
+            ]
+
+        try:
+            max_tokens = int(os.environ.get("JARVIS_LLM_MAX_TOKENS", "600"))
+        except ValueError:
+            max_tokens = 600
 
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": "Return JSON only."},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.2,
-            "max_tokens": 600,
+            "messages": messages,
+            "temperature": 0.1,
+            "max_tokens": max(64, max_tokens),
         }
 
         data = json.dumps(payload).encode("utf-8")
@@ -351,6 +392,7 @@ class OpenAICompatLLM(LLMClient):
 # ============================================================================
 # LOCAL LLM ROUTER (Local-first with Mock fallback)
 # ============================================================================
+
 
 class LocalLLMRouter(LLMClient):
     """
@@ -380,16 +422,18 @@ class LocalLLMRouter(LLMClient):
         self._cooldown_until = 0.0
 
         if base_url:
-            self._clients.append((
-                "local",
-                OpenAICompatLLM(
-                    base_url=base_url,
-                    api_key=api_key,
-                    model=model,
-                    timeout_s=self._timeout_s,
-                    require_api_key=False,
-                ),
-            ))
+            self._clients.append(
+                (
+                    "local",
+                    OpenAICompatLLM(
+                        base_url=base_url,
+                        api_key=api_key,
+                        model=model,
+                        timeout_s=self._timeout_s,
+                        require_api_key=False,
+                    ),
+                )
+            )
 
         self._clients.append(("mock", self._fallback))
 
@@ -416,7 +460,9 @@ class LocalLLMRouter(LLMClient):
 
                 model_confidence = _normalize_confidence(plan.confidence)
                 qualidade = validar_plano(plan)
-                plan.confidence = _merge_confidence(model_confidence, qualidade.confidence)
+                plan.confidence = _merge_confidence(
+                    model_confidence, qualidade.confidence
+                )
                 if qualidade.errors:
                     plan.notes = f"{plan.notes} (plan_invalid:{len(qualidade.errors)})"
                     last_error = RuntimeError("plan_invalid")
@@ -433,7 +479,7 @@ class LocalLLMRouter(LLMClient):
                     last_error = RuntimeError("confidence_below_min")
                     continue
 
-                if self._cache and name != "mock":
+                if self._cache and name != "mock" and cache_key is not None:
                     self._cache.set(cache_key, plan)
                 return plan
 
@@ -446,7 +492,9 @@ class LocalLLMRouter(LLMClient):
         if last_error:
             raise RuntimeError(f"Local LLM failed. Last error: {last_error}")
 
-        return ActionPlan(actions=[], risk_level="unknown", notes="no_local_llm_available")
+        return ActionPlan(
+            actions=[], risk_level="unknown", notes="no_local_llm_available"
+        )
 
     def get_available_clients(self) -> list[str]:
         return [name for name, client in self._clients if client.is_available()]
@@ -474,6 +522,7 @@ def build_local_llm_client(
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
 
 def _parse_number(text: str) -> int:
     """Extract number from text."""
@@ -545,7 +594,7 @@ class SingleShotLLMRouter(LLMClient):
                 continue
             try:
                 plan = client.plan(text)
-            except Exception as exc:
+            except Exception:
                 raise
             plan.notes = f"{plan.notes} (via {name})"
             if self._cache is not None:

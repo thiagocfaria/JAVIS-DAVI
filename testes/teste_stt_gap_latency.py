@@ -13,7 +13,7 @@ class _DummyConfig:
 @pytest.fixture()
 def stt(monkeypatch):
     monkeypatch.setattr("jarvis.entrada.stt.check_vad_available", lambda: False)
-    return SpeechToText(_DummyConfig())
+    return SpeechToText(_DummyConfig())  # type: ignore[arg-type]
 
 
 def test_transcribe_once_respects_min_gap(monkeypatch, stt) -> None:
@@ -53,7 +53,7 @@ def test_normalize_audio_increases_peak(monkeypatch) -> None:
     np = pytest.importorskip("numpy")
     monkeypatch.setattr("jarvis.entrada.stt.check_vad_available", lambda: False)
 
-    stt = SpeechToText(_DummyConfig())
+    stt = SpeechToText(_DummyConfig())  # type: ignore[arg-type]
     stt._normalize_audio = True
     stt._normalize_target = 0.9
     stt._normalize_max_gain = 10.0

@@ -3,6 +3,7 @@ Validator module for verifying action results.
 
 Uses OCR and screenshots to validate that actions completed successfully.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -14,13 +15,18 @@ import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from ..cerebro.actions import Action
-from ..seguranca.privacy import PrivacyMasker, SensitiveRegion
+from ..seguranca.privacy import PrivacyMasker
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
 
 try:
-    from PIL import Image, ImageGrab  # type: ignore
+    from PIL import Image as _Image, ImageGrab as _ImageGrab  # type: ignore
+    Image = _Image
+    ImageGrab = _ImageGrab
 except ImportError:
     Image = None
     ImageGrab = None
@@ -41,7 +47,7 @@ except ImportError:
     subprocess = None
 
 
-def _image_to_png_bytes(image: Image.Image) -> bytes | None:
+def _image_to_png_bytes(image: "PILImage.Image") -> bytes | None:
     if image is None:
         return None
     try:
@@ -65,7 +71,7 @@ def _coerce_png_bytes(value: object) -> bytes | None:
     return None
 
 
-def _resize_for_ocr(image: Image.Image) -> Image.Image:
+def _resize_for_ocr(image: "PILImage.Image") -> "PILImage.Image":
     if image is None:
         return image
     max_dim = int(os.environ.get("JARVIS_OCR_FAST_MAX_DIM", "0") or 0)
@@ -74,14 +80,24 @@ def _resize_for_ocr(image: Image.Image) -> Image.Image:
     width, height = image.size
     if max(width, height) <= max_dim:
         return image
+    if Image is None:
+        return image
     scale = max_dim / float(max(width, height))
     new_size = (max(1, int(width * scale)), max(1, int(height * scale)))
-    return image.resize(new_size, Image.BILINEAR)
+    # Use Resampling enum for newer PIL, fallback to BILINEAR constant
+    resampling = getattr(Image, "Resampling", None)
+    if resampling:
+        bilinear = resampling.BILINEAR
+    else:
+        # Fallback: try BILINEAR constant, or use 2 (bilinear) as last resort
+        bilinear = getattr(Image, "BILINEAR", 2)
+    return image.resize(new_size, bilinear)
 
 
 @dataclass
 class ValidationResult:
     """Result of action validation."""
+
     status: str  # "ok", "failed", "unknown", "requires_human"
     confidence: float = 1.0
     details: dict[str, Any] = field(default_factory=dict)
@@ -93,8 +109,9 @@ class ValidationResult:
 @dataclass
 class ValidationCheckpoint:
     """A saved state checkpoint for validation."""
+
     name: str
-    screenshot: Image.Image | None
+    screenshot: "PILImage.Image | None"
     ocr_text: str
     timestamp: float
     expected_elements: list[str] = field(default_factory=list)
@@ -103,7 +120,7 @@ class ValidationCheckpoint:
 class Validator:
     """
     Validates action results using OCR and screenshots.
-    
+
     Features:
     - Screenshot capture before/after actions
     - OCR-based text validation
@@ -119,15 +136,21 @@ class Validator:
         save_screenshots: bool = False,
         mask_screenshots: bool = True,
     ) -> None:
-        self.screenshot_dir = screenshot_dir or Path(tempfile.gettempdir()) / "jarvis_screenshots"
+        self.screenshot_dir = (
+            screenshot_dir or Path(tempfile.gettempdir()) / "jarvis_screenshots"
+        )
         self._rust_validator = None
-        self._force_rust = os.environ.get("JARVIS_FORCE_RUST_VISION", "").strip().lower() in {
+        self._force_rust = os.environ.get(
+            "JARVIS_FORCE_RUST_VISION", ""
+        ).strip().lower() in {
             "1",
             "true",
             "yes",
             "on",
         }
-        disable_rust = os.environ.get("JARVIS_DISABLE_RUST_VISION", "").strip().lower() in {
+        disable_rust = os.environ.get(
+            "JARVIS_DISABLE_RUST_VISION", ""
+        ).strip().lower() in {
             "1",
             "true",
             "yes",
@@ -143,26 +166,34 @@ class Validator:
             except Exception:
                 self._rust_validator = None
         if self._force_rust and self._rust_validator is None:
-            raise RuntimeError("Rust vision requerido, mas jarvis_vision nao esta disponivel.")
-        self.enable_ocr = enable_ocr and (pytesseract is not None or self._rust_validator is not None)
+            raise RuntimeError(
+                "Rust vision requerido, mas jarvis_vision nao esta disponivel."
+            )
+        self.enable_ocr = enable_ocr and (
+            pytesseract is not None or self._rust_validator is not None
+        )
         self.save_screenshots = save_screenshots
         self.mask_screenshots = mask_screenshots
         self.privacy_masker = PrivacyMasker()
         self._checkpoints: dict[str, ValidationCheckpoint] = {}
-        self._ocr_cache_enabled = os.environ.get("JARVIS_OCR_DISABLE_CACHE", "").strip().lower() not in {
+        self._ocr_cache_enabled = os.environ.get(
+            "JARVIS_OCR_DISABLE_CACHE", ""
+        ).strip().lower() not in {
             "1",
             "true",
             "yes",
             "on",
         }
-        self._ocr_cache_size = max(0, int(os.environ.get("JARVIS_OCR_CACHE_SIZE", "4") or 0))
+        self._ocr_cache_size = max(
+            0, int(os.environ.get("JARVIS_OCR_CACHE_SIZE", "4") or 0)
+        )
         self._ocr_cache: dict[str, str] = {}
         self._ocr_cache_order: list[str] = []
 
         if self.save_screenshots:
             self.screenshot_dir.mkdir(parents=True, exist_ok=True)
 
-    def _mask_for_export(self, image: Image.Image) -> Image.Image:
+    def _mask_for_export(self, image: "PILImage.Image") -> "PILImage.Image":
         if not self.mask_screenshots:
             return image
         try:
@@ -171,7 +202,7 @@ class Validator:
         except Exception:
             return image
 
-    def take_screenshot(self) -> Image.Image | None:
+    def take_screenshot(self) -> "PILImage.Image | None":
         """Take a screenshot of the current screen."""
         if self._rust_validator is not None:
             png_bytes = _coerce_png_bytes(self._rust_validator.take_screenshot_png())
@@ -212,6 +243,8 @@ class Validator:
                 commands.append(["scrot", tmp_path])
 
             for cmd in commands:
+                if subprocess is None:
+                    continue
                 result = subprocess.run(cmd, capture_output=True, timeout=5)
                 if result.returncode == 0 and os.path.exists(tmp_path):
                     img = Image.open(tmp_path)
@@ -224,7 +257,7 @@ class Validator:
 
         return None
 
-    def extract_text_ocr(self, image: Image.Image) -> str:
+    def extract_text_ocr(self, image: "PILImage.Image") -> str:
         """Extract text from image using OCR."""
         if image is None or not self.enable_ocr:
             return ""
@@ -282,16 +315,18 @@ class Validator:
     ) -> bool:
         """
         Save a visual checkpoint for later comparison.
-        
+
         Args:
             name: Checkpoint identifier
             expected_elements: Text elements expected to be present
-            
+
         Returns:
             True if checkpoint saved successfully
         """
         if self._rust_validator is not None:
-            return bool(self._rust_validator.save_checkpoint(name, expected_elements or []))
+            return bool(
+                self._rust_validator.save_checkpoint(name, expected_elements or [])
+            )
 
         screenshot = self.take_screenshot()
         if screenshot is None:
@@ -320,11 +355,11 @@ class Validator:
     ) -> ValidationResult:
         """
         Compare current screen with a saved checkpoint.
-        
+
         Args:
             checkpoint_name: Name of saved checkpoint
             similarity_threshold: Minimum similarity (0-1) to consider match
-            
+
         Returns:
             ValidationResult with comparison details
         """
@@ -356,7 +391,9 @@ class Validator:
                 error="Could not take screenshot",
             )
 
-        current_text = self.extract_text_ocr(current_screenshot) if self.enable_ocr else ""
+        current_text = (
+            self.extract_text_ocr(current_screenshot) if self.enable_ocr else ""
+        )
 
         # Check expected elements
         missing_elements = []
@@ -367,7 +404,8 @@ class Validator:
         if missing_elements:
             return ValidationResult(
                 status="failed",
-                confidence=1.0 - (len(missing_elements) / len(checkpoint.expected_elements)),
+                confidence=1.0
+                - (len(missing_elements) / len(checkpoint.expected_elements)),
                 details={
                     "missing_elements": missing_elements,
                     "expected": checkpoint.expected_elements,
@@ -382,10 +420,10 @@ class Validator:
             ocr_text=current_text,
         )
 
-    def detect_captcha_or_2fa(self, image: Image.Image | None = None) -> bool:
+    def detect_captcha_or_2fa(self, image: "PILImage.Image | None" = None) -> bool:
         """
         Detect if current screen shows CAPTCHA or 2FA prompt.
-        
+
         Returns:
             True if CAPTCHA/2FA detected (requires human intervention)
         """
@@ -436,10 +474,10 @@ class Validator:
 
         return False
 
-    def detect_error_modal(self, image: Image.Image | None = None) -> str | None:
+    def detect_error_modal(self, image: "PILImage.Image | None" = None) -> str | None:
         """
         Detect error modals or unexpected dialogs.
-        
+
         Returns:
             Error message if detected, None otherwise
         """
@@ -474,17 +512,19 @@ class Validator:
     def validate(self, action: Action) -> dict[str, str]:
         """
         Validate that an action completed successfully.
-        
+
         This is the main validation entry point.
-        
+
         Args:
             action: The action that was executed
-            
+
         Returns:
             Dictionary with validation status and details
         """
         if self._rust_validator is not None:
-            result = self._rust_validator.validate_action(action.action_type, action.params or {})
+            result = self._rust_validator.validate_action(
+                action.action_type, action.params or {}
+            )
             return {
                 "status": result.get("status", "unknown"),
                 "confidence": str(result.get("confidence", 1.0)),
@@ -539,7 +579,7 @@ class Validator:
     def _validate_open_app(
         self,
         app_name: str,
-        screenshot: Image.Image | None,
+        screenshot: "PILImage.Image | None",
     ) -> ValidationResult:
         """Validate that an app was opened."""
         if not screenshot or not self.enable_ocr:
@@ -563,7 +603,7 @@ class Validator:
     def _validate_open_url(
         self,
         url: str,
-        screenshot: Image.Image | None,
+        screenshot: "PILImage.Image | None",
     ) -> ValidationResult:
         """Validate that a URL was opened."""
         if not screenshot or not self.enable_ocr:
@@ -586,7 +626,7 @@ class Validator:
     def _validate_type_text(
         self,
         expected_text: str,
-        screenshot: Image.Image | None,
+        screenshot: "PILImage.Image | None",
     ) -> ValidationResult:
         """Validate that text was typed correctly."""
         if not screenshot or not self.enable_ocr or not expected_text:
@@ -624,10 +664,10 @@ class Validator:
         self,
         app_name: str | None = None,
         url: str | None = None,
-    ) -> Image.Image | None:
+    ) -> "PILImage.Image | None":
         """
         Get a privacy-masked screenshot safe for sending to external AI.
-        
+
         Returns None if the current app/URL should not be captured.
         """
         if self._rust_validator is not None:
@@ -646,6 +686,7 @@ class Validator:
 
         # Check if screenshot is allowed
         from ..seguranca.policy import get_policy_kernel
+
         policy = get_policy_kernel()
         decision = policy.check_screenshot_allowed(app_name or "", url or "")
 

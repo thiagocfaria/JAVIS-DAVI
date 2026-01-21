@@ -168,7 +168,7 @@ def main() -> None:
     parser.add_argument(
         "--baseline-json",
         type=Path,
-        help="resultado anterior para comparar regressão (>10%)",
+        help="resultado anterior para comparar regressão (>10%%)",
     )
     args = parser.parse_args()
 

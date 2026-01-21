@@ -1,4 +1,5 @@
 """Agent-S S3 integration (vendored, adapted for Jarvis)."""
+
 from __future__ import annotations
 
 __all__ = [

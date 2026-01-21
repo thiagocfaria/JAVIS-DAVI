@@ -1,4 +1,5 @@
 """Minimal multimodal agent wrapper for Agent-S S3 (OpenAI-compatible)."""
+
 from __future__ import annotations
 
 import base64
@@ -9,11 +10,16 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     np = None
 
-from .engine import LMMEngineOpenAICompat, LMMEnginevLLM
+from .engine import LMMEngineOpenAICompat
 
 
 class LMMAgent:
-    def __init__(self, engine_params: dict | None = None, system_prompt: str | None = None, engine=None):
+    def __init__(
+        self,
+        engine_params: dict | None = None,
+        system_prompt: str | None = None,
+        engine=None,
+    ):
         if engine is None:
             if engine_params is None:
                 raise ValueError("engine_params must be provided")
@@ -158,7 +164,10 @@ class LMMAgent:
 
         if use_thinking and hasattr(self.engine, "generate_with_thinking"):
             return self.engine.generate_with_thinking(
-                messages, temperature=temperature, max_new_tokens=max_new_tokens, **kwargs
+                messages,
+                temperature=temperature,
+                max_new_tokens=max_new_tokens,
+                **kwargs,
             )
 
         return self.engine.generate(

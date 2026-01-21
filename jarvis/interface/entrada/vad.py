@@ -349,6 +349,7 @@ class VoiceActivityDetector:
         self.bytes_per_frame = self.frame_size * 2  # 16-bit audio = 2 bytes per sample
 
         self._vad = webrtcvad.Vad(aggressiveness)
+        self._aggressiveness = aggressiveness  # Expor para testes
         self._preprocess_enabled = _env_bool("JARVIS_VAD_PREPROCESS", False)
         self._agc_target_rms = max(0.0, _env_float("JARVIS_AUDIO_AGC_TARGET_RMS", 0.06))
         self._agc_max_gain = max(1.0, _env_float("JARVIS_AUDIO_AGC_MAX_GAIN", 6.0))

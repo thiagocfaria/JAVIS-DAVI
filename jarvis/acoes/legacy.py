@@ -4,7 +4,6 @@ import shlex
 import shutil
 import subprocess
 import time
-from typing import Optional
 
 from ..cerebro.actions import Action
 
@@ -80,7 +79,15 @@ class AutomationDriver:
             if self.has_xdotool:
                 button = "5" if amount > 0 else "4"
                 subprocess.run(
-                    ["xdotool", "click", "--repeat", str(abs(amount)), "--delay", "20", button],
+                    [
+                        "xdotool",
+                        "click",
+                        "--repeat",
+                        str(abs(amount)),
+                        "--delay",
+                        "20",
+                        button,
+                    ],
                     check=False,
                 )
                 return None
@@ -101,7 +108,9 @@ class AutomationDriver:
         if self.has_ydotool:
             subprocess.run(["ydotool", "type", text], check=False)
             return
-        raise RuntimeError("No input driver available. Install pyautogui, wtype, or xdotool.")
+        raise RuntimeError(
+            "No input driver available. Install pyautogui, wtype, or xdotool."
+        )
 
     def _hotkey(self, combo: str) -> None:
         if pyautogui:

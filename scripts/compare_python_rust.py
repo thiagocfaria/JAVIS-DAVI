@@ -39,7 +39,10 @@ def run_measurement(rust_disabled: bool, cache_disabled: bool, label: str) -> di
 
     if result.returncode != 0:
         error_text = (result.stderr or result.stdout or "").strip()
-        return {"error": error_text or f"returncode={result.returncode}", "label": label}
+        return {
+            "error": error_text or f"returncode={result.returncode}",
+            "label": label,
+        }
 
     # Parse output
     output = {}
@@ -62,19 +65,33 @@ def main() -> None:
 
     # Python com cache
     print("\n[1/4] Medindo Python (com cache)...")
-    results.append(run_measurement(rust_disabled=True, cache_disabled=False, label="Python (cache)"))
+    results.append(
+        run_measurement(
+            rust_disabled=True, cache_disabled=False, label="Python (cache)"
+        )
+    )
 
     # Python sem cache
     print("[2/4] Medindo Python (sem cache)...")
-    results.append(run_measurement(rust_disabled=True, cache_disabled=True, label="Python (no cache)"))
+    results.append(
+        run_measurement(
+            rust_disabled=True, cache_disabled=True, label="Python (no cache)"
+        )
+    )
 
     # Rust com cache
     print("[3/4] Medindo Rust (com cache)...")
-    results.append(run_measurement(rust_disabled=False, cache_disabled=False, label="Rust (cache)"))
+    results.append(
+        run_measurement(rust_disabled=False, cache_disabled=False, label="Rust (cache)")
+    )
 
     # Rust sem cache
     print("[4/4] Medindo Rust (sem cache)...")
-    results.append(run_measurement(rust_disabled=False, cache_disabled=True, label="Rust (no cache)"))
+    results.append(
+        run_measurement(
+            rust_disabled=False, cache_disabled=True, label="Rust (no cache)"
+        )
+    )
 
     print("\n" + "=" * 60)
     print("RESULTADOS")
@@ -96,10 +113,17 @@ def main() -> None:
     print("ANÁLISE")
     print("=" * 60)
 
-    python_result = next((r for r in results if r.get("label") == "Python (cache)"), None)
+    python_result = next(
+        (r for r in results if r.get("label") == "Python (cache)"), None
+    )
     rust_result = next((r for r in results if r.get("label") == "Rust (cache)"), None)
 
-    if python_result and rust_result and "median_s" in python_result and "median_s" in rust_result:
+    if (
+        python_result
+        and rust_result
+        and "median_s" in python_result
+        and "median_s" in rust_result
+    ):
         try:
             python_median = float(python_result["median_s"])
             rust_median = float(rust_result["median_s"])
@@ -117,14 +141,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-

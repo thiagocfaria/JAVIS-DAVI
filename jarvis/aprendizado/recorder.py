@@ -3,27 +3,35 @@ Demonstration recorder for learning by observation.
 
 Records user actions (mouse, keyboard, screenshots) for later replay.
 """
+
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
+    from pynput import keyboard, mouse
 
 try:
-    from pynput import keyboard, mouse  # type: ignore
+    from pynput import keyboard as _keyboard, mouse as _mouse  # type: ignore
+
     HAS_PYNPUT = True
 except ImportError:
-    mouse = None
-    keyboard = None
+    _mouse = None
+    _keyboard = None
     HAS_PYNPUT = False
 
 try:
-    from PIL import Image, ImageGrab  # type: ignore
+    from PIL import Image as _Image, ImageGrab as _ImageGrab  # type: ignore
+
+    Image = _Image
+    ImageGrab = _ImageGrab
 except ImportError:
     Image = None
     ImageGrab = None
@@ -33,9 +41,11 @@ except ImportError:
 # DATA STRUCTURES
 # ============================================================================
 
+
 @dataclass
 class RecordedEvent:
     """A recorded user event."""
+
     event_type: str  # click, move, scroll, key_press, key_release, screenshot
     timestamp: float
     data: dict[str, Any] = field(default_factory=dict)
@@ -44,6 +54,7 @@ class RecordedEvent:
 @dataclass
 class Recording:
     """A complete recording of a demonstration."""
+
     name: str
     start_time: float
     end_time: float
@@ -94,10 +105,11 @@ class Recording:
 # RECORDER
 # ============================================================================
 
+
 class DemonstrationRecorder:
     """
     Records user demonstrations for learning.
-    
+
     Features:
     - Mouse click/move/scroll recording
     - Keyboard input recording
@@ -114,7 +126,9 @@ class DemonstrationRecorder:
             raise RuntimeError("pynput not installed. Run: pip install pynput")
 
         self.screenshot_interval = screenshot_interval
-        self.recordings_dir = recordings_dir or Path(tempfile.gettempdir()) / "jarvis_recordings"
+        self.recordings_dir = (
+            recordings_dir or Path(tempfile.gettempdir()) / "jarvis_recordings"
+        )
 
         self._recording: Recording | None = None
         self._is_recording = False
@@ -140,7 +154,9 @@ class DemonstrationRecorder:
         self._is_recording = True
 
         # Start mouse listener
-        self._mouse_listener = mouse.Listener(
+        if _mouse is None:
+            raise RuntimeError("pynput not available")
+        self._mouse_listener = _mouse.Listener(
             on_click=self._on_click,
             on_move=self._on_move,
             on_scroll=self._on_scroll,
@@ -148,7 +164,9 @@ class DemonstrationRecorder:
         self._mouse_listener.start()
 
         # Start keyboard listener
-        self._keyboard_listener = keyboard.Listener(
+        if _keyboard is None:
+            raise RuntimeError("pynput not available")
+        self._keyboard_listener = _keyboard.Listener(
             on_press=self._on_key_press,
             on_release=self._on_key_release,
         )
@@ -279,7 +297,7 @@ class DemonstrationRecorder:
             return
 
         try:
-            key_str = key.char if hasattr(key, 'char') else str(key)
+            key_str = key.char if hasattr(key, "char") else str(key)
         except AttributeError:
             key_str = str(key)
 
@@ -296,7 +314,7 @@ class DemonstrationRecorder:
             return
 
         try:
-            key_str = key.char if hasattr(key, 'char') else str(key)
+            key_str = key.char if hasattr(key, "char") else str(key)
         except AttributeError:
             key_str = str(key)
 
@@ -347,7 +365,7 @@ class DemonstrationRecorder:
         except Exception:
             pass
 
-    def _take_screenshot(self) -> Image.Image | None:
+    def _take_screenshot(self) -> "PILImage.Image | None":
         """Take a screenshot."""
         if ImageGrab is None:
             return None
@@ -362,6 +380,7 @@ class DemonstrationRecorder:
 # HELPER FUNCTIONS
 # ============================================================================
 
+
 def check_recorder_deps() -> dict:
     """Check recorder dependencies."""
     return {
@@ -369,4 +388,3 @@ def check_recorder_deps() -> dict:
         "pillow": Image is not None,
         "imagegrab": ImageGrab is not None,
     }
-

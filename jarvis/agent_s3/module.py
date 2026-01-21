@@ -10,7 +10,9 @@ class BaseModule:
         self.engine_params = engine_params
         self.platform = platform
 
-    def _create_agent(self, system_prompt: str | None = None, engine_params: Optional[dict] = None) -> LMMAgent:
+    def _create_agent(
+        self, system_prompt: str | None = None, engine_params: Optional[dict] = None
+    ) -> LMMAgent:
         agent = LMMAgent(engine_params or self.engine_params)
         if system_prompt:
             agent.add_system_prompt(system_prompt)

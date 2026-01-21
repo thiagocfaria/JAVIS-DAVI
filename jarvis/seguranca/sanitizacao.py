@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
-from typing import List, Tuple
 
 MAX_EXTERNAL_CHARS = 4000
 
@@ -65,7 +64,7 @@ _SENSITIVE_KEYWORDS = [
 
 def _env_bool(key: str, default: bool = False) -> bool:
     from ..cerebro.utils import normalize_text
-    
+
     value = os.environ.get(key)
     if value is None:
         return default
@@ -185,7 +184,9 @@ def _contains_keyword(text: str, keywords: list[str]) -> bool:
     return any(keyword in text for keyword in keywords)
 
 
-def _redact_pattern(text: str, pattern: re.Pattern[str], token: str) -> tuple[str, bool]:
+def _redact_pattern(
+    text: str, pattern: re.Pattern[str], token: str
+) -> tuple[str, bool]:
     if pattern.search(text):
         return pattern.sub(token, text), True
     return text, False
@@ -200,6 +201,7 @@ def _redact_passwords(text: str) -> tuple[str, bool]:
 
 def _redact_credit_cards(text: str) -> tuple[str, bool]:
     found = False
+
     def repl(match: re.Match[str]) -> str:
         nonlocal found
         raw = match.group(0)

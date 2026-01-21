@@ -75,3 +75,10 @@ checkpoints/
 rust/jarvis_vision/target/
 rust/jarvis_audio/target/
 artifacts/
+
+# NotebookLM related
+.venv_notebooklm/
+NOTBOOKLM/
+
+# Local storage
+storage/

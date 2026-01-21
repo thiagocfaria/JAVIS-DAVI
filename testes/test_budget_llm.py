@@ -16,13 +16,19 @@ class _StubLLM(LLMClient):
 
     def plan(self, text: str) -> ActionPlan:
         self.calls += 1
-        return ActionPlan(actions=[Action("type_text", {"text": text})], risk_level="low")
+        return ActionPlan(
+            actions=[Action("type_text", {"text": text})], risk_level="low"
+        )
 
 
 def _load_events(path: Path) -> list[dict]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def test_budget_allows_and_consumes():

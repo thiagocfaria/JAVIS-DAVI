@@ -48,10 +48,13 @@ def test_speak_fallbacks_to_espeak(monkeypatch):
 def test_try_piper_returns_false_when_missing_binary(monkeypatch):
     tts = TextToSpeech(_config("local"))
 
-    monkeypatch.setattr(tts_module.shutil, "which", lambda name: None)
-    import importlib.util
+    # Reset cached state
+    tts._piper_available = None
+    tts._piper_cmd = None
 
-    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
+    # Mock binary not found and Python module not available
+    monkeypatch.setattr(tts, "_ensure_piper_cmd", lambda: None)
+    monkeypatch.setattr(tts, "_piper_python_available", lambda: False)
 
     assert tts._try_piper("hello") is False
 

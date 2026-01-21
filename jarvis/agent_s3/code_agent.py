@@ -22,7 +22,9 @@ def extract_code_block(action: str) -> Tuple[Optional[str], Optional[str]]:
         code_type = None
         code = None
 
-    logger.debug("Extracted code block: type=%s length=%s", code_type, len(code) if code else 0)
+    logger.debug(
+        "Extracted code block: type=%s length=%s", code_type, len(code) if code else 0
+    )
     return code_type, code
 
 
@@ -99,8 +101,18 @@ class CodeAgent:
 
         self.reset()
 
-        context = f"Task: {task_instruction}\n\nCurrent screenshot is provided for context."
-        self.agent.add_message(context, image_content=screenshot, role="user")
+        if self.agent is None:
+            raise RuntimeError("Agent not initialized")
+        context = (
+            f"Task: {task_instruction}\n\nCurrent screenshot is provided for context."
+        )
+        # Convert screenshot string to bytes if needed
+        screenshot_bytes: bytes | None = None
+        if isinstance(screenshot, str):
+            screenshot_bytes = screenshot.encode("utf-8")
+        elif isinstance(screenshot, bytes):
+            screenshot_bytes = screenshot
+        self.agent.add_message(context, image_content=screenshot_bytes, role="user")
 
         step_count = 0
         execution_history = []
@@ -127,11 +139,13 @@ class CodeAgent:
 
             code_type, code = extract_code_block(action)
 
-            if code:
+            if code and code_type:
                 result = execute_code(code_type, code, env_controller)
             else:
                 result = {"status": "skipped", "message": "No code block found"}
 
+            if self.agent is None:
+                raise RuntimeError("Agent not initialized")
             self.agent.add_message(response, role="assistant")
             result_context = format_result(result, step_count)
             self.agent.add_message(result_context, role="user")
@@ -152,10 +166,14 @@ class CodeAgent:
             "budget": self.budget,
         }
 
-    def _generate_summary(self, execution_history: List[Dict], task_instruction: str) -> str:
+    def _generate_summary(
+        self, execution_history: List[Dict], task_instruction: str
+    ) -> str:
         if not execution_history:
             return "No actions were executed."
 
+        if self.agent is None:
+            raise RuntimeError("Agent not initialized")
         prompt = (
             "Summarize the completed steps in 3-5 bullet points, focusing on outputs.\n"
             f"Task: {task_instruction}\n"

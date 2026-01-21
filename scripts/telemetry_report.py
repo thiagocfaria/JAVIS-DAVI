@@ -1,11 +1,34 @@
 #!/usr/bin/env python3
-"\"\"\"Generate a structured summary from Jarvis telemetry events.\"\"\""
+'"""Generate a structured summary from Jarvis telemetry events."""'
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Any, Sequence, TypedDict
+
+
+class _Event(TypedDict):
+    type: str | None
+    timestamp: float | int | None
+    payload: dict[str, Any]
+
+
+class _Plan(TypedDict):
+    source: Any
+    duration: Any
+    success: Any
+    actions: Any
+    risk_level: Any
+
+
+class _CommandSummary(TypedDict):
+    text: str
+    status: str
+    duration: Any
+    error: Any
+    events: list[_Event]
+    plans: list[_Plan]
 
 
 def load_events(log_path: Path) -> list[dict]:
@@ -27,7 +50,7 @@ def load_events(log_path: Path) -> list[dict]:
 
 def build_summary(events: Sequence[dict]) -> dict:
     """Build command-oriented summary from telemetry events."""
-    summary: dict[str, dict[str, object]] = {}
+    summary: dict[str, _CommandSummary] = {}
     for event in events:
         payload = event.get("payload", {})
         command_id = payload.get("command_id")
@@ -37,7 +60,7 @@ def build_summary(events: Sequence[dict]) -> dict:
         command = summary.setdefault(
             command_id,
             {
-                "text": payload.get("text", ""),
+                "text": str(payload.get("text", "")),
                 "status": "unknown",
                 "duration": None,
                 "error": None,
@@ -46,18 +69,20 @@ def build_summary(events: Sequence[dict]) -> dict:
             },
         )
 
+        ts = event.get("ts")
+        timestamp: float | int | None = ts if isinstance(ts, (int, float)) else None
         command["events"].append(
             {
                 "type": event.get("type"),
-                "timestamp": event.get("ts"),
-                "payload": payload,
+                "timestamp": timestamp,
+                "payload": payload if isinstance(payload, dict) else {},
             }
         )
 
         if event.get("type") == "command.start":
             command["status"] = "started"
         elif event.get("type") == "command.end":
-            command["status"] = payload.get("status", command["status"])
+            command["status"] = str(payload.get("status", command["status"]))
             command["duration"] = payload.get("duration")
             command["error"] = payload.get("error")
         elif event.get("type") == "plan.executed":
@@ -71,7 +96,7 @@ def build_summary(events: Sequence[dict]) -> dict:
                 }
             )
     for command in summary.values():
-        command["events"].sort(key=lambda item: item["timestamp"] or 0)
+        command["events"].sort(key=lambda item: float(item["timestamp"] or 0))
     return {"commands": summary}
 
 

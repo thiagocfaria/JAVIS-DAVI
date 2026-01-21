@@ -8,6 +8,9 @@ from jarvis.cerebro.orchestrator import Orchestrator
 class _DummyConfig:
     max_failures_per_command = 1
     browser_ai_enabled = False
+    local_llm_base_url = "http://localhost:11434"
+    require_approval = False
+    dry_run = False
 
 
 class _DummyTelemetry:
@@ -92,5 +95,7 @@ def test_intent_router_skips_planner_for_greeting():
 
 def test_intent_router_calls_planner_for_action():
     orchestrator = _DummyOrchestrator()
-    orchestrator._process_command_flow("abrir calculadora", lambda *args, **kwargs: None)
+    orchestrator._process_command_flow(
+        "abrir calculadora", lambda *args, **kwargs: None
+    )
     assert orchestrator._plan_calls == 1

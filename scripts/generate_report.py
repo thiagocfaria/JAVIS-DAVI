@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def generate_html_report(results: dict[str, Any], output_path: Path) -> None:
     """Gera relatório HTML."""
-    html = Template("""<!DOCTYPE html>
+    html = Template(
+        """<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -110,7 +111,8 @@ $metrics_rows
         <p>Para comparar com baseline, use: <code>scripts/compare_baseline.py &lt;arquivo.json&gt;</code></p>
     </div>
 </body>
-</html>""")
+</html>"""
+    )
 
     # Gerar linhas da tabela
     metrics_rows = []
@@ -131,7 +133,11 @@ $metrics_rows
 
     html_content = html.substitute(
         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        metrics_rows="\n".join(metrics_rows) if metrics_rows else "<tr><td colspan='4'>Sem dados</td></tr>",
+        metrics_rows=(
+            "\n".join(metrics_rows)
+            if metrics_rows
+            else "<tr><td colspan='4'>Sem dados</td></tr>"
+        ),
         system_info=system_info,
     )
 
@@ -181,14 +187,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-

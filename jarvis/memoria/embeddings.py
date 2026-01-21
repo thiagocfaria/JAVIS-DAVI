@@ -1,14 +1,19 @@
 """
 Embeddings module for semantic memory search (local only).
 """
+
 from __future__ import annotations
 
 import hashlib
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer as SentenceTransformerType
 
 try:
-    from sentence_transformers import SentenceTransformer  # type: ignore
+    from sentence_transformers import SentenceTransformer as _SentenceTransformer  # type: ignore
+    SentenceTransformer = _SentenceTransformer
 except ImportError:
     SentenceTransformer = None
 
@@ -16,6 +21,7 @@ except ImportError:
 # ============================================================================
 # EMBEDDING CACHE
 # ============================================================================
+
 
 class EmbeddingCache:
     """Simple in-memory cache for embeddings."""
@@ -47,6 +53,7 @@ class EmbeddingCache:
 # BASE EMBEDDER
 # ============================================================================
 
+
 class Embedder:
     """Base class for embedding providers."""
 
@@ -72,16 +79,19 @@ class Embedder:
 # LOCAL EMBEDDER (sentence-transformers)
 # ============================================================================
 
+
 class LocalEmbedder(Embedder):
     """
     Local embedding using sentence-transformers.
-    
+
     Local embeddings via sentence-transformers.
     Requires: pip install sentence-transformers
     """
-    
+
     def __init__(self, model_name: Optional[str] = None) -> None:
-        default_model = os.environ.get("JARVIS_EMBED_MODEL", "intfloat/multilingual-e5-small")
+        default_model = os.environ.get(
+            "JARVIS_EMBED_MODEL", "intfloat/multilingual-e5-small"
+        )
         self.model_name = model_name or default_model
         self._model = None
         dim_env = os.environ.get("JARVIS_EMBED_DIM", "384")
@@ -94,7 +104,7 @@ class LocalEmbedder(Embedder):
     def dimension(self) -> int:
         return self._dimension
 
-    def _load_model(self) -> SentenceTransformer:
+    def _load_model(self) -> "SentenceTransformerType":
         if self._model is None:
             if SentenceTransformer is None:
                 raise RuntimeError("sentence-transformers not installed")
@@ -115,6 +125,7 @@ class LocalEmbedder(Embedder):
 # ============================================================================
 # EMBEDDING ROUTER (local only)
 # ============================================================================
+
 
 class EmbeddingRouter(Embedder):
     """
@@ -140,7 +151,8 @@ class EmbeddingRouter(Embedder):
         # Enforce dimension if requested
         if self._required_dim is not None:
             self._embedders = [
-                embedder for embedder in self._embedders
+                embedder
+                for embedder in self._embedders
                 if embedder.dimension == self._required_dim
             ]
 
@@ -185,7 +197,7 @@ class EmbeddingRouter(Embedder):
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         # Check cache for each text
-        results = [None] * len(texts)
+        results: list[list[float] | None] = [None] * len(texts)
         uncached_indices = []
         uncached_texts = []
 
@@ -218,7 +230,13 @@ class EmbeddingRouter(Embedder):
                 except Exception:
                     continue
 
-        return results
+        # Ensure all results are not None
+        final_results: list[list[float]] = []
+        for result in results:
+            if result is None:
+                raise RuntimeError("Failed to embed some texts")
+            final_results.append(result)
+        return final_results
 
     def get_active_provider(self) -> str | None:
         """Get name of active embedding provider."""
@@ -231,13 +249,18 @@ class EmbeddingRouter(Embedder):
 # FACTORY FUNCTION
 # ============================================================================
 
+
 def build_embedder(
     enable_cache: bool = True,
 ) -> Embedder:
     """Build embedder (local only)."""
     provider = os.environ.get("JARVIS_EMBED_PROVIDER", "local").strip().lower()
     required_dim_env = os.environ.get("JARVIS_EMBED_DIM")
-    required_dim = int(required_dim_env) if required_dim_env and required_dim_env.isdigit() else 384
+    required_dim = (
+        int(required_dim_env)
+        if required_dim_env and required_dim_env.isdigit()
+        else 384
+    )
 
     router = EmbeddingRouter(
         enable_cache=enable_cache,

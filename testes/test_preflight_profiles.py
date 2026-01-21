@@ -5,16 +5,21 @@ import types
 import pytest
 
 from jarvis.entrada import preflight
+from jarvis.cerebro.config import Config
+from typing import cast
 
 
 def _make_config(tmp_path):
-    return types.SimpleNamespace(
-        data_dir=tmp_path,
-        stop_file_path=tmp_path / "STOP",
-        local_llm_base_url=None,
-        stt_mode="local",
-        tts_mode="local",
-        session_type="unknown",
+    return cast(
+        Config,
+        types.SimpleNamespace(
+            data_dir=tmp_path,
+            stop_file_path=tmp_path / "STOP",
+            local_llm_base_url=None,
+            stt_mode="local",
+            tts_mode="local",
+            session_type="unknown",
+        ),
     )
 
 
@@ -70,9 +75,7 @@ def test_preflight_profiles_filter_checks(
         preflight, "_check_desktop_drivers", _fake_check("Acoes desktop")
     )
     monkeypatch.setattr(preflight, "_check_web_automation", _fake_check("Acoes web"))
-    monkeypatch.setattr(
-        preflight, "_check_validator", _fake_check("Validacao (OCR)")
-    )
+    monkeypatch.setattr(preflight, "_check_validator", _fake_check("Validacao (OCR)"))
     monkeypatch.setattr(preflight, "_check_recorder", _fake_check("Aprendizado"))
     monkeypatch.setattr(preflight, "_check_chat_ui", _fake_check("Chat UI"))
     monkeypatch.setattr(preflight, "_check_chat_shortcut", _fake_check("Atalho chat"))

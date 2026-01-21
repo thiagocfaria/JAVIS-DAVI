@@ -4,9 +4,8 @@ Automation module with separated desktop and web automation.
 Desktop: AT-SPI + xdotool (NEVER Playwright)
 Web: Playwright (NEVER controls desktop)
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 from .desktop import DesktopAutomation
 from .web import WebAutomation, check_playwright_deps
@@ -56,7 +55,16 @@ class AutomationRouter:
             return self.web.execute(action_type, params)
 
         # Desktop actions
-        desktop_actions = {"open_app", "type_text", "hotkey", "click", "wait", "open_url", "scroll", "drag"}
+        desktop_actions = {
+            "open_app",
+            "type_text",
+            "hotkey",
+            "click",
+            "wait",
+            "open_url",
+            "scroll",
+            "drag",
+        }
         if action_type in desktop_actions:
             return self.desktop.execute(action_type, params)
 

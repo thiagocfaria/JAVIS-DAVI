@@ -3,25 +3,28 @@ Learning module for extracting procedures from demonstrations.
 
 Uses LLM to analyze recordings and convert to ActionPlans.
 """
+
 from __future__ import annotations
 
 import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..cerebro.actions import Action, ActionPlan
 from ..cerebro.llm import LLMClient, MockLLM
-from .recorder import RecordedEvent, Recording
+from .recorder import Recording
 
 # ============================================================================
 # DATA STRUCTURES
 # ============================================================================
 
+
 @dataclass
 class ExtractedStep:
     """An extracted step from a demonstration."""
+
     action_type: str
     params: dict[str, Any]
     timestamp: float
@@ -32,6 +35,7 @@ class ExtractedStep:
 @dataclass
 class ExtractedProcedure:
     """A procedure extracted from a demonstration."""
+
     name: str
     steps: list[ExtractedStep]
     source_recording: str
@@ -58,10 +62,11 @@ class ExtractedProcedure:
 # LEARNER
 # ============================================================================
 
+
 class DemonstrationLearner:
     """
     Learns procedures from recorded demonstrations.
-    
+
     Uses LLM to:
     1. Analyze event sequences
     2. Group related events into steps
@@ -78,7 +83,7 @@ class DemonstrationLearner:
     ) -> ExtractedProcedure:
         """
         Extract a procedure from a recording.
-        
+
         Uses rule-based extraction first, then LLM refinement.
         """
         # Step 1: Rule-based extraction
@@ -109,7 +114,7 @@ class DemonstrationLearner:
     ) -> list[ExtractedStep]:
         """
         Extract steps using rule-based analysis.
-        
+
         Groups events into logical steps:
         - Clicks become click actions
         - Key sequences become type_text or hotkey actions
@@ -140,7 +145,10 @@ class DemonstrationLearner:
             if event.event_type == "key_press":
                 # Collect consecutive key presses
                 key_sequence = []
-                while i < len(events) and events[i].event_type in {"key_press", "key_release"}:
+                while i < len(events) and events[i].event_type in {
+                    "key_press",
+                    "key_release",
+                }:
                     if events[i].event_type == "key_press":
                         key_sequence.append(events[i].data.get("key", ""))
                     i += 1
@@ -272,7 +280,7 @@ class DemonstrationLearner:
     ) -> list[ExtractedStep]:
         """
         Use LLM to refine extracted steps.
-        
+
         The LLM can:
         - Group related clicks into single semantic actions
         - Convert coordinates to element names
@@ -298,19 +306,30 @@ Return ONLY JSON in this schema:
         try:
             plan = self._llm.plan(prompt)
             allowed = {
-                "open_app", "open_url", "type_text", "hotkey", "click",
-                "scroll", "wait", "navigate", "web_click", "web_fill", "web_screenshot",
+                "open_app",
+                "open_url",
+                "type_text",
+                "hotkey",
+                "click",
+                "scroll",
+                "wait",
+                "navigate",
+                "web_click",
+                "web_fill",
+                "web_screenshot",
             }
             refined = []
             for action in plan.actions:
                 if action.action_type not in allowed:
                     continue
-                refined.append(ExtractedStep(
-                    action_type=action.action_type,
-                    params=action.params,
-                    timestamp=time.time(),
-                    description=f"LLM refined: {action.action_type}",
-                ))
+                refined.append(
+                    ExtractedStep(
+                        action_type=action.action_type,
+                        params=action.params,
+                        timestamp=time.time(),
+                        description=f"LLM refined: {action.action_type}",
+                    )
+                )
             return refined or steps
         except Exception:
             return steps
@@ -319,9 +338,11 @@ Return ONLY JSON in this schema:
         """Check if a non-mock LLM client is available for refinement."""
         if isinstance(self._llm, MockLLM):
             return False
-        if hasattr(self._llm, "get_available_clients"):
-            clients = self._llm.get_available_clients()
-            return any(client != "mock" for client in clients)
+        getter = getattr(self._llm, "get_available_clients", None)
+        if callable(getter):
+            clients_result = getter()
+            if isinstance(clients_result, list):
+                return any(client != "mock" for client in clients_result)
         return True
 
     def save_procedure(
@@ -379,17 +400,18 @@ Return ONLY JSON in this schema:
 # HELPER FUNCTIONS
 # ============================================================================
 
+
 def learn_from_recording(
     recording_path: Path,
     output_path: Path | None = None,
 ) -> ExtractedProcedure:
     """
     Convenience function to learn from a recording file.
-    
+
     Args:
         recording_path: Path to recording JSON
         output_path: Path to save procedure (optional)
-        
+
     Returns:
         Extracted procedure
     """

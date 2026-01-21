@@ -20,6 +20,7 @@ def _make_config(tmp_path, stt_mode: str = "local"):
         chat_shortcut_combo="ctrl+shift+j",
         require_approval=True,
         dry_run=False,
+        data_dir=tmp_path,
     )
 
 
@@ -94,6 +95,7 @@ def test_main_voice_calls_transcribe(monkeypatch, tmp_path):
         "check_stt_deps",
         lambda: {"sounddevice": True, "numpy": True, "faster_whisper": True},
     )
+    monkeypatch.setattr(app_module, "auto_configure_voice_profile", lambda cfg: (True, None))
     monkeypatch.setattr(app_module, "Orchestrator", DummyOrchestrator)
     monkeypatch.setattr(app_module, "ChatInbox", DummyInbox)
     monkeypatch.setattr(app_module, "stop_requested", lambda path: False)
@@ -134,6 +136,7 @@ def test_main_voice_loop_stops_on_kill_switch(monkeypatch, tmp_path):
         "check_stt_deps",
         lambda: {"sounddevice": True, "numpy": True, "faster_whisper": True},
     )
+    monkeypatch.setattr(app_module, "auto_configure_voice_profile", lambda cfg: (True, None))
     monkeypatch.setattr(app_module, "Orchestrator", DummyOrchestrator)
     monkeypatch.setattr(app_module, "ChatInbox", DummyInbox)
     monkeypatch.setattr(app_module, "stop_requested", lambda path: True)
@@ -176,6 +179,7 @@ def test_main_voice_loop_rechecks_stt_deps(monkeypatch, tmp_path):
     monkeypatch.setattr(app_module, "load_config", lambda: config)
     monkeypatch.setattr(app_module, "ensure_dirs", lambda cfg: None)
     monkeypatch.setattr(app_module, "check_stt_deps", fake_check_stt_deps)
+    monkeypatch.setattr(app_module, "auto_configure_voice_profile", lambda cfg: (True, None))
     monkeypatch.setattr(app_module, "Orchestrator", DummyOrchestrator)
     monkeypatch.setattr(app_module, "ChatInbox", DummyInbox)
     monkeypatch.setattr(app_module, "stop_requested", lambda path: False)
@@ -222,6 +226,7 @@ def test_main_voice_loop_uses_sleep_arg(monkeypatch, tmp_path):
         "check_stt_deps",
         lambda: {"sounddevice": True, "numpy": True, "faster_whisper": True},
     )
+    monkeypatch.setattr(app_module, "auto_configure_voice_profile", lambda cfg: (True, None))
     monkeypatch.setattr(app_module, "Orchestrator", DummyOrchestrator)
     monkeypatch.setattr(app_module, "ChatInbox", DummyInbox)
     monkeypatch.setattr(app_module, "stop_requested", fake_stop)
@@ -267,6 +272,7 @@ def test_main_voice_loop_respects_max_iter(monkeypatch, tmp_path):
         "check_stt_deps",
         lambda: {"sounddevice": True, "numpy": True, "faster_whisper": True},
     )
+    monkeypatch.setattr(app_module, "auto_configure_voice_profile", lambda cfg: (True, None))
     monkeypatch.setattr(app_module, "Orchestrator", DummyOrchestrator)
     monkeypatch.setattr(app_module, "ChatInbox", DummyInbox)
     monkeypatch.setattr(app_module, "stop_requested", lambda path: False)
@@ -324,6 +330,7 @@ def test_main_enable_shortcut_uses_env_combo(monkeypatch, tmp_path):
     class DummyShortcut:
         def __init__(self, chat_command=None, shortcut_combo=None):
             captured["combo"] = shortcut_combo
+            self.last_error = None
 
         def start(self) -> bool:
             return True

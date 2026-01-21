@@ -1,6 +1,6 @@
 # Plano de Performance - Interface de Voz do Jarvis
 
-**Atualizado em:** 2026-01-19
+**Atualizado em:** 2026-01-20
 **Status:** Em producao (checklist atualizado)
 
 ## Objetivo Principal
@@ -292,11 +292,54 @@ pip install speexdsp webrtc-audio-processing
 
 ---
 
+## RESULTADOS BENCHMARK (2026-01-20)
+
+Benchmark com configuracao otimizada (`JARVIS_VAD_SILENCE_MS=250`, warmup ativo):
+
+| Cenario | p50 | p95 | Observacao |
+|---------|-----|-----|------------|
+| eos_to_first_audio (20 rep) | 507ms | 2091ms | STT tiny + Piper streaming |
+| STT isolado (3 rep) | 630ms | 668ms | Modelo tiny aquecido |
+| TTS first audio | 53ms | - | Piper Python backend |
+
+**Conclusao:** p50 esta excelente (<600ms). p95 ainda acima da meta (>1600ms) devido a variabilidade ocasional.
+
+---
+
+## TECNOLOGIAS ALTERNATIVAS PESQUISADAS (2026-01-20)
+
+### STT - Alternativas ao Whisper
+
+| Tecnologia | Descricao | Latencia | Link |
+|------------|-----------|----------|------|
+| **Moonshine** | 5-15x mais rapido que Whisper, modelos menores | Muito baixa | [GitHub](https://github.com/moonshine-ai/moonshine) |
+| **NVIDIA Parakeet TDT** | RTFx >2000, streaming | Muito baixa | NVIDIA NeMo |
+| **WhisperX** | 4x mais rapido, word-level timestamps | Baixa | GitHub |
+| **Vosk** | Leve, funciona offline | Baixa | alphacephei.com |
+| **Deepgram Nova-3** | API, 54% menos WER | Muito baixa | deepgram.com |
+
+**Recomendacao:** Testar Moonshine ONNX como alternativa ao faster-whisper para reduzir p95.
+
+### TTS - Alternativas ao Piper
+
+| Tecnologia | Descricao | Latencia | Link |
+|------------|-----------|----------|------|
+| **Piper** (atual) | Neural, CPU-friendly | <100ms | rhasspy/piper |
+| **MeloTTS** | Similar ao Piper, multi-idioma | <100ms | GitHub |
+| **Coqui XTTS-v2** | Voice cloning, GPU recomendado | ~150ms | coqui.ai |
+| **Bark** | Expressivo, mais lento | >500ms | suno-ai/bark |
+
+**Conclusao:** Piper continua sendo a melhor opcao para latencia baixa em CPU.
+
+---
+
 ## PROXIMOS PASSOS (PRIORIDADE)
 
 1. [ ] Validar em maquina mais fraca
 2. [ ] Implementar barge-in com metricas
 3. [ ] 3 rodadas de validacao em dias diferentes
+4. [ ] Testar Moonshine ONNX como alternativa ao faster-whisper
+5. [ ] Investigar causa do p95 alto (GC, cold start, outliers)
 4. [ ] Documentar troubleshooting (eco, falso wake, clip)
 5. [ ] Comparar tiny.en vs small (WER x latencia)
 

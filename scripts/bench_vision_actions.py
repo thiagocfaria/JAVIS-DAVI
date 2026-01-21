@@ -11,6 +11,7 @@ from contextlib import contextmanager, redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
+from typing import Any, TypedDict
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -20,8 +21,15 @@ from jarvis.cerebro.config import load_config
 from jarvis.cerebro.orchestrator import Orchestrator
 from jarvis.validacao.validator import Validator
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
+
 try:
-    from PIL import Image, ImageDraw  # type: ignore
+    from PIL import Image as _Image, ImageDraw as _ImageDraw  # type: ignore
+    Image = _Image
+    ImageDraw = _ImageDraw
 except ImportError:
     Image = None
     ImageDraw = None
@@ -100,7 +108,7 @@ def _temp_env(overrides: dict[str, str | None]):
                 os.environ[key] = value
 
 
-def _build_sample_image() -> Image.Image | None:
+def _build_sample_image() -> "PILImage.Image | None":
     if Image is None or ImageDraw is None:
         return None
     img = Image.new("RGB", (1920, 1080), color="white")
@@ -143,7 +151,9 @@ def _build_orchestrator(dry_run: bool) -> Orchestrator:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark OCR/screenshot/automation (QA)")
+    parser = argparse.ArgumentParser(
+        description="Benchmark OCR/screenshot/automation (QA)"
+    )
     parser.add_argument("--runs", type=int, default=5, help="number of runs per metric")
     parser.add_argument(
         "--backend",
@@ -161,7 +171,15 @@ def main() -> None:
 
     _apply_backend(args.backend)
 
-    results: dict[str, object] = {
+    class _Results(TypedDict):
+        latency: dict[str, float]
+        cpu: dict[str, float]
+        memory: dict[str, float]
+        meta: dict[str, Any]
+        skipped: dict[str, str]
+        checks: dict[str, Any]
+
+    results: _Results = {
         "latency": {},
         "cpu": {},
         "memory": {},
@@ -182,7 +200,9 @@ def main() -> None:
     # Screenshot benchmark
     validator = None
     try:
-        validator = Validator(enable_ocr=True, save_screenshots=False, mask_screenshots=True)
+        validator = Validator(
+            enable_ocr=True, save_screenshots=False, mask_screenshots=True
+        )
     except Exception as exc:
         results["skipped"]["validator_init"] = f"validator_init_failed:{exc}"
     else:
@@ -211,9 +231,13 @@ def main() -> None:
         results["skipped"]["ocr_fast"] = "no_image_available"
         results["skipped"]["ocr_full"] = "no_image_available"
     else:
-        with _temp_env({"JARVIS_OCR_DISABLE_CACHE": "1", "JARVIS_OCR_FAST_MAX_DIM": "540"}):
+        with _temp_env(
+            {"JARVIS_OCR_DISABLE_CACHE": "1", "JARVIS_OCR_FAST_MAX_DIM": "540"}
+        ):
             try:
-                fast_validator = Validator(enable_ocr=True, save_screenshots=False, mask_screenshots=True)
+                fast_validator = Validator(
+                    enable_ocr=True, save_screenshots=False, mask_screenshots=True
+                )
             except Exception as exc:
                 results["skipped"]["ocr_fast"] = f"validator_init_failed:{exc}"
             else:
@@ -222,13 +246,20 @@ def main() -> None:
                 else:
                     record_metric(
                         "ocr_fast",
-                        _measure(lambda: fast_validator.extract_text_ocr(ocr_image), runs=args.runs),
+                        _measure(
+                            lambda: fast_validator.extract_text_ocr(ocr_image),
+                            runs=args.runs,
+                        ),
                     )
                     fast_text = fast_validator.extract_text_ocr(ocr_image)
 
-        with _temp_env({"JARVIS_OCR_DISABLE_CACHE": "1", "JARVIS_OCR_FAST_MAX_DIM": "0"}):
+        with _temp_env(
+            {"JARVIS_OCR_DISABLE_CACHE": "1", "JARVIS_OCR_FAST_MAX_DIM": "0"}
+        ):
             try:
-                full_validator = Validator(enable_ocr=True, save_screenshots=False, mask_screenshots=True)
+                full_validator = Validator(
+                    enable_ocr=True, save_screenshots=False, mask_screenshots=True
+                )
             except Exception as exc:
                 results["skipped"]["ocr_full"] = f"validator_init_failed:{exc}"
             else:
@@ -237,7 +268,10 @@ def main() -> None:
                 else:
                     record_metric(
                         "ocr_full",
-                        _measure(lambda: full_validator.extract_text_ocr(ocr_image), runs=args.runs),
+                        _measure(
+                            lambda: full_validator.extract_text_ocr(ocr_image),
+                            runs=args.runs,
+                        ),
                     )
                     full_text = full_validator.extract_text_ocr(ocr_image)
 
@@ -258,7 +292,9 @@ def main() -> None:
     # Validator full check (worst-case OCR)
     with _temp_env({"JARVIS_OCR_DISABLE_CACHE": "1", "JARVIS_OCR_FAST_MAX_DIM": "0"}):
         try:
-            full_validator = Validator(enable_ocr=True, save_screenshots=False, mask_screenshots=True)
+            full_validator = Validator(
+                enable_ocr=True, save_screenshots=False, mask_screenshots=True
+            )
         except Exception as exc:
             results["skipped"]["validator_full_ocr"] = f"validator_init_failed:{exc}"
         else:
@@ -281,9 +317,11 @@ def main() -> None:
     }
     for label, action in actions.items():
         plan = ActionPlan(actions=[action], risk_level="low", notes="bench")
+
         def run_action() -> None:
             with redirect_stdout(io.StringIO()):
                 orchestrator._execute_plan(plan)
+
         record_metric(label, _measure(run_action, runs=args.runs))
 
     output = json.dumps(results, ensure_ascii=False, indent=2)

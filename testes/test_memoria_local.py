@@ -79,7 +79,9 @@ class TestMemoriaLocal(unittest.TestCase):
             store.add_knowledge("alpha memory")
             store.add_knowledge("beta memory")
 
-            results = store.search_semantic("alpha", kind="knowledge", limit=2, threshold=0.0)
+            results = store.search_semantic(
+                "alpha", kind="knowledge", limit=2, threshold=0.0
+            )
             self.assertEqual(len(results), 2)
             self.assertEqual(results[0].item.text, "alpha memory")
 
@@ -102,7 +104,8 @@ class TestMemoriaLocal(unittest.TestCase):
             fetched = cache.get("emb")
             self.assertIsNotNone(fetched)
             assert fetched is not None
-            self.assertEqual(len(fetched.embedding or []), 3)
+            assert fetched.embedding is not None
+            self.assertEqual(len(fetched.embedding), 3)
             self.assertAlmostEqual(fetched.embedding[0], 0.1, places=5)
             self.assertAlmostEqual(fetched.embedding[1], 0.2, places=5)
             self.assertAlmostEqual(fetched.embedding[2], 0.3, places=5)

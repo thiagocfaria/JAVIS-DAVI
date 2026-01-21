@@ -1,4 +1,5 @@
 """Minimal OpenAI-compatible engine for Agent-S S3 (self-hosted)."""
+
 from __future__ import annotations
 
 import json
@@ -65,7 +66,9 @@ class LMMEngineOpenAICompat(LMMEngine):
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": messages,
-            "temperature": temperature if self.temperature is None else self.temperature,
+            "temperature": (
+                temperature if self.temperature is None else self.temperature
+            ),
         }
         if max_new_tokens is not None:
             payload["max_tokens"] = max_new_tokens
@@ -104,7 +107,9 @@ class LMMEngineOpenAICompat(LMMEngine):
         **kwargs: Any,
     ) -> str:
         # No special thinking mode for openai_compat; fall back to generate.
-        return self.generate(messages, temperature=temperature, max_new_tokens=max_new_tokens, **kwargs)
+        return self.generate(
+            messages, temperature=temperature, max_new_tokens=max_new_tokens, **kwargs
+        )
 
 
 # Alias for compatibility with S3 naming

@@ -14,6 +14,7 @@ Memory layers:
 - Cold: Old, rarely used (archived)
 - Fixed: Never expires (user-defined important memories)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -22,35 +23,43 @@ import math
 import os
 import re
 import sqlite3
-import threading
 import time
 from array import array
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .embeddings import Embedder
+else:
+    Embedder = Any  # type: ignore[assignment]
 
 try:
-    from .embeddings import Embedder, build_embedder
+    from .embeddings import build_embedder
 except ImportError:
     build_embedder = None
-    Embedder = None
+
+if TYPE_CHECKING:
+    from .remote_client import RemoteMemoryClient
+else:
+    RemoteMemoryClient = Any  # type: ignore[assignment]
 
 try:
-    from .remote_client import RemoteMemoryClient, RemoteMemoryItem
+    from .remote_client import RemoteMemoryClient as _RemoteMemoryClient
 except ImportError:  # pragma: no cover - defensive
-    RemoteMemoryClient = None  # type: ignore
-    RemoteMemoryItem = None  # type: ignore
+    _RemoteMemoryClient = None  # type: ignore
 
 
 # ============================================================================
 # DATA CLASSES
 # ============================================================================
 
+
 @dataclass
 class MemoryItem:
     """A memory item."""
+
     id: str | None = None
     kind: str = "episode"  # episode, knowledge, procedure, preference
     text: str = ""
@@ -66,6 +75,7 @@ class MemoryItem:
 @dataclass
 class SearchResult:
     """Search result with similarity score."""
+
     item: MemoryItem
     score: float
 
@@ -73,6 +83,7 @@ class SearchResult:
 # ============================================================================
 # HELPERS
 # ============================================================================
+
 
 def _normalize_text(text: str) -> str:
     return " ".join(text.strip().split())
@@ -110,7 +121,11 @@ def _success_score(access_count: int) -> float:
 
 
 def _hybrid_score(similarity: float, ts: float, access_count: int, now: float) -> float:
-    return (similarity * 0.6) + (_recency_score(ts, now) * 0.2) + (_success_score(access_count) * 0.2)
+    return (
+        (similarity * 0.6)
+        + (_recency_score(ts, now) * 0.2)
+        + (_success_score(access_count) * 0.2)
+    )
 
 
 class LRUCache:
@@ -139,6 +154,7 @@ class LRUCache:
 # ============================================================================
 # LOCAL SQLITE CACHE (Minimal)
 # ============================================================================
+
 
 class LocalMemoryCache:
     """
@@ -170,7 +186,8 @@ class LocalMemoryCache:
         """Initialize database schema."""
         conn = self._connect()
         try:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS memories (
                     id TEXT PRIMARY KEY,
                     kind TEXT NOT NULL,
@@ -185,23 +202,32 @@ class LocalMemoryCache:
                     embedding TEXT,
                     embedding_dim INTEGER
                 )
-            """)
-            conn.execute("""
+            """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_memories_kind ON memories(kind)
-            """)
-            conn.execute("""
+            """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_memories_layer ON memories(layer)
-            """)
-            conn.execute("""
+            """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_memories_ts ON memories(ts DESC)
-            """)
+            """
+            )
             self._ensure_column(conn, "memories", "text_hash", "TEXT")
             self._ensure_column(conn, "memories", "embedding_blob", "BLOB")
             self._ensure_column(conn, "memories", "embedding", "TEXT")
             self._ensure_column(conn, "memories", "embedding_dim", "INTEGER")
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_memories_text_hash ON memories(text_hash)
-            """)
+            """
+            )
             self._fts_enabled = self._init_fts(conn)
             self._maybe_migrate_embeddings(conn)
             conn.commit()
@@ -209,7 +235,9 @@ class LocalMemoryCache:
             conn.close()
 
     @staticmethod
-    def _ensure_column(conn: sqlite3.Connection, table: str, column: str, col_type: str) -> None:
+    def _ensure_column(
+        conn: sqlite3.Connection, table: str, column: str, col_type: str
+    ) -> None:
         try:
             rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
             existing = {row[1] for row in rows}
@@ -260,7 +288,9 @@ class LocalMemoryCache:
             "SELECT id, kind, text, layer, metadata FROM memories"
         )
 
-    def _upsert_fts(self, conn: sqlite3.Connection, item: MemoryItem, metadata_json: str) -> None:
+    def _upsert_fts(
+        self, conn: sqlite3.Connection, item: MemoryItem, metadata_json: str
+    ) -> None:
         if not self._fts_enabled:
             return
         conn.execute("DELETE FROM memories_fts WHERE id = ?", (item.id,))
@@ -278,7 +308,7 @@ class LocalMemoryCache:
         tokens = re.findall(r"[\w]+", query, flags=re.UNICODE)
         if not tokens:
             return None
-        return " ".join([f"\"{token}\"" for token in tokens])
+        return " ".join([f'"{token}"' for token in tokens])
 
     @staticmethod
     def _parse_embedding_blob(value: Optional[bytes]) -> Optional[List[float]]:
@@ -315,7 +345,9 @@ class LocalMemoryCache:
             return None
 
     @classmethod
-    def _row_to_item(cls, row: tuple) -> MemoryItem:
+    def _row_to_item(cls, row: tuple[Any, ...]) -> MemoryItem:
+        if len(row) < 8:
+            raise ValueError("row too short for MemoryItem")
         embedding_blob = row[8] if len(row) > 8 else None
         embedding_json = row[9] if len(row) > 9 else None
         embedding = cls._parse_embedding_blob(embedding_blob)
@@ -347,7 +379,8 @@ class LocalMemoryCache:
             if embedding_blob is None and item.embedding is not None:
                 embedding_json = json.dumps(item.embedding)
             embedding_dim = len(item.embedding) if item.embedding else None
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO memories
                 (id, kind, text, metadata, ts, layer, access_count, last_accessed, text_hash, embedding_blob, embedding, embedding_dim)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -363,20 +396,22 @@ class LocalMemoryCache:
                     embedding_blob=excluded.embedding_blob,
                     embedding=excluded.embedding,
                     embedding_dim=excluded.embedding_dim
-            """, (
-                item_id,
-                item.kind,
-                item.text,
-                metadata_json,
-                item.ts,
-                item.layer,
-                item.access_count,
-                item.last_accessed,
-                text_hash,
-                embedding_blob,
-                embedding_json,
-                embedding_dim,
-            ))
+            """,
+                (
+                    item_id,
+                    item.kind,
+                    item.text,
+                    metadata_json,
+                    item.ts,
+                    item.layer,
+                    item.access_count,
+                    item.last_accessed,
+                    text_hash,
+                    embedding_blob,
+                    embedding_json,
+                    embedding_dim,
+                ),
+            )
             self._upsert_fts(conn, item, metadata_json)
             conn.commit()
             return item_id
@@ -399,7 +434,9 @@ class LocalMemoryCache:
         finally:
             conn.close()
 
-    def search(self, query: str, kind: str | None = None, limit: int = 5) -> list[MemoryItem]:
+    def search(
+        self, query: str, kind: str | None = None, limit: int = 5
+    ) -> list[MemoryItem]:
         """Text search (FTS when available, otherwise LIKE)."""
         conn = self._connect()
         try:
@@ -412,7 +449,7 @@ class LocalMemoryCache:
                         "FROM memories_fts f JOIN memories m ON m.id = f.id "
                         "WHERE f MATCH ?"
                     )
-                    params = [fts_query]
+                    params: list[object] = [fts_query]
                     if kind:
                         sql += " AND m.kind = ?"
                         params.append(kind)
@@ -633,6 +670,7 @@ class LocalMemoryCache:
 # LOCAL MEMORY STORE (SQLite + optional embeddings)
 # ============================================================================
 
+
 class HybridMemoryStore:
     """
     Local memory with optional embeddings and cloud fallback.
@@ -644,7 +682,7 @@ class HybridMemoryStore:
     def __init__(
         self,
         local_cache: LocalMemoryCache,
-        cloud_store: SupabaseMemoryStore | None = None,
+        cloud_store: Any | None = None,  # SupabaseMemoryStore quando disponível
         remote_client: RemoteMemoryClient | None = None,
         embedder: Embedder | None = None,
         embed_dim: int | None = None,
@@ -668,7 +706,7 @@ class HybridMemoryStore:
         metadata: dict[str, Any] | None = None,
         layer: str = "warm",
         dedup: bool = False,
-        ) -> str:
+    ) -> str:
         """Add a memory item."""
         meta = dict(metadata or {})
         text_hash = _hash_text(text) if text else ""
@@ -718,7 +756,7 @@ class HybridMemoryStore:
         """Search memories (text-based)."""
         cache_key = f"text|{kind or '*'}|{limit}|{query}"
         cached = self._query_cache.get(cache_key)
-        if cached is not None:
+        if isinstance(cached, list):
             results = list(cached)
             self._record_access(results)
             return results
@@ -751,8 +789,7 @@ class HybridMemoryStore:
         """Get all procedures (cached locally)."""
         # Check hot cache first
         procedures = [
-            item for item in self._hot_cache.values()
-            if item.kind == "procedure"
+            item for item in self._hot_cache.values() if item.kind == "procedure"
         ]
         if procedures:
             return procedures
@@ -772,7 +809,9 @@ class HybridMemoryStore:
         """Add knowledge/preference."""
         return self.add("knowledge", text, metadata)
 
-    def add_fixed_knowledge(self, text: str, metadata: dict[str, Any] | None = None) -> str:
+    def add_fixed_knowledge(
+        self, text: str, metadata: dict[str, Any] | None = None
+    ) -> str:
         """Add fixed knowledge (never expires)."""
         return self.add("knowledge", text, metadata, layer="fixed", dedup=True)
 
@@ -788,7 +827,7 @@ class HybridMemoryStore:
             return []
         cache_key = f"vector|{kind or '*'}|{limit}|{threshold}|{query}"
         cached = self._vector_cache.get(cache_key)
-        if cached is not None:
+        if isinstance(cached, list):
             results = list(cached)
             self._record_access([result.item for result in results])
             return results
@@ -805,7 +844,9 @@ class HybridMemoryStore:
             now = time.time()
             for result in results:
                 similarity = result.score
-                result.score = _hybrid_score(similarity, result.item.ts, result.item.access_count, now)
+                result.score = _hybrid_score(
+                    similarity, result.item.ts, result.item.access_count, now
+                )
             results.sort(key=lambda r: r.score, reverse=True)
             results = results[:limit]
             self._record_access([result.item for result in results])
@@ -847,7 +888,9 @@ class HybridMemoryStore:
 
     def apply_decay(self, days_threshold: int = 30, archive_days: int = 180) -> int:
         """Apply decay rules across local store."""
-        return self.local.apply_decay(days_threshold=days_threshold, archive_days=archive_days)
+        return self.local.apply_decay(
+            days_threshold=days_threshold, archive_days=archive_days
+        )
 
     def forget(self, text: str, kind: str | None = None) -> int:
         """Forget memories matching text."""
@@ -888,6 +931,7 @@ class HybridMemoryStore:
 # FACTORY FUNCTION
 # ============================================================================
 
+
 def build_memory_store(
     db_path: Path,
 ) -> HybridMemoryStore:
@@ -897,19 +941,25 @@ def build_memory_store(
     remote_client = None
     remote_url = os.environ.get("JARVIS_REMOTE_MEMORY_URL")
     remote_token = os.environ.get("JARVIS_REMOTE_MEMORY_TOKEN")
-    if remote_url and RemoteMemoryClient:
+    if remote_url and _RemoteMemoryClient:
         try:
-            remote_client = RemoteMemoryClient(base_url=remote_url, token=remote_token)
+            remote_client = _RemoteMemoryClient(base_url=remote_url, token=remote_token)
         except Exception:
             remote_client = None
 
     embed_dim_env = os.environ.get("JARVIS_EMBED_DIM")
     embed_dim = int(embed_dim_env) if embed_dim_env and embed_dim_env.isdigit() else 384
     enable_embeddings = os.environ.get("JARVIS_ENABLE_EMBEDDINGS", "true").lower() in {
-        "1", "true", "yes", "on"
+        "1",
+        "true",
+        "yes",
+        "on",
     }
     embed_episodes = os.environ.get("JARVIS_EMBED_EPISODES", "false").lower() in {
-        "1", "true", "yes", "on"
+        "1",
+        "true",
+        "yes",
+        "on",
     }
     embedder = None
     if enable_embeddings and build_embedder:

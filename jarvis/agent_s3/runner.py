@@ -51,7 +51,9 @@ class JarvisS3Agent:
         self.worker = None
         self.grounding_agent = None
 
-    def _build_engine_params(self, engine_type: str, base_url: str | None, api_key: str | None, model: str) -> dict:
+    def _build_engine_params(
+        self, engine_type: str, base_url: str | None, api_key: str | None, model: str
+    ) -> dict:
         params = {
             "engine_type": engine_type,
             "base_url": base_url,
@@ -139,9 +141,17 @@ class S3Runner:
         if max(width, height) <= max_dim:
             return image
         from PIL import Image as PilImage
+
         scale = max_dim / float(max(width, height))
         new_size = (max(1, int(width * scale)), max(1, int(height * scale)))
-        return image.resize(new_size, PilImage.LANCZOS)
+        # Use Resampling enum for newer PIL, fallback to LANCZOS constant
+        resampling = getattr(PilImage, "Resampling", None)
+        if resampling:
+            lanczos = resampling.LANCZOS
+        else:
+            # Fallback: try LANCZOS constant, or use 1 (nearest) as last resort
+            lanczos = getattr(PilImage, "LANCZOS", 1)
+        return image.resize(new_size, lanczos)
 
     def _image_to_bytes(self, image: "Image.Image") -> bytes:
         buffer = io.BytesIO()
@@ -172,7 +182,9 @@ class S3Runner:
         return {"screenshot": png_bytes}, width, height
 
     def _execute_action(self, action: Action) -> bool:
-        plan = ActionPlan(actions=[action], risk_level="low", notes="agent_s3", confidence=0.0)
+        plan = ActionPlan(
+            actions=[action], risk_level="low", notes="agent_s3", confidence=0.0
+        )
         quality = validar_plano(plan)
         if quality.errors:
             self.telemetry.log_event("s3_plan_invalid", {"errors": quality.errors})
@@ -189,7 +201,9 @@ class S3Runner:
             self.say("Acao requer intervencao humana.")
             return False
 
-        if self.request_approval and (self.require_approval or decision.requires_confirmation):
+        if self.request_approval and (
+            self.require_approval or decision.requires_confirmation
+        ):
             if not self.request_approval():
                 self.say("Aprovacao negada.")
                 return False
@@ -200,12 +214,16 @@ class S3Runner:
 
         error = self.executor.execute(action.action_type, action.params or {})
         if error:
-            self.telemetry.log_event("s3_action_error", {"action": action.to_dict(), "error": error})
+            self.telemetry.log_event(
+                "s3_action_error", {"action": action.to_dict(), "error": error}
+            )
             self.say(f"Erro ao executar: {error}")
             return False
 
         validation = self.validator.validate(action)
-        self.telemetry.log_event("s3_action_done", {"action": action.to_dict(), "validation": validation})
+        self.telemetry.log_event(
+            "s3_action_done", {"action": action.to_dict(), "validation": validation}
+        )
 
         if validation.get("status") == "requires_human":
             self.say("Detectado CAPTCHA ou 2FA. Por favor, complete manualmente.")
@@ -222,10 +240,18 @@ class S3Runner:
             if self.agent.worker is None:
                 self.agent.ensure_agent(width, height)
             else:
-                self.agent.grounding_agent.width = width
-                self.agent.grounding_agent.height = height
-                self.agent.grounding_agent.engine_params_for_grounding["grounding_width"] = width
-                self.agent.grounding_agent.engine_params_for_grounding["grounding_height"] = height
+                if self.agent.grounding_agent is None:
+                    self.agent.ensure_agent(width, height)
+                else:
+                    self.agent.grounding_agent.width = width
+                    self.agent.grounding_agent.height = height
+                    if self.agent.grounding_agent.engine_params_for_grounding is not None:
+                        self.agent.grounding_agent.engine_params_for_grounding[
+                            "grounding_width"
+                        ] = width
+                        self.agent.grounding_agent.engine_params_for_grounding[
+                            "grounding_height"
+                        ] = height
 
             info, actions = self.agent.predict(instruction, obs)
             if not actions:
@@ -258,12 +284,20 @@ class S3Runner:
 def build_s3_agent(config) -> S3Config:
     return S3Config(
         worker_engine_type=getattr(config, "s3_worker_engine_type", "openai_compat"),
-        worker_base_url=getattr(config, "s3_worker_base_url", config.local_llm_base_url),
+        worker_base_url=getattr(
+            config, "s3_worker_base_url", config.local_llm_base_url
+        ),
         worker_api_key=getattr(config, "s3_worker_api_key", config.local_llm_api_key),
         worker_model=getattr(config, "s3_worker_model", config.local_llm_model),
-        grounding_engine_type=getattr(config, "s3_grounding_engine_type", "openai_compat"),
-        grounding_base_url=getattr(config, "s3_grounding_base_url", config.local_llm_base_url),
-        grounding_api_key=getattr(config, "s3_grounding_api_key", config.local_llm_api_key),
+        grounding_engine_type=getattr(
+            config, "s3_grounding_engine_type", "openai_compat"
+        ),
+        grounding_base_url=getattr(
+            config, "s3_grounding_base_url", config.local_llm_base_url
+        ),
+        grounding_api_key=getattr(
+            config, "s3_grounding_api_key", config.local_llm_api_key
+        ),
         grounding_model=getattr(config, "s3_grounding_model", "ui-tars-1.5-7b"),
         grounding_width=getattr(config, "s3_grounding_width", 1920),
         grounding_height=getattr(config, "s3_grounding_height", 1080),

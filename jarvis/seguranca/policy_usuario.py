@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set
 
 
 def _normalize_domain(value: str) -> str:
@@ -37,8 +35,16 @@ class PolicyUsuarioStore:
         except Exception:
             return PolicyUsuario()
 
-        domains = { _normalize_domain(item) for item in payload.get("blocked_domains", []) if str(item).strip() }
-        apps = { _normalize_app(item) for item in payload.get("blocked_apps", []) if str(item).strip() }
+        domains = {
+            _normalize_domain(item)
+            for item in payload.get("blocked_domains", [])
+            if str(item).strip()
+        }
+        apps = {
+            _normalize_app(item)
+            for item in payload.get("blocked_apps", [])
+            if str(item).strip()
+        }
         return PolicyUsuario(blocked_domains=domains, blocked_apps=apps)
 
     def save(self, policy: PolicyUsuario) -> None:

@@ -4,6 +4,7 @@ Configuration module for Jarvis.
 All configuration is loaded from environment variables.
 Self-hosted architecture (local/VPS brain, no external API).
 """
+
 from __future__ import annotations
 
 import os
@@ -22,7 +23,7 @@ def _env(key: str, default: str | None = None) -> str | None:
 def _env_bool(key: str, default: bool = False) -> bool:
     """Get boolean environment variable."""
     from .utils import normalize_text
-    
+
     value = os.environ.get(key)
     if value is None:
         return default
@@ -133,6 +134,7 @@ class Config:
 
     # STT settings
     stt_mode: str  # local, auto, none
+    stt_audio_trim_backend: str
 
     # TTS settings
     tts_mode: str  # piper, espeak, none
@@ -177,22 +179,27 @@ class Config:
     s3_max_image_dim: int
 
 
-DEFAULT_DATA_DIR = Path(_env("JARVIS_DATA_DIR", str(Path.home() / ".jarvis")))
-
-
 def load_config() -> Config:
     """Load configuration from environment variables."""
     _load_dotenv()
-    data_dir = DEFAULT_DATA_DIR
+    data_dir = Path(
+        _env("JARVIS_DATA_DIR", str(Path.home() / ".jarvis")) or str(Path.home() / ".jarvis")
+    )
     cache_dir = data_dir / "cache"
     log_path = data_dir / "events.jsonl"
     memory_db = data_dir / "memory.sqlite3"
-    procedures_path = Path(_env("JARVIS_PROCEDURES_PATH", str(data_dir / "procedures.db")))
-    policy_user_path = Path(_env("JARVIS_POLICY_USER_PATH", str(data_dir / "policy_user.json")))
-    stop_file_path = Path(_env("JARVIS_STOP_FILE_PATH", str(data_dir / "STOP")))
-    chat_log_path = Path(_env("JARVIS_CHAT_LOG_PATH", str(data_dir / "chat.log")))
-    chat_inbox_path = Path(_env("JARVIS_CHAT_INBOX_PATH", str(data_dir / "chat_inbox.txt")))
-    budget_path = Path(_env("JARVIS_BUDGET_PATH", str(data_dir / "orcamento.json")))
+    procedures_path = Path(
+        _env("JARVIS_PROCEDURES_PATH", str(data_dir / "procedures.db")) or str(data_dir / "procedures.db")
+    )
+    policy_user_path = Path(
+        _env("JARVIS_POLICY_USER_PATH", str(data_dir / "policy_user.json")) or str(data_dir / "policy_user.json")
+    )
+    stop_file_path = Path(_env("JARVIS_STOP_FILE_PATH", str(data_dir / "STOP")) or str(data_dir / "STOP"))
+    chat_log_path = Path(_env("JARVIS_CHAT_LOG_PATH", str(data_dir / "chat.log")) or str(data_dir / "chat.log"))
+    chat_inbox_path = Path(
+        _env("JARVIS_CHAT_INBOX_PATH", str(data_dir / "chat_inbox.txt")) or str(data_dir / "chat_inbox.txt")
+    )
+    budget_path = Path(_env("JARVIS_BUDGET_PATH", str(data_dir / "orcamento.json")) or str(data_dir / "orcamento.json"))
 
     # Legacy passphrase support
     legacy_passphrase = _env("JARVIS_APPROVAL_PASSPHRASE")
@@ -200,7 +207,7 @@ def load_config() -> Config:
     key_passphrase = _env("JARVIS_APPROVAL_KEY_PASSPHRASE", legacy_passphrase)
 
     # STT mode defaults to local (no cloud)
-    stt_mode = _env("JARVIS_STT_MODE", "local")
+    stt_mode = _env("JARVIS_STT_MODE", "local") or "local"
 
     return Config(
         # Data directories
@@ -217,59 +224,65 @@ def load_config() -> Config:
         procedures_max_total=_env_int("JARVIS_PROCEDURES_MAX_TOTAL", 300),
         procedures_max_per_tag=_env_int("JARVIS_PROCEDURES_MAX_PER_TAG", 20),
         procedures_ttl_days=_env_int("JARVIS_PROCEDURES_TTL_DAYS", 90),
-
         # LLM (self-hosted)
         local_llm_base_url=_env("JARVIS_LOCAL_LLM_BASE_URL"),
         local_llm_api_key=_env("JARVIS_LOCAL_LLM_API_KEY"),
-        local_llm_model=_env("JARVIS_LOCAL_LLM_MODEL", "qwen2.5-7b-instruct"),
+        local_llm_model=_env("JARVIS_LOCAL_LLM_MODEL", "qwen2.5-7b-instruct") or "qwen2.5-7b-instruct",
         local_llm_timeout_s=_env_int("JARVIS_LOCAL_LLM_TIMEOUT_S", 30),
         local_llm_cooldown_s=_env_int("JARVIS_LOCAL_LLM_COOLDOWN_S", 300),
         llm_confidence_min=_env_float("JARVIS_LLM_CONFIDENCE_MIN", 0.55),
         max_failures_per_command=_env_int("JARVIS_MAX_FAILURES_PER_COMMAND", 2),
         max_guidance_attempts=_env_int("JARVIS_MAX_GUIDANCE_ATTEMPTS", 2),
         browser_ai_enabled=_env_bool("JARVIS_BROWSER_AI_ENABLED", True),
-        browser_ai_url=_env("JARVIS_BROWSER_AI_URL", "https://chatgpt.com"),
+        browser_ai_url=_env("JARVIS_BROWSER_AI_URL", "https://chatgpt.com") or "https://chatgpt.com",
         auto_learn_procedures=_env_bool("JARVIS_AUTO_LEARN_PROCEDURES", True),
         block_external_sensitive=_env_bool("JARVIS_BLOCK_EXTERNAL_SENSITIVE", True),
         external_ask_on_sensitive=_env_bool("JARVIS_EXTERNAL_ASK_ON_SENSITIVE", True),
         chat_auto_open=_env_bool("JARVIS_CHAT_AUTO_OPEN", False),
         chat_open_command=_env("JARVIS_CHAT_OPEN_COMMAND"),
-
         # STT
-        stt_mode=stt_mode,
-
+        stt_mode=stt_mode or "local",
+        stt_audio_trim_backend=_env("JARVIS_AUDIO_TRIM_BACKEND", "none") or "none",
         # TTS
-        tts_mode=_env("JARVIS_TTS_MODE", "local"),
-
+        tts_mode=_env("JARVIS_TTS_MODE", "local") or "local",
         # Security
         require_approval=_env_bool("JARVIS_REQUIRE_APPROVAL", True),
         approval_passphrase=legacy_passphrase,
         approval_voice_passphrase=voice_passphrase,
         approval_key_passphrase=key_passphrase,
-        approval_mode=_env("JARVIS_APPROVAL_MODE", "voice_and_key"),
-
+        approval_mode=_env("JARVIS_APPROVAL_MODE", "voice_and_key") or "voice_and_key",
         # System
-        session_type=_env("XDG_SESSION_TYPE", "unknown"),
+        session_type=_env("XDG_SESSION_TYPE", "unknown") or "unknown",
         dry_run=_env_bool("JARVIS_DRY_RUN", False),
         allow_open_app=_env_bool("JARVIS_ALLOW_OPEN_APP", True),
-
         # Privacy
         mask_screenshots=_env_bool("JARVIS_MASK_SCREENSHOTS", True),
-
         # Budget
         budget_path=budget_path,
         budget_max_calls=_env_int("JARVIS_BUDGET_MAX_CALLS", 0),
         budget_max_chars=_env_int("JARVIS_BUDGET_MAX_CHARS", 0),
-
         # Agent S3
-        s3_worker_engine_type=_env("JARVIS_S3_WORKER_ENGINE_TYPE", "openai_compat"),
-        s3_worker_base_url=_env("JARVIS_S3_WORKER_BASE_URL", _env("JARVIS_LOCAL_LLM_BASE_URL")),
-        s3_worker_api_key=_env("JARVIS_S3_WORKER_API_KEY", _env("JARVIS_LOCAL_LLM_API_KEY")),
-        s3_worker_model=_env("JARVIS_S3_WORKER_MODEL", _env("JARVIS_LOCAL_LLM_MODEL", "qwen2.5-7b-instruct")),
-        s3_grounding_engine_type=_env("JARVIS_S3_GROUNDING_ENGINE_TYPE", "openai_compat"),
-        s3_grounding_base_url=_env("JARVIS_S3_GROUNDING_BASE_URL", _env("JARVIS_LOCAL_LLM_BASE_URL")),
-        s3_grounding_api_key=_env("JARVIS_S3_GROUNDING_API_KEY", _env("JARVIS_LOCAL_LLM_API_KEY")),
-        s3_grounding_model=_env("JARVIS_S3_GROUNDING_MODEL", "ui-tars-1.5-7b"),
+        s3_worker_engine_type=_env("JARVIS_S3_WORKER_ENGINE_TYPE", "openai_compat") or "openai_compat",
+        s3_worker_base_url=_env(
+            "JARVIS_S3_WORKER_BASE_URL", _env("JARVIS_LOCAL_LLM_BASE_URL")
+        ),
+        s3_worker_api_key=_env(
+            "JARVIS_S3_WORKER_API_KEY", _env("JARVIS_LOCAL_LLM_API_KEY")
+        ),
+        s3_worker_model=_env(
+            "JARVIS_S3_WORKER_MODEL",
+            _env("JARVIS_LOCAL_LLM_MODEL", "qwen2.5-7b-instruct") or "qwen2.5-7b-instruct",
+        ) or (_env("JARVIS_LOCAL_LLM_MODEL", "qwen2.5-7b-instruct") or "qwen2.5-7b-instruct"),
+        s3_grounding_engine_type=_env(
+            "JARVIS_S3_GROUNDING_ENGINE_TYPE", "openai_compat"
+        ) or "openai_compat",
+        s3_grounding_base_url=_env(
+            "JARVIS_S3_GROUNDING_BASE_URL", _env("JARVIS_LOCAL_LLM_BASE_URL")
+        ),
+        s3_grounding_api_key=_env(
+            "JARVIS_S3_GROUNDING_API_KEY", _env("JARVIS_LOCAL_LLM_API_KEY")
+        ),
+        s3_grounding_model=_env("JARVIS_S3_GROUNDING_MODEL", "ui-tars-1.5-7b") or "ui-tars-1.5-7b",
         s3_grounding_width=_env_int("JARVIS_S3_GROUNDING_WIDTH", 1920),
         s3_grounding_height=_env_int("JARVIS_S3_GROUNDING_HEIGHT", 1080),
         s3_max_steps=_env_int("JARVIS_S3_MAX_STEPS", 15),

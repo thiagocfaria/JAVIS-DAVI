@@ -7,15 +7,22 @@ This module provides functionality to:
 3. Redact sensitive text before sending
 4. Blacklist certain apps from ever sending screenshots
 """
+
 from __future__ import annotations
 
 import os
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional, Set, Tuple
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage, ImageDraw, ImageFilter
 
 try:
-    from PIL import Image, ImageDraw, ImageFilter  # type: ignore
+    from PIL import Image as _Image, ImageDraw as _ImageDraw, ImageFilter as _ImageFilter  # type: ignore
+    Image = _Image
+    ImageDraw = _ImageDraw
+    ImageFilter = _ImageFilter
 except ImportError:
     Image = None
     ImageDraw = None
@@ -34,34 +41,26 @@ except ImportError:
 PATTERNS = {
     # Brazilian CPF: XXX.XXX.XXX-XX or XXXXXXXXXXX
     "cpf": re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b"),
-
     # Brazilian CNPJ: XX.XXX.XXX/XXXX-XX
     "cnpj": re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b"),
-
     # Credit card numbers (13-19 digits, with optional spaces/dashes)
     "credit_card": re.compile(r"\b(?:\d{4}[-\s]?){3,4}\d{1,4}\b"),
-
     # CVV (3-4 digits, typically labeled)
     "cvv": re.compile(r"\b(?:cvv|cvc|csc)[\s:]*\d{3,4}\b", re.IGNORECASE),
-
     # Email addresses
     "email": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"),
-
     # Phone numbers (Brazilian format)
     "phone": re.compile(r"\b(?:\+55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}[-\s]?\d{4}\b"),
-
     # Passwords (common patterns in forms)
     "password": re.compile(r"(?:senha|password|pwd)[\s:]*\S+", re.IGNORECASE),
-
     # PIX keys (various formats)
     "pix": re.compile(r"\b(?:pix|chave)[\s:]*\S+", re.IGNORECASE),
-
     # Bank account numbers
-    "bank_account": re.compile(r"\b(?:conta|ag[eê]ncia)[\s:]*\d+[-\s]?\d*\b", re.IGNORECASE),
-
+    "bank_account": re.compile(
+        r"\b(?:conta|ag[eê]ncia)[\s:]*\d+[-\s]?\d*\b", re.IGNORECASE
+    ),
     # Monetary values (R$ XX.XXX,XX)
     "money": re.compile(r"R\$\s*[\d.,]+"),
-
     # RG (Brazilian ID)
     "rg": re.compile(r"\b\d{1,2}\.?\d{3}\.?\d{3}-?[0-9Xx]\b"),
 }
@@ -69,27 +68,61 @@ PATTERNS = {
 # Apps that should NEVER have screenshots sent to external AI
 BLACKLISTED_APPS: set[str] = {
     # Password managers
-    "1password", "bitwarden", "keepass", "keepassxc", "lastpass", "dashlane",
+    "1password",
+    "bitwarden",
+    "keepass",
+    "keepassxc",
+    "lastpass",
+    "dashlane",
     # Banking apps
-    "nubank", "itau", "bradesco", "santander", "caixa", "bb", "inter",
-    "banco do brasil", "original", "c6bank", "picpay", "mercadopago",
+    "nubank",
+    "itau",
+    "bradesco",
+    "santander",
+    "caixa",
+    "bb",
+    "inter",
+    "banco do brasil",
+    "original",
+    "c6bank",
+    "picpay",
+    "mercadopago",
     # Crypto wallets
-    "metamask", "exodus", "ledger", "trezor",
+    "metamask",
+    "exodus",
+    "ledger",
+    "trezor",
     # Secure terminals
-    "gnome-keyring", "seahorse",
+    "gnome-keyring",
+    "seahorse",
 }
 
 # Additional blocked domains for URLs
 BLOCKED_DOMAINS: set[str] = {
-    "banco", "bank", "pix", "nubank", "itau", "bradesco", "santander",
-    "caixa", "bb.com", "inter", "c6bank", "picpay", "mercadopago",
-    "paypal", "stripe", "binance", "coinbase",
+    "banco",
+    "bank",
+    "pix",
+    "nubank",
+    "itau",
+    "bradesco",
+    "santander",
+    "caixa",
+    "bb.com",
+    "inter",
+    "c6bank",
+    "picpay",
+    "mercadopago",
+    "paypal",
+    "stripe",
+    "binance",
+    "coinbase",
 }
 
 
 @dataclass
 class SensitiveRegion:
     """Represents a sensitive region in an image."""
+
     x: int
     y: int
     width: int
@@ -101,6 +134,7 @@ class SensitiveRegion:
 @dataclass
 class PrivacyConfig:
     """Configuration for privacy masking."""
+
     blur_radius: int = 15
     mask_color: tuple[int, int, int] = (0, 0, 0)
     expand_region_px: int = 10
@@ -112,7 +146,7 @@ class PrivacyConfig:
 class PrivacyMasker:
     """
     Masks sensitive data in screenshots before sending to external AI.
-    
+
     Features:
     - OCR-based detection of sensitive text
     - Regex-based pattern matching
@@ -152,20 +186,22 @@ class PrivacyMasker:
     def detect_sensitive_text(self, text: str) -> list[tuple[str, str, int, int]]:
         """
         Detect sensitive patterns in text.
-        
+
         Returns:
             List of (pattern_type, matched_text, start, end) tuples
         """
         results = []
         for pattern_name, pattern in self.config.patterns.items():
             for match in pattern.finditer(text):
-                results.append((pattern_name, match.group(), match.start(), match.end()))
+                results.append(
+                    (pattern_name, match.group(), match.start(), match.end())
+                )
         return results
 
     def redact_text(self, text: str) -> str:
         """
         Redact sensitive patterns from text.
-        
+
         Returns:
             Text with sensitive data replaced by [REDACTED]
         """
@@ -183,13 +219,10 @@ class PrivacyMasker:
 
         return result
 
-    def detect_sensitive_regions_ocr(
-        self,
-        image: Image.Image
-    ) -> list[SensitiveRegion]:
+    def detect_sensitive_regions_ocr(self, image: "PILImage.Image") -> list[SensitiveRegion]:
         """
         Detect sensitive regions in an image using OCR.
-        
+
         Requires pytesseract to be installed.
         """
         if pytesseract is None:
@@ -204,29 +237,35 @@ class PrivacyMasker:
             # Get OCR data with bounding boxes
             data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
 
-            n_boxes = len(data['text'])
+            n_boxes = len(data["text"])
             for i in range(n_boxes):
-                text = data['text'][i]
+                text = data["text"][i]
                 if not text or not text.strip():
                     continue
 
                 # Check against patterns
                 for pattern_name, pattern in self.config.patterns.items():
                     if pattern.search(text):
-                        x = data['left'][i]
-                        y = data['top'][i]
-                        w = data['width'][i]
-                        h = data['height'][i]
-                        conf = float(data['conf'][i]) / 100.0 if data['conf'][i] != -1 else 0.5
+                        x = data["left"][i]
+                        y = data["top"][i]
+                        w = data["width"][i]
+                        h = data["height"][i]
+                        conf = (
+                            float(data["conf"][i]) / 100.0
+                            if data["conf"][i] != -1
+                            else 0.5
+                        )
 
-                        regions.append(SensitiveRegion(
-                            x=x - self.config.expand_region_px,
-                            y=y - self.config.expand_region_px,
-                            width=w + 2 * self.config.expand_region_px,
-                            height=h + 2 * self.config.expand_region_px,
-                            pattern_type=pattern_name,
-                            confidence=conf,
-                        ))
+                        regions.append(
+                            SensitiveRegion(
+                                x=x - self.config.expand_region_px,
+                                y=y - self.config.expand_region_px,
+                                width=w + 2 * self.config.expand_region_px,
+                                height=h + 2 * self.config.expand_region_px,
+                                pattern_type=pattern_name,
+                                confidence=conf,
+                            )
+                        )
         except Exception:
             pass  # OCR failed, return empty list
 
@@ -234,18 +273,18 @@ class PrivacyMasker:
 
     def mask_image(
         self,
-        image: Image.Image,
+        image: "PILImage.Image",
         regions: list[SensitiveRegion] | None = None,
         use_blur: bool = True,
-    ) -> Image.Image:
+    ) -> "PILImage.Image":
         """
         Mask sensitive regions in an image.
-        
+
         Args:
             image: PIL Image to mask
             regions: List of regions to mask (auto-detects if None)
             use_blur: Use blur (True) or solid color (False)
-            
+
         Returns:
             Masked image
         """
@@ -273,12 +312,16 @@ class PrivacyMasker:
                 # Extract region, blur, and paste back
                 box = (x1, y1, x2, y2)
                 region_img = result.crop(box)
+                if ImageFilter is None:
+                    raise RuntimeError("PIL not available")
                 blurred = region_img.filter(
                     ImageFilter.GaussianBlur(radius=self.config.blur_radius)
                 )
                 result.paste(blurred, box)
             else:
                 # Draw solid rectangle
+                if ImageDraw is None:
+                    raise RuntimeError("PIL not available")
                 draw = ImageDraw.Draw(result)
                 draw.rectangle([x1, y1, x2, y2], fill=self.config.mask_color)
 
@@ -286,21 +329,21 @@ class PrivacyMasker:
 
     def crop_relevant_area(
         self,
-        image: Image.Image,
+        image: "PILImage.Image",
         focus_x: int,
         focus_y: int,
         context_px: int = 200,
-    ) -> Image.Image:
+    ) -> "PILImage.Image":
         """
         Crop image to relevant area around a focus point.
-        
+
         This reduces the amount of potentially sensitive data sent.
-        
+
         Args:
             image: Full screenshot
             focus_x, focus_y: Center point of interest
             context_px: Pixels of context around focus
-            
+
         Returns:
             Cropped image
         """
@@ -316,24 +359,24 @@ class PrivacyMasker:
 
     def process_screenshot(
         self,
-        image: Image.Image,
+        image: "PILImage.Image",
         app_name: str | None = None,
         url: str | None = None,
         auto_detect: bool = True,
         use_blur: bool = True,
-    ) -> Image.Image | None:
+    ) -> "PILImage.Image | None":
         """
         Process a screenshot for safe sending to external AI.
-        
+
         Returns None if the screenshot should not be sent at all.
-        
+
         Args:
             image: Screenshot to process
             app_name: Name of the app in the screenshot
             url: URL if it's a browser screenshot
             auto_detect: Automatically detect sensitive regions
             use_blur: Use blur instead of solid mask
-            
+
         Returns:
             Processed image or None if blocked
         """
@@ -368,4 +411,3 @@ def check_privacy_deps() -> dict:
         "pillow": Image is not None,
         "pytesseract": pytesseract is not None,
     }
-

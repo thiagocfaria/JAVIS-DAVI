@@ -170,43 +170,43 @@
   <text x="200" y="976" class="tiny">Fluxo: mic -&gt; stt/vad -&gt; inbox -&gt; orq -&gt; tts/log</text>
   <!-- sub-baloes da interface (limpo e explicativo) -->
   <rect x="190" y="184" width="165" height="28" class="box-input card"/>
-  <text x="198" y="196" class="tiny-strong">entrada/preflight.py</text>
+  <text x="198" y="196" class="tiny-strong">interface/entrada/preflight.py</text>
   <text x="198" y="207" class="tiny">confere microfone</text>
 
   <rect x="370" y="184" width="165" height="28" class="box-input card"/>
-  <text x="378" y="196" class="tiny-strong">entrada/chat_ui.py</text>
+  <text x="378" y="196" class="tiny-strong">interface/entrada/chat_ui.py</text>
   <text x="378" y="207" class="tiny">caixinha para digitar</text>
 
   <rect x="190" y="216" width="165" height="28" class="box-input card"/>
-  <text x="198" y="228" class="tiny-strong">entrada/app.py</text>
+  <text x="198" y="228" class="tiny-strong">interface/entrada/app.py</text>
   <text x="198" y="239" class="tiny">inicia voz + texto</text>
 
   <rect x="370" y="216" width="165" height="28" class="box-input card"/>
-  <text x="378" y="228" class="tiny-strong">entrada/gui_panel.py</text>
+  <text x="378" y="228" class="tiny-strong">interface/entrada/gui_panel.py</text>
   <text x="378" y="239" class="tiny">painel + cancelar</text>
 
   <rect x="190" y="248" width="165" height="28" class="box-input card"/>
-  <text x="198" y="260" class="tiny-strong">entrada/audio_utils.py</text>
+  <text x="198" y="260" class="tiny-strong">interface/audio/audio_utils.py</text>
   <text x="198" y="271" class="tiny">normaliza PCM</text>
 
   <rect x="370" y="248" width="165" height="28" class="box-input card"/>
-  <text x="378" y="260" class="tiny-strong">entrada/shortcut.py</text>
+  <text x="378" y="260" class="tiny-strong">interface/entrada/shortcut.py</text>
   <text x="378" y="271" class="tiny">atalho global do chat</text>
 
   <rect x="190" y="280" width="165" height="28" class="box-input card"/>
-  <text x="198" y="292" class="tiny-strong">voz/vad.py</text>
+  <text x="198" y="292" class="tiny-strong">interface/entrada/vad.py</text>
   <text x="198" y="303" class="tiny">detecta quando ha fala</text>
 
   <rect x="370" y="280" width="165" height="28" class="box-input card"/>
-  <text x="378" y="292" class="tiny-strong">entrada/followup.py</text>
+  <text x="378" y="292" class="tiny-strong">interface/entrada/followup.py</text>
   <text x="378" y="303" class="tiny">janela + limite</text>
 
   <rect x="190" y="312" width="165" height="28" class="box-input card"/>
-  <text x="198" y="324" class="tiny-strong">entrada/stt.py</text>
-  <text x="198" y="335" class="tiny">voz vira texto; Rust + debounce</text>
+  <text x="198" y="324" class="tiny-strong">interface/entrada/stt.py</text>
+  <text x="198" y="335" class="tiny">voz vira texto; Rust + turn_taking + emocao</text>
 
   <rect x="370" y="312" width="165" height="28" class="box-input card"/>
-  <text x="378" y="324" class="tiny-strong">comunicacao/chat_inbox.py</text>
+  <text x="378" y="324" class="tiny-strong">interface/infra/chat_inbox.py</text>
   <text x="378" y="335" class="tiny">ponte p/ comandos</text>
 
   <rect x="190" y="344" width="165" height="28" class="box-input card"/>
@@ -214,15 +214,15 @@
   <text x="198" y="367" class="tiny">trim/silencio em Rust</text>
 
   <rect x="370" y="344" width="165" height="28" class="box-input card"/>
-  <text x="378" y="356" class="tiny-strong">voz/tts.py</text>
+  <text x="378" y="356" class="tiny-strong">interface/saida/tts.py</text>
   <text x="378" y="367" class="tiny">texto vira voz</text>
 
   <rect x="190" y="376" width="165" height="28" class="box-input card"/>
-  <text x="198" y="388" class="tiny-strong">voz/speaker_verify.py</text>
+  <text x="198" y="388" class="tiny-strong">interface/entrada/speaker_verify.py</text>
   <text x="198" y="399" class="tiny">confere se e sua voz</text>
 
   <rect x="370" y="376" width="165" height="28" class="box-input card"/>
-  <text x="378" y="388" class="tiny-strong">comunicacao/chat_log.py</text>
+  <text x="378" y="388" class="tiny-strong">interface/infra/chat_log.py</text>
   <text x="378" y="399" class="tiny">diario do chat</text>
 
   <rect x="190" y="408" width="165" height="28" class="box-input card"/>
@@ -252,10 +252,10 @@
   <text x="198" y="552" class="tiny">piper/espeak-ng + aplay (TTS)</text>
   <text x="198" y="562" class="tiny">resemblyzer + cryptography (locutor)</text>
   <text x="198" y="572" class="tiny">pynput + watchdog + tkinter (UI/atalho)</text>
-  <text x="198" y="582" class="tiny">pvporcupine/openwakeword (wake word audio)</text>
-  <text x="198" y="592" class="tiny">py-spy + psutil + nvidia-smi (perf)</text>
+  <text x="198" y="582" class="tiny">pvporcupine/openwakeword (wake word audio) + RealtimeSTT (STT streaming, vendorizado)</text>
+  <text x="198" y="592" class="tiny">py-spy + psutil + nvidia-smi (perf) + ruff/black</text>
 
-  <rect x="190" y="602" width="345" height="270" class="box-input card"/>
+  <rect x="190" y="602" width="345" height="310" class="box-input card"/>
   <text x="198" y="616" class="tiny-strong">Testes da interface (entrada/saida)</text>
   <text x="198" y="632" class="tiny">test_preflight_* - headless/perfis/probe/atalho</text>
   <text x="198" y="643" class="tiny">test_audio_utils.py - PCM/bytes</text>
@@ -274,17 +274,19 @@
   <text x="198" y="786" class="tiny">test_vad_pre_roll.py + test_vad_metrics.py - VAD pre-roll/metricas</text>
   <text x="198" y="797" class="tiny">test_vad_streaming_interface.py + test_aec_interface.py - VAD/AEC</text>
   <text x="198" y="808" class="tiny">test_followup_mode.py - follow-up</text>
-  <text x="198" y="819" class="tiny">test_voice_adapters.py - adapters de voz</text>
-  <text x="198" y="830" class="tiny">test_speaker_verify_interface.py - verif. de locutor</text>
-  <text x="198" y="841" class="tiny">test_voice_max_seconds_env.py - max_seconds</text>
+  <text x="198" y="819" class="tiny">test_voice_adapters.py + test_emocao_interface.py - adapters/emoção</text>
+  <text x="198" y="830" class="tiny">test_speaker_verify_interface.py + test_speaker_lock_interface.py - verif/lock</text>
+  <text x="198" y="841" class="tiny">test_voice_max_seconds_env.py + test_turn_taking_interface.py - max_seconds/turn-taking</text>
   <text x="198" y="852" class="tiny">test_tts_interface.py - TTS piper/espeak</text>
-  <text x="198" y="863" class="tiny">test_bench_interface.py + scripts/bench_interface.py - lat/CPU/RAM</text>
-  <text x="198" y="863" class="tiny">pytest -q testes/ (suite completa)</text>
-  <rect x="190" y="876" width="345" height="80" class="box-input card"/>
-  <text x="198" y="890" class="tiny-strong">Performance atual (bench 2026-01-10)</text>
-  <text x="198" y="904" class="tiny">Lat (30s): STT 13.6s | Spk 0.64s | VAD 4.6ms | TTS 2.4ms</text>
-  <text x="198" y="918" class="tiny">RSS: STT 1.25GB | VAD 0.61GB | Spk 0.76GB | TTS 0.10GB</text>
-  <text x="198" y="932" class="tiny">Disk 50-200MB (+log 1-10MB) | ver EVOLUCAO_PERFOMACE.MD</text>
+  <text x="198" y="863" class="tiny">test_tts_verification.py - verificacao bugs TTS (race conditions/processos orfaos)</text>
+  <text x="198" y="874" class="tiny">test_bench_interface.py + scripts/bench_interface.py (stt/stt_realtimestt) - lat/CPU/RAM</text>
+  <text x="198" y="885" class="tiny">scripts/auto_voice_bench.py - voz real (silencio + ruido)</text>
+  <text x="198" y="896" class="tiny">pytest -q testes/ (suite completa)</text>
+  <rect x="190" y="910" width="345" height="80" class="box-input card"/>
+  <text x="198" y="924" class="tiny-strong">Performance atual (bench 2026-01-17)</text>
+  <text x="198" y="938" class="tiny">Lat (voice_clean 16k): STT 5.7s | VAD ~0.69ms | endpoint 390ms</text>
+  <text x="198" y="952" class="tiny">RSS: ver EVOLUCAO_PERFOMACE.MD</text>
+  <text x="198" y="966" class="tiny">Disk 50-200MB (+log 1-10MB)</text>
   <!-- setas internas da interface -->
   <line x1="272" y1="212" x2="272" y2="216" class="arrow-interface"/>
   <line x1="272" y1="244" x2="272" y2="248" class="arrow-interface"/>

@@ -1,0 +1,32 @@
+[tool.ruff]
+exclude = [
+  "jarvis/REPOSITORIOS_CLONAR",
+  "jarvis/third_party",
+  ".venv",
+  ".venv_notebooklm",
+  "**/*.ipynb",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*.py" = ["E402"]  # Imports após sys.path.insert são intencionais
+"testes/test_audio_resample.py" = ["E402"]  # Import após pytest.importorskip
+
+[tool.black]
+exclude = '''
+/(
+  jarvis/REPOSITORIOS_CLONAR
+  | jarvis/third_party
+  | \.venv
+  | \.venv_notebooklm
+  | .*\.ipynb
+)/
+'''
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+pretty = true
+exclude = '^(jarvis/REPOSITORIOS_CLONAR/|jarvis/third_party/|testes/|tests/|\\.venv/|\\.venv_notebooklm/|build/|dist/)'

@@ -8,7 +8,6 @@ import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from ..cerebro.actions import ActionPlan
 
@@ -112,7 +111,8 @@ class ProcedureStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         conn = self._connect()
         try:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS procedures (
                     id TEXT PRIMARY KEY,
                     template TEXT UNIQUE NOT NULL,
@@ -125,15 +125,20 @@ class ProcedureStore:
                     last_used_at REAL,
                     last_success_at REAL
                 )
-            """)
-            conn.execute("""
+            """
+            )
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS procedure_tags (
                     procedure_id TEXT NOT NULL,
                     tag TEXT NOT NULL,
                     PRIMARY KEY (procedure_id, tag)
                 )
-            """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_procedure_tags_tag ON procedure_tags(tag)")
+            """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_procedure_tags_tag ON procedure_tags(tag)"
+            )
             conn.commit()
         finally:
             conn.close()
@@ -189,7 +194,9 @@ class ProcedureStore:
                 "SELECT id, template, plan_json, step_count, created_at, updated_at, "
                 "success_count, use_count, last_used_at, last_success_at FROM procedures"
             ).fetchall()
-            tags_rows = conn.execute("SELECT procedure_id, tag FROM procedure_tags").fetchall()
+            tags_rows = conn.execute(
+                "SELECT procedure_id, tag FROM procedure_tags"
+            ).fetchall()
         finally:
             conn.close()
 
@@ -274,7 +281,9 @@ class ProcedureStore:
                 best_score = score
                 best = (proc, values)
             elif best is not None and score == best_score:
-                if (proc.last_used_at or proc.updated_at) > (best[0].last_used_at or best[0].updated_at):
+                if (proc.last_used_at or proc.updated_at) > (
+                    best[0].last_used_at or best[0].updated_at
+                ):
                     best = (proc, values)
 
         if not best:
@@ -309,7 +318,8 @@ class ProcedureStore:
             return
         cutoff = time.time() - (self.ttl_days * 86400)
         to_remove = [
-            proc for proc in self._procedures
+            proc
+            for proc in self._procedures
             if (proc.last_used_at or proc.updated_at) < cutoff
         ]
         for proc in to_remove:
@@ -336,7 +346,9 @@ class ProcedureStore:
     def _delete(self, proc: ProcedureRecord) -> None:
         conn = self._connect()
         try:
-            conn.execute("DELETE FROM procedure_tags WHERE procedure_id = ?", (proc.id,))
+            conn.execute(
+                "DELETE FROM procedure_tags WHERE procedure_id = ?", (proc.id,)
+            )
             conn.execute("DELETE FROM procedures WHERE id = ?", (proc.id,))
             conn.commit()
         finally:
@@ -349,7 +361,8 @@ class ProcedureStore:
         conn = self._connect()
         try:
             if replace_plan:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO procedures
                     (id, template, plan_json, step_count, created_at, updated_at, success_count,
                      use_count, last_used_at, last_success_at)
@@ -360,20 +373,23 @@ class ProcedureStore:
                         updated_at = excluded.updated_at,
                         success_count = excluded.success_count,
                         last_success_at = excluded.last_success_at
-                """, (
-                    record.id,
-                    record.template,
-                    json.dumps(record.plan, ensure_ascii=True),
-                    record.step_count,
-                    record.created_at,
-                    record.updated_at,
-                    record.success_count,
-                    record.use_count,
-                    record.last_used_at,
-                    record.last_success_at,
-                ))
+                """,
+                    (
+                        record.id,
+                        record.template,
+                        json.dumps(record.plan, ensure_ascii=True),
+                        record.step_count,
+                        record.created_at,
+                        record.updated_at,
+                        record.success_count,
+                        record.use_count,
+                        record.last_used_at,
+                        record.last_success_at,
+                    ),
+                )
             else:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO procedures
                     (id, template, plan_json, step_count, created_at, updated_at, success_count,
                      use_count, last_used_at, last_success_at)
@@ -382,19 +398,23 @@ class ProcedureStore:
                         updated_at = excluded.updated_at,
                         success_count = excluded.success_count,
                         last_success_at = excluded.last_success_at
-                """, (
-                    record.id,
-                    record.template,
-                    json.dumps(record.plan, ensure_ascii=True),
-                    record.step_count,
-                    record.created_at,
-                    record.updated_at,
-                    record.success_count,
-                    record.use_count,
-                    record.last_used_at,
-                    record.last_success_at,
-                ))
-            conn.execute("DELETE FROM procedure_tags WHERE procedure_id = ?", (record.id,))
+                """,
+                    (
+                        record.id,
+                        record.template,
+                        json.dumps(record.plan, ensure_ascii=True),
+                        record.step_count,
+                        record.created_at,
+                        record.updated_at,
+                        record.success_count,
+                        record.use_count,
+                        record.last_used_at,
+                        record.last_success_at,
+                    ),
+                )
+            conn.execute(
+                "DELETE FROM procedure_tags WHERE procedure_id = ?", (record.id,)
+            )
             conn.executemany(
                 "INSERT INTO procedure_tags (procedure_id, tag) VALUES (?, ?)",
                 [(record.id, tag) for tag in record.tags],
@@ -489,7 +509,7 @@ def template_to_regex(template: str) -> tuple[str, list[str]]:
     slots = re.findall(r"\{([^}]+)\}", template)
     pattern = re.escape(template)
     for slot in slots:
-        pattern = pattern.replace(re.escape(f"{{{slot}}}"), fr"(?P<{slot}>.+)")
+        pattern = pattern.replace(re.escape(f"{{{slot}}}"), rf"(?P<{slot}>.+)")
     pattern = f"^{pattern}$"
     return pattern, slots
 
@@ -497,13 +517,13 @@ def template_to_regex(template: str) -> tuple[str, list[str]]:
 def template_to_regex_cached(template: str) -> tuple[re.Pattern[str], list[str]]:
     """
     Get compiled regex pattern for template with caching (performance improvement).
-    
+
     This function caches compiled regex patterns to avoid recompilation
     on every match attempt, reducing overhead by 50-70%.
     """
     if template in _regex_cache:
         return _regex_cache[template]
-    
+
     pattern_str, slots = template_to_regex(template)
     pattern = re.compile(pattern_str, re.IGNORECASE)
     _regex_cache[template] = (pattern, slots)

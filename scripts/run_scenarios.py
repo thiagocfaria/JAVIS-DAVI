@@ -31,7 +31,9 @@ def _build_orchestrator(dry_run: bool) -> Orchestrator:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run scenario tests (dry-run by default)")
+    parser = argparse.ArgumentParser(
+        description="Run scenario tests (dry-run by default)"
+    )
     parser.add_argument(
         "--file",
         default=str(ROOT / "Documentos" / "benchmarks" / "scenarios.json"),

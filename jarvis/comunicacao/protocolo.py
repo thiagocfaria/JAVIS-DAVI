@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 TIPOS_MENSAGEM = {
     "hello",
@@ -56,7 +56,9 @@ class Mensagem:
         )
 
 
-def criar_mensagem(tipo: str, session_id: str, payload: dict[str, Any] | None = None) -> Mensagem:
+def criar_mensagem(
+    tipo: str, session_id: str, payload: dict[str, Any] | None = None
+) -> Mensagem:
     return Mensagem(
         version=PROTO_VERSION,
         tipo=tipo,

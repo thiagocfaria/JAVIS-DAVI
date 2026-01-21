@@ -9,16 +9,32 @@ from scripts.telemetry_report import build_summary, load_events
 class TestTelemetryReport(unittest.TestCase):
     def test_build_summary_collects_events(self) -> None:
         events = [
-            {"ts": 1.0, "type": "command.start", "payload": {"command_id": "cmd1", "text": "acao"}},
+            {
+                "ts": 1.0,
+                "type": "command.start",
+                "payload": {"command_id": "cmd1", "text": "acao"},
+            },
             {
                 "ts": 2.0,
                 "type": "plan.executed",
-                "payload": {"command_id": "cmd1", "source": "local", "success": True, "duration": 0.1, "actions": 3, "risk_level": "low"},
+                "payload": {
+                    "command_id": "cmd1",
+                    "source": "local",
+                    "success": True,
+                    "duration": 0.1,
+                    "actions": 3,
+                    "risk_level": "low",
+                },
             },
             {
                 "ts": 3.0,
                 "type": "command.end",
-                "payload": {"command_id": "cmd1", "status": "success", "duration": 0.3, "error": ""},
+                "payload": {
+                    "command_id": "cmd1",
+                    "status": "success",
+                    "duration": 0.3,
+                    "error": "",
+                },
             },
         ]
         summary = build_summary(events)

@@ -3,7 +3,7 @@ import logging
 import textwrap
 from typing import Dict, List, Tuple
 
-from .grounding import ACI
+from .grounding import JarvisACI
 from .module import BaseModule
 from .procedural_memory import PROCEDURAL_MEMORY
 from .common_utils import (
@@ -25,7 +25,7 @@ class Worker(BaseModule):
     def __init__(
         self,
         worker_engine_params: Dict,
-        grounding_agent: ACI,
+        grounding_agent: JarvisACI,
         platform: str = "linux",
         max_trajectory_length: int = 8,
         enable_reflection: bool = True,
@@ -79,9 +79,9 @@ class Worker(BaseModule):
             if len(self.reflection_agent.messages) > self.max_trajectory_length + 1:
                 self.reflection_agent.messages.pop(1)
 
-    def _generate_reflection(self, instruction: str, obs: Dict) -> Tuple[str, str]:
-        reflection = None
-        reflection_thoughts = None
+    def _generate_reflection(self, instruction: str, obs: Dict) -> Tuple[str | None, str | None]:
+        reflection: str | None = None
+        reflection_thoughts: str | None = None
         if self.enable_reflection:
             if self.turn_count == 0:
                 text_content = textwrap.dedent(
@@ -122,7 +122,9 @@ class Worker(BaseModule):
         self.grounding_agent.set_task_instruction(instruction)
 
         generator_message = (
-            "" if self.turn_count > 0 else "The initial screen is provided. No action has been taken yet."
+            ""
+            if self.turn_count > 0
+            else "The initial screen is provided. No action has been taken yet."
         )
 
         if self.turn_count == 0:
@@ -151,7 +153,9 @@ class Worker(BaseModule):
             generator_message += (
                 f"Task/Subtask Instruction: {code_result.get('task_instruction','')}\n"
             )
-            generator_message += f"Steps Completed: {code_result.get('steps_executed',0)}\n"
+            generator_message += (
+                f"Steps Completed: {code_result.get('steps_executed',0)}\n"
+            )
             generator_message += f"Max Steps: {code_result.get('budget',0)}\n"
             generator_message += (
                 f"Completion Reason: {code_result.get('completion_reason','')}\n"

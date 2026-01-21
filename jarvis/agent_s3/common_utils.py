@@ -1,10 +1,14 @@
 import re
 import time
 from io import BytesIO
-from typing import Dict, Tuple
+from typing import TYPE_CHECKING, Dict, Tuple
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
 
 try:
-    from PIL import Image
+    from PIL import Image as _Image
+    Image = _Image
 except Exception:  # pragma: no cover
     Image = None
 
@@ -21,7 +25,9 @@ def create_action_from_code(agent, code: str, obs: Dict):
     return eval(code)
 
 
-def call_llm_safe(agent, temperature: float = 0.0, use_thinking: bool = False, **kwargs) -> str:
+def call_llm_safe(
+    agent, temperature: float = 0.0, use_thinking: bool = False, **kwargs
+) -> str:
     max_retries = 3
     attempt = 0
     response = ""
@@ -57,7 +63,9 @@ def call_llm_formatted(generator, format_checkers, **kwargs):
         if not feedback_msgs:
             break
         logger.error("Response formatting error on attempt %s: %s", attempt, response)
-        messages.append({"role": "assistant", "content": [{"type": "text", "text": response}]})
+        messages.append(
+            {"role": "assistant", "content": [{"type": "text", "text": response}]}
+        )
         delimiter = "\n- "
         formatting_feedback = f"- {delimiter.join(feedback_msgs)}"
         messages.append(
@@ -103,11 +111,15 @@ def extract_agent_functions(code: str):
     return re.findall(pattern, code)
 
 
-def compress_image(image_bytes: bytes = None, image: Image = None) -> bytes:
+def compress_image(image_bytes: bytes | None = None, image: "PILImage.Image | None" = None) -> bytes:
     if Image is None:
         raise RuntimeError("pillow_not_available")
     if not image:
+        if image_bytes is None:
+            raise ValueError("Either image_bytes or image must be provided")
         image = Image.open(BytesIO(image_bytes))
+    if image is None:
+        raise ValueError("Image is None")
     output = BytesIO()
     image.save(output, format="WEBP")
     return output.getvalue()

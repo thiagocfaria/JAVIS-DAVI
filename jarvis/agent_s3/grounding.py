@@ -33,6 +33,7 @@ class ACI:
 
 # Agent action decorator
 
+
 def agent_action(func):
     func.is_agent_action = True
     return func
@@ -73,7 +74,9 @@ class JarvisACI(ACI):
 
         self.enable_code_agent = enable_code_agent
         if enable_code_agent:
-            code_agent_engine_params = code_agent_engine_params or engine_params_for_generation
+            code_agent_engine_params = (
+                code_agent_engine_params or engine_params_for_generation
+            )
             self.code_agent = CodeAgent(code_agent_engine_params, code_agent_budget)
         else:
             self.code_agent = None
@@ -99,7 +102,7 @@ class JarvisACI(ACI):
             round(coordinates[1] * self.height / grounding_height),
         ]
 
-    def generate_coords(self, ref_expr: str, obs: Dict) -> List[int]:
+    def generate_coords(self, ref_expr: str, obs: Dict[str, Any]) -> List[int]:
         self.grounding_model.reset()
         prompt = f"Query:{ref_expr}\nOutput only the coordinate of one point in your response.\n"
         self.grounding_model.add_message(
@@ -112,7 +115,7 @@ class JarvisACI(ACI):
         return [int(numericals[0]), int(numericals[1])]
 
     def get_ocr_elements(self, b64_image_data: bytes) -> Tuple[str, List]:
-        if pytesseract is None or Image is None:
+        if pytesseract is None or Image is None or Output is None:
             raise RuntimeError("pytesseract_not_available")
         image = Image.open(BytesIO(b64_image_data))
         image_data = pytesseract.image_to_data(image, output_type=Output.DICT)
@@ -141,7 +144,7 @@ class JarvisACI(ACI):
         return ocr_table, ocr_elements
 
     def generate_text_coords(
-        self, phrase: str, obs: Dict, alignment: str = "start"
+        self, phrase: str, obs: Dict[str, Any], alignment: str = "start"
     ) -> List[int]:
         if alignment not in {"start", "end", "center"}:
             alignment = "start"
@@ -181,6 +184,8 @@ class JarvisACI(ACI):
         return coords
 
     def _try_coords(self, description: str) -> Tuple[int | None, int | None]:
+        if self.obs is None:
+            return None, None
         try:
             coords = self.generate_coords(description, self.obs)
             x, y = self.resize_coordinates(coords)
@@ -190,7 +195,13 @@ class JarvisACI(ACI):
             return None, None
 
     @agent_action
-    def click(self, element_description: str, num_clicks: int = 1, button_type: str = "left", hold_keys: List = []):
+    def click(
+        self,
+        element_description: str,
+        num_clicks: int = 1,
+        button_type: str = "left",
+        hold_keys: List = [],
+    ):
         x, y = self._try_coords(element_description)
         params = {
             "x": x,
@@ -234,7 +245,9 @@ class JarvisACI(ACI):
         return Action("wait", {"seconds": 1})
 
     @agent_action
-    def drag_and_drop(self, starting_description: str, ending_description: str, hold_keys: List = []):
+    def drag_and_drop(
+        self, starting_description: str, ending_description: str, hold_keys: List = []
+    ):
         x1, y1 = self._try_coords(starting_description)
         x2, y2 = self._try_coords(ending_description)
         params = {
@@ -247,8 +260,14 @@ class JarvisACI(ACI):
         return Action("drag", params)
 
     @agent_action
-    def highlight_text_span(self, starting_phrase: str, ending_phrase: str, button: str = "left"):
-        coords1 = self.generate_text_coords(starting_phrase, self.obs, alignment="start")
+    def highlight_text_span(
+        self, starting_phrase: str, ending_phrase: str, button: str = "left"
+    ):
+        if self.obs is None:
+            raise RuntimeError("No observation assigned")
+        coords1 = self.generate_text_coords(
+            starting_phrase, self.obs, alignment="start"
+        )
         coords2 = self.generate_text_coords(ending_phrase, self.obs, alignment="end")
         params = {
             "start_x": coords1[0],
@@ -260,7 +279,7 @@ class JarvisACI(ACI):
         return Action("drag", params)
 
     @agent_action
-    def call_code_agent(self, task: str = None):
+    def call_code_agent(self, task: str | None = None):
         if not self.enable_code_agent or self.code_agent is None:
             self.last_code_agent_result = {
                 "completion_reason": "DISABLED",
@@ -286,7 +305,9 @@ class JarvisACI(ACI):
         task_to_execute = task or self.current_task_instruction
         if task_to_execute:
             screenshot = self.obs.get("screenshot", "") if self.obs else ""
-            result = self.code_agent.execute(task_to_execute, screenshot, self.env_controller)
+            result = self.code_agent.execute(
+                task_to_execute, screenshot, self.env_controller
+            )
             self.last_code_agent_result = result
         else:
             self.last_code_agent_result = {
@@ -301,7 +322,9 @@ class JarvisACI(ACI):
 
     @agent_action
     def scroll(self, element_description: str, clicks: int, shift: bool = False):
-        return Action("scroll", {"amount": clicks, "target": element_description, "shift": shift})
+        return Action(
+            "scroll", {"amount": clicks, "target": element_description, "shift": shift}
+        )
 
     @agent_action
     def hotkey(self, keys: List):

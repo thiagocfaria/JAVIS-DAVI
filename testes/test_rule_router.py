@@ -11,6 +11,9 @@ from jarvis.cerebro.orchestrator import Orchestrator
 class _DummyConfig:
     max_failures_per_command = 1
     browser_ai_enabled = False
+    local_llm_base_url = "http://localhost:11434"
+    require_approval = False
+    dry_run = False
 
 
 class _DummyTelemetry:
@@ -159,7 +162,9 @@ def test_rule_based_plan_skips_approval() -> None:
         raise AssertionError("_request_approval nao deveria ser chamado")
 
     plan = ActionPlan(
-        actions=[Action(action_type="open_url", params={"url": "https://www.google.com"})],
+        actions=[
+            Action(action_type="open_url", params={"url": "https://www.google.com"})
+        ],
         risk_level="low",
         notes="rule_based:browser",
     )
@@ -177,7 +182,7 @@ def test_rule_based_plan_skips_approval() -> None:
         last_error=None,
     )
 
-    assert Orchestrator._run_plan(fake, plan) is True
+    assert Orchestrator._run_plan(fake, plan) is True  # type: ignore[arg-type]
 
 
 def test_rule_based_plan_still_requires_policy_confirmation() -> None:
@@ -194,7 +199,9 @@ def test_rule_based_plan_still_requires_policy_confirmation() -> None:
             return None
 
     plan = ActionPlan(
-        actions=[Action(action_type="open_url", params={"url": "https://www.google.com"})],
+        actions=[
+            Action(action_type="open_url", params={"url": "https://www.google.com"})
+        ],
         risk_level="low",
         notes="rule_based:browser",
     )
@@ -216,5 +223,5 @@ def test_rule_based_plan_still_requires_policy_confirmation() -> None:
         last_error=None,
     )
 
-    assert Orchestrator._run_plan(fake, plan) is True
+    assert Orchestrator._run_plan(fake, plan) is True  # type: ignore[arg-type]
     assert called["approval"] == 1

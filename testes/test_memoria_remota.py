@@ -1,4 +1,5 @@
 """Remote memory integration tests."""
+
 from __future__ import annotations
 
 import subprocess
@@ -14,7 +15,9 @@ from jarvis.memoria.remote_service import start_background_server
 def _build_store(tmp_path: Path, base_url: str) -> HybridMemoryStore:
     local = LocalMemoryCache(tmp_path / "local.db")
     remote = RemoteMemoryClient(base_url=base_url)
-    return HybridMemoryStore(local_cache=local, remote_client=remote, embedder=None, embed_dim=None)
+    return HybridMemoryStore(
+        local_cache=local, remote_client=remote, embedder=None, embed_dim=None
+    )
 
 
 class _FailingRemote:
@@ -27,7 +30,9 @@ class _FailingRemote:
 
 def test_add_pushes_to_remote(tmp_path):
     server, store, thread = start_background_server()
-    host, port = server.server_address
+    server_addr = server.server_address
+    host = server_addr[0]
+    port = server_addr[1] if len(server_addr) > 1 else 0
     base_url = f"http://{host}:{port}"
 
     memory = _build_store(tmp_path, base_url)
@@ -46,7 +51,9 @@ def test_add_pushes_to_remote(tmp_path):
 
 def test_search_merges_local_and_remote(tmp_path):
     server, store, thread = start_background_server()
-    host, port = server.server_address
+    server_addr = server.server_address
+    host = server_addr[0]
+    port = server_addr[1] if len(server_addr) > 1 else 0
     base_url = f"http://{host}:{port}"
 
     memory = _build_store(tmp_path, base_url)
@@ -70,7 +77,9 @@ def test_search_merges_local_and_remote(tmp_path):
 
 def test_remote_failure_falls_back_to_local(tmp_path):
     local = LocalMemoryCache(tmp_path / "local.db")
-    memory = HybridMemoryStore(local_cache=local, remote_client=_FailingRemote(), embedder=None, embed_dim=None)
+    memory = HybridMemoryStore(
+        local_cache=local, remote_client=_FailingRemote(), embedder=None, embed_dim=None  # type: ignore[arg-type]
+    )
 
     memory.add("procedure", "Apenas local", metadata={"source": "pytest"})
 
@@ -82,7 +91,15 @@ def test_remote_failure_falls_back_to_local(tmp_path):
 
 def test_cli_entrypoint_starts_server(tmp_path):
     proc = subprocess.Popen(
-        [sys.executable, "-m", "jarvis.memoria.remote_service", "--host", "127.0.0.1", "--port", "0"],
+        [
+            sys.executable,
+            "-m",
+            "jarvis.memoria.remote_service",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "0",
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

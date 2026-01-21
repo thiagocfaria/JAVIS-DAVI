@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 
 from ..cerebro.actions import Action, ActionPlan
 
@@ -51,7 +50,9 @@ def validar_plano(plan: ActionPlan) -> PlanoQualidade:
     for idx, action in enumerate(plan.actions):
         _validar_acao(action, idx, errors, warnings)
 
-    confidence = _calcular_confianca(errors, warnings, len(plan.actions), plan.risk_level)
+    confidence = _calcular_confianca(
+        errors, warnings, len(plan.actions), plan.risk_level
+    )
     return PlanoQualidade(confidence=confidence, errors=errors, warnings=warnings)
 
 
@@ -78,10 +79,10 @@ def _validar_acao(
         return
 
     required = REQUIRED_PARAMS.get(action.action_type, [])
-    for field in required:
-        value = action.params.get(field)
+    for param_name in required:
+        value = action.params.get(param_name)
         if value is None or (isinstance(value, str) and not value.strip()):
-            errors.append(f"missing_param:{idx}:{action.action_type}:{field}")
+            errors.append(f"missing_param:{idx}:{action.action_type}:{param_name}")
 
 
 def _validar_click(action: Action, idx: int, errors: list[str]) -> None:

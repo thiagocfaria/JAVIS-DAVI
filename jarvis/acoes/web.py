@@ -13,19 +13,27 @@ NEVER controls desktop - that's handled by desktop.py.
 
 from __future__ import annotations
 
-import time
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeAlias
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Browser, Page, Playwright
 
 try:
-    from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+    from playwright.sync_api import sync_playwright
 
     HAS_PLAYWRIGHT = True
 except ImportError:
     sync_playwright = None
-    Browser = None
-    Page = None
-    Playwright = None
     HAS_PLAYWRIGHT = False
+
+BrowserType: TypeAlias = "Browser"
+PageType: TypeAlias = "Page"
+PlaywrightType: TypeAlias = "Playwright"
+
+if not TYPE_CHECKING:
+    BrowserType = Any  # type: ignore[assignment]
+    PageType = Any  # type: ignore[assignment]
+    PlaywrightType = Any  # type: ignore[assignment]
 
 
 class WebAutomation:
@@ -42,15 +50,15 @@ class WebAutomation:
 
     def __init__(self, headless: bool = False) -> None:
         self.headless = headless
-        self._playwright: Playwright | None = None
-        self._browser: Browser | None = None
-        self._page: Page | None = None
+        self._playwright: PlaywrightType | None = None
+        self._browser: BrowserType | None = None
+        self._page: PageType | None = None
 
     def is_available(self) -> bool:
         """Check if Playwright is installed."""
         return HAS_PLAYWRIGHT
 
-    def _ensure_browser(self) -> Page:
+    def _ensure_browser(self) -> PageType:
         """Ensure browser is started and return page."""
         if not HAS_PLAYWRIGHT:
             raise RuntimeError(
@@ -60,12 +68,22 @@ class WebAutomation:
         if self._page is not None:
             return self._page
 
+        if sync_playwright is None:
+            raise RuntimeError(
+                "Playwright not installed. Run: pip install playwright && playwright install"
+            )
+
         try:
             self._playwright = sync_playwright().start()
-            self._browser = self._playwright.chromium.launch(headless=self.headless)
-            self._page = self._browser.new_page()
+            if self._playwright is not None:
+                self._browser = self._playwright.chromium.launch(headless=self.headless)
+                if self._browser is not None:
+                    self._page = self._browser.new_page()
         except Exception:
             raise
+
+        if self._page is None:
+            raise RuntimeError("Failed to create browser page")
 
         return self._page
 

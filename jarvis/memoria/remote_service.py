@@ -15,6 +15,7 @@ server, store, thread = start_background_server()
 # server.server_address -> (host, port)
 ```
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,7 +43,9 @@ class InMemoryRemoteStore:
     records: List[_MemoryRecord] = field(default_factory=list)
     _counter: int = 0
 
-    def add(self, kind: str, text: str, metadata: Optional[Dict] = None) -> _MemoryRecord:
+    def add(
+        self, kind: str, text: str, metadata: Optional[Dict] = None
+    ) -> _MemoryRecord:
         self._counter += 1
         record = _MemoryRecord(
             id=str(self._counter),
@@ -54,7 +57,9 @@ class InMemoryRemoteStore:
         self.records.append(record)
         return record
 
-    def search(self, query: str, kind: Optional[str], limit: int) -> List[_MemoryRecord]:
+    def search(
+        self, query: str, kind: Optional[str], limit: int
+    ) -> List[_MemoryRecord]:
         query_norm = query.lower()
         results: list[_MemoryRecord] = []
         for rec in reversed(self.records):  # newest first
@@ -90,7 +95,11 @@ def _build_handler(store: InMemoryRemoteStore):
             if self.path == "/memories":
                 kind = str(payload.get("kind", ""))
                 text = str(payload.get("text", ""))
-                metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+                metadata = (
+                    payload.get("metadata")
+                    if isinstance(payload.get("metadata"), dict)
+                    else {}
+                )
                 record = store.add(kind=kind, text=text, metadata=metadata)
                 self._send(200, {"id": record.id, "ts": record.ts})
                 return
@@ -123,7 +132,9 @@ def _build_handler(store: InMemoryRemoteStore):
     return Handler
 
 
-def start_background_server(host: str = "127.0.0.1", port: int = 0) -> Tuple[ThreadingHTTPServer, InMemoryRemoteStore, threading.Thread]:
+def start_background_server(
+    host: str = "127.0.0.1", port: int = 0
+) -> Tuple[ThreadingHTTPServer, InMemoryRemoteStore, threading.Thread]:
     """Start the minimal HTTP server in a background thread."""
 
     store = InMemoryRemoteStore()
@@ -140,12 +151,21 @@ def start_background_server(host: str = "127.0.0.1", port: int = 0) -> Tuple[Thr
 
 def main(argv: Optional[list[str]] = None) -> None:
     parser = argparse.ArgumentParser(description="Lightweight remote memory server")
-    parser.add_argument("--host", default="0.0.0.0", help="Host/IP to bind (default: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000, use 0 for random)")
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Host/IP to bind (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind (default: 8000, use 0 for random)",
+    )
     args = parser.parse_args(argv)
 
     server, _store, thread = start_background_server(host=args.host, port=args.port)
-    host, port = server.server_address
+    server_addr = server.server_address
+    host = server_addr[0]
+    port = server_addr[1] if len(server_addr) > 1 else args.port
     print(f"Remote memory server running on http://{host}:{port}", flush=True)
 
     try:
@@ -160,4 +180,3 @@ def main(argv: Optional[list[str]] = None) -> None:
 
 if __name__ == "__main__":  # pragma: no cover - manual/CLI entrypoint
     main()
-

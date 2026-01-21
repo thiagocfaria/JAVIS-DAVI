@@ -3,8 +3,8 @@ Policy Kernel - IMMUTABLE SECURITY CORE
 
 ██╗███╗   ███╗███╗   ███╗██╗   ██╗████████╗ █████╗ ██████╗ ██╗     ███████╗
 ██║████╗ ████║████╗ ████║██║   ██║╚══██╔══╝██╔══██╗██╔══██╗██║     ██╔════╝
-██║██╔████╔██║██╔████╔██║██║   ██║   ██║   ███████║██████╔╝██║     █████╗  
-██║██║╚██╔╝██║██║╚██╔╝██║██║   ██║   ██║   ██╔══██║██╔══██╗██║     ██╔══╝  
+██║██╔████╔██║██╔████╔██║██║   ██║   ██║   ███████║██████╔╝██║     █████╗
+██║██║╚██╔╝██║██║╚██╔╝██║██║   ██║   ██║   ██╔══██║██╔══██╗██║     ██╔══╝
 ██║██║ ╚═╝ ██║██║ ╚═╝ ██║╚██████╔╝   ██║   ██║  ██║██████╔╝███████╗███████╗
 ╚═╝╚═╝     ╚═╝╚═╝     ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝
 
@@ -20,15 +20,14 @@ Rules enforced:
 DO NOT allow the agent to modify this file.
 Any changes require manual human approval outside the agent workflow.
 """
+
 from __future__ import annotations
 
 import os
-import re
 import shlex
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import FrozenSet, List, Set
 
 from ..cerebro.actions import Action
 from .policy_usuario import PolicyUsuarioStore
@@ -38,59 +37,140 @@ from .policy_usuario import PolicyUsuarioStore
 # ============================================================================
 
 # Banking domains - NEVER allow access
-BLOCKED_BANK_DOMAINS: frozenset[str] = frozenset({
-    # Brazilian banks
-    "nubank", "itau", "bradesco", "santander", "caixa", "bb.com.br",
-    "bancodobrasil", "inter", "c6bank", "original", "safra", "btg",
-    "banrisul", "sicoob", "sicredi", "banestes",
-    # Payment services
-    "picpay", "mercadopago", "pagseguro", "pagbank", "ame",
-    # International
-    "paypal", "stripe", "wise", "revolut",
-    # Crypto
-    "binance", "coinbase", "kraken", "ftx", "crypto.com",
-})
+BLOCKED_BANK_DOMAINS: frozenset[str] = frozenset(
+    {
+        # Brazilian banks
+        "nubank",
+        "itau",
+        "bradesco",
+        "santander",
+        "caixa",
+        "bb.com.br",
+        "bancodobrasil",
+        "inter",
+        "c6bank",
+        "original",
+        "safra",
+        "btg",
+        "banrisul",
+        "sicoob",
+        "sicredi",
+        "banestes",
+        # Payment services
+        "picpay",
+        "mercadopago",
+        "pagseguro",
+        "pagbank",
+        "ame",
+        # International
+        "paypal",
+        "stripe",
+        "wise",
+        "revolut",
+        # Crypto
+        "binance",
+        "coinbase",
+        "kraken",
+        "ftx",
+        "crypto.com",
+    }
+)
 
 # Keywords that indicate financial/banking context
-BLOCKED_BANK_KEYWORDS: frozenset[str] = frozenset({
-    "banco", "bank", "pix", "transfer", "transferencia", "saldo",
-    "extrato", "fatura", "boleto", "pagamento", "payment",
-    "cartao", "cartão", "credit", "credito", "débito", "debito",
-    "conta corrente", "poupanca", "investimento",
-})
+BLOCKED_BANK_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "banco",
+        "bank",
+        "pix",
+        "transfer",
+        "transferencia",
+        "saldo",
+        "extrato",
+        "fatura",
+        "boleto",
+        "pagamento",
+        "payment",
+        "cartao",
+        "cartão",
+        "credit",
+        "credito",
+        "débito",
+        "debito",
+        "conta corrente",
+        "poupanca",
+        "investimento",
+    }
+)
 
 # Keywords that require human intervention
-REQUIRE_HUMAN_KEYWORDS: frozenset[str] = frozenset({
-    "captcha", "recaptcha", "hcaptcha",
-    "2fa", "two-factor", "two factor", "dois fatores",
-    "verificacao", "verificação", "verification",
-    "codigo", "código", "code",
-    "otp", "one-time", "token",
-    "sms", "autenticacao", "autenticação",
-})
+REQUIRE_HUMAN_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "captcha",
+        "recaptcha",
+        "hcaptcha",
+        "2fa",
+        "two-factor",
+        "two factor",
+        "dois fatores",
+        "verificacao",
+        "verificação",
+        "verification",
+        "codigo",
+        "código",
+        "code",
+        "otp",
+        "one-time",
+        "token",
+        "sms",
+        "autenticacao",
+        "autenticação",
+    }
+)
 
 # Apps that should never be automated
-BLOCKED_APPS: frozenset[str] = frozenset({
-    # Password managers
-    "1password", "bitwarden", "keepass", "keepassxc", "lastpass",
-    "dashlane", "enpass",
-    # Banking apps
-    "nubank", "itau", "bradesco", "santander", "caixa", "bb",
-    "inter", "c6bank", "picpay", "mercadopago",
-    # Crypto wallets
-    "metamask", "exodus", "ledger", "trezor",
-    # System security
-    "gnome-keyring", "seahorse", "kwallet",
-})
+BLOCKED_APPS: frozenset[str] = frozenset(
+    {
+        # Password managers
+        "1password",
+        "bitwarden",
+        "keepass",
+        "keepassxc",
+        "lastpass",
+        "dashlane",
+        "enpass",
+        # Banking apps
+        "nubank",
+        "itau",
+        "bradesco",
+        "santander",
+        "caixa",
+        "bb",
+        "inter",
+        "c6bank",
+        "picpay",
+        "mercadopago",
+        # Crypto wallets
+        "metamask",
+        "exodus",
+        "ledger",
+        "trezor",
+        # System security
+        "gnome-keyring",
+        "seahorse",
+        "kwallet",
+    }
+)
 
 
 # ============================================================================
 # POLICY DECISION
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class PolicyDecision:
     """Immutable policy decision result."""
+
     allowed: bool
     reason: str = ""
     requires_confirmation: bool = False
@@ -101,6 +181,7 @@ class PolicyDecision:
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
 
 def _split_env(key: str) -> list[str]:
     """Split environment variable by comma."""
@@ -136,15 +217,18 @@ def _matches_any_domain(text: str, domains: frozenset[str]) -> bool:
 # POLICY KERNEL - IMMUTABLE CORE
 # ============================================================================
 
+
 class PolicyKernel:
     """
     Immutable security policy kernel.
-    
+
     This class enforces security rules that the agent CANNOT modify.
     All rules are loaded at initialization and cannot be changed at runtime.
     """
 
-    def __init__(self, allow_open_app: bool = True, user_policy_path: Path | None = None) -> None:
+    def __init__(
+        self, allow_open_app: bool = True, user_policy_path: Path | None = None
+    ) -> None:
         # Load contact whitelist from environment (the ONLY way to add contacts)
         self.allowed_contacts: frozenset[str] = frozenset(
             _split_env("JARVIS_CONTACT_WHITELIST")
@@ -152,11 +236,15 @@ class PolicyKernel:
 
         # Load additional blocked domains from environment
         env_blocked = set(_split_env("JARVIS_BLOCKED_DOMAINS"))
-        self.blocked_domains: frozenset[str] = BLOCKED_BANK_DOMAINS | frozenset(env_blocked)
+        self.blocked_domains: frozenset[str] = BLOCKED_BANK_DOMAINS | frozenset(
+            env_blocked
+        )
 
         # Load additional blocked keywords from environment
         env_keywords = set(_split_env("JARVIS_BLOCKED_KEYWORDS"))
-        self.blocked_keywords: frozenset[str] = BLOCKED_BANK_KEYWORDS | frozenset(env_keywords)
+        self.blocked_keywords: frozenset[str] = BLOCKED_BANK_KEYWORDS | frozenset(
+            env_keywords
+        )
 
         # Load allowed apps from environment (if set, only these apps can be opened)
         self.allowed_apps: frozenset[str] = frozenset(_split_env("JARVIS_ALLOWED_APPS"))
@@ -176,14 +264,16 @@ class PolicyKernel:
             store = PolicyUsuarioStore(user_policy_path)
             usuario = store.load()
             if usuario.blocked_domains:
-                self.blocked_domains = self.blocked_domains | frozenset(usuario.blocked_domains)
+                self.blocked_domains = self.blocked_domains | frozenset(
+                    usuario.blocked_domains
+                )
             if usuario.blocked_apps:
                 self.blocked_apps = self.blocked_apps | frozenset(usuario.blocked_apps)
 
     def check_action(self, action: Action) -> PolicyDecision:
         """
         Check if an action is allowed by the security policy.
-        
+
         This method enforces immutable security rules.
         """
         action_type = action.action_type
@@ -296,7 +386,14 @@ class PolicyKernel:
         if action_type in {"wait"}:
             return PolicyDecision(allowed=True, requires_confirmation=False)
 
-        if action_type in {"hotkey", "click", "type_text", "open_url", "scroll", "drag"}:
+        if action_type in {
+            "hotkey",
+            "click",
+            "type_text",
+            "open_url",
+            "scroll",
+            "drag",
+        }:
             return PolicyDecision(allowed=True, requires_confirmation=False)
 
         # Unknown actions require confirmation
@@ -305,7 +402,7 @@ class PolicyKernel:
     def check_actions(self, actions: Iterable[Action]) -> PolicyDecision:
         """
         Check multiple actions against security policy.
-        
+
         Returns the first blocking decision, or an aggregate decision.
         """
         requires_confirmation = False
@@ -315,7 +412,9 @@ class PolicyKernel:
             decision = self.check_action(action)
             if not decision.allowed:
                 return decision
-            requires_confirmation = requires_confirmation or decision.requires_confirmation
+            requires_confirmation = (
+                requires_confirmation or decision.requires_confirmation
+            )
             requires_human = requires_human or decision.requires_human
 
         return PolicyDecision(
@@ -327,11 +426,11 @@ class PolicyKernel:
     def check_screenshot_allowed(self, app_name: str, url: str = "") -> PolicyDecision:
         """
         Check if taking/sending a screenshot is allowed.
-        
+
         Args:
             app_name: Name of the app in focus
             url: URL if it's a browser
-            
+
         Returns:
             PolicyDecision indicating if screenshot can be sent to AI
         """
@@ -360,7 +459,7 @@ class PolicyKernel:
     def get_security_summary(self) -> dict:
         """
         Get a summary of active security rules.
-        
+
         Useful for debugging and logging.
         """
         return {

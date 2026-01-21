@@ -4,13 +4,14 @@ import builtins
 import sys
 import types
 
-import pytest
 
 from jarvis.entrada import preflight
+from jarvis.cerebro.config import Config
+from typing import cast
 
 
 def _make_config(tts_mode: str = "local"):
-    return types.SimpleNamespace(tts_mode=tts_mode)
+    return cast(Config, types.SimpleNamespace(tts_mode=tts_mode))
 
 
 def test_check_chat_ui_warns_when_tkinter_missing(monkeypatch):
@@ -112,7 +113,9 @@ def test_check_wake_word_audio_warns_when_porcupine_missing(monkeypatch):
     monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO", "1")
     monkeypatch.setenv("JARVIS_WAKE_WORD_AUDIO_BACKEND", "porcupine")
     monkeypatch.setattr(
-        preflight, "wakeword_porcupine", types.SimpleNamespace(is_available=lambda: False)
+        preflight,
+        "wakeword_porcupine",
+        types.SimpleNamespace(is_available=lambda: False),
     )
     result = preflight._check_wake_word_audio()
     assert result is not None

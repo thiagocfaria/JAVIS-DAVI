@@ -12,6 +12,7 @@ an HTTP endpoint that exposes two minimal routes:
 When the remote endpoint is unreachable, the client fails silently and returns
 ``None``/``[]`` so the local cache can continue to operate.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,7 +39,9 @@ class RemoteMemoryItem:
 class RemoteMemoryClient:
     """HTTP client for a lightweight remote memory service."""
 
-    def __init__(self, base_url: str, token: str | None = None, timeout: float = 3.0) -> None:
+    def __init__(
+        self, base_url: str, token: str | None = None, timeout: float = 3.0
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout = timeout
@@ -58,19 +61,26 @@ class RemoteMemoryClient:
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         url = f"{self.base_url}{path}"
         data = json.dumps(payload).encode()
-        request = urllib.request.Request(url, data=data, headers=self._headers(), method="POST")
+        request = urllib.request.Request(
+            url, data=data, headers=self._headers(), method="POST"
+        )
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 body = response.read()
                 return json.loads(body.decode())
-        except (urllib.error.URLError, json.JSONDecodeError) as exc:  # pragma: no cover - defensive
+        except (
+            urllib.error.URLError,
+            json.JSONDecodeError,
+        ) as exc:  # pragma: no cover - defensive
             log.debug("Remote memory request failed: %s", exc)
             return None
 
     # ------------------------------------------------------------------
     # API
     # ------------------------------------------------------------------
-    def add(self, kind: str, text: str, metadata: Optional[Dict[str, Any]] = None) -> str | None:
+    def add(
+        self, kind: str, text: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> str | None:
         """Send a memory item to the remote store.
 
         Returns the remote id when successful, otherwise ``None``.
@@ -115,4 +125,3 @@ class RemoteMemoryClient:
             except Exception:
                 continue
         return parsed
-

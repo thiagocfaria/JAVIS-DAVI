@@ -1,0 +1,15 @@
+{
+  "include": ["jarvis", "scripts", "testes"],
+  "exclude": [
+    "**/REPOSITORIOS_CLONAR",
+    "**/third_party",
+    "**/third_party/**",
+    "**/*.ipynb",
+    ".venv",
+    "Documentos",
+    "NOTBOOKLM"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}

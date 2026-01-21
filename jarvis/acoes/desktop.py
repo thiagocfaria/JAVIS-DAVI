@@ -10,6 +10,7 @@ This module handles:
 
 NEVER uses Playwright - that's for web only.
 """
+
 from __future__ import annotations
 
 import os
@@ -19,20 +20,22 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Optional
 
 # pyautogui/mouseinfo falham em ambientes sem DISPLAY; tratamos amplo para
 # permitir execucao headless (preflight/smoke) sem quebrar import.
 try:
     import pyautogui  # type: ignore
+
     pyautogui.FAILSAFE = True
 except Exception:  # pragma: no cover - fallback defensivo
     pyautogui = None
 
 try:
     import gi  # type: ignore
-    gi.require_version('Atspi', '2.0')
+
+    gi.require_version("Atspi", "2.0")
     from gi.repository import Atspi  # type: ignore
+
     HAS_ATSPI = True
 except (ImportError, ValueError):
     Atspi = None
@@ -244,7 +247,7 @@ class DesktopAutomation:
                 pass
 
         # Fallback to pyautogui
-        if not typed and self.has_pyautogui:
+        if not typed and self.has_pyautogui and pyautogui is not None:
             try:
                 pyautogui.write(text, interval=0.02)
                 typed = True
@@ -298,7 +301,7 @@ class DesktopAutomation:
                 pass
 
         # Fallback to pyautogui
-        if self.has_pyautogui:
+        if self.has_pyautogui and pyautogui is not None:
             try:
                 keys = [k.strip().lower() for k in combo.split()]
                 pyautogui.hotkey(*keys)
@@ -362,7 +365,9 @@ class DesktopAutomation:
         # Try ydotool on Wayland
         if self.has_ydotool and self.ydotool_socket:
             try:
-                self._run_ydotool(["mousemove", "--absolute", "-x", str(x), "-y", str(y)])
+                self._run_ydotool(
+                    ["mousemove", "--absolute", "-x", str(x), "-y", str(y)]
+                )
                 if button_num != 1:
                     return "unsupported_button_on_ydotool"
                 for _ in range(click_count):
@@ -372,7 +377,7 @@ class DesktopAutomation:
                 pass
 
         # Fallback to pyautogui
-        if self.has_pyautogui:
+        if self.has_pyautogui and pyautogui is not None:
             try:
                 for key in hold_keys:
                     pyautogui.keyDown(key)
@@ -408,17 +413,29 @@ class DesktopAutomation:
             try:
                 for key in hold_keys:
                     subprocess.run(["xdotool", "keydown", key], check=True, timeout=5)
-                subprocess.run(["xdotool", "mousemove", str(start_x), str(start_y)], check=True, timeout=10)
-                subprocess.run(["xdotool", "mousedown", str(button_num)], check=True, timeout=10)
-                subprocess.run(["xdotool", "mousemove", str(end_x), str(end_y)], check=True, timeout=10)
-                subprocess.run(["xdotool", "mouseup", str(button_num)], check=True, timeout=10)
+                subprocess.run(
+                    ["xdotool", "mousemove", str(start_x), str(start_y)],
+                    check=True,
+                    timeout=10,
+                )
+                subprocess.run(
+                    ["xdotool", "mousedown", str(button_num)], check=True, timeout=10
+                )
+                subprocess.run(
+                    ["xdotool", "mousemove", str(end_x), str(end_y)],
+                    check=True,
+                    timeout=10,
+                )
+                subprocess.run(
+                    ["xdotool", "mouseup", str(button_num)], check=True, timeout=10
+                )
                 for key in hold_keys:
                     subprocess.run(["xdotool", "keyup", key], check=True, timeout=5)
                 return None
             except Exception:
                 pass
 
-        if self.has_pyautogui:
+        if self.has_pyautogui and pyautogui is not None:
             try:
                 for key in hold_keys:
                     pyautogui.keyDown(key)
@@ -476,7 +493,7 @@ class DesktopAutomation:
                 pass
 
         # Fallback to pyautogui
-        if self.has_pyautogui:
+        if self.has_pyautogui and pyautogui is not None:
             try:
                 # pyautogui positive = up, negative = down
                 pyautogui.scroll(-amount_int * 100)
@@ -492,7 +509,7 @@ class DesktopAutomation:
 
         Returns (x, y) center coordinates or None.
         """
-        if not self.has_atspi:
+        if not self.has_atspi or Atspi is None:
             return None
 
         try:
@@ -509,7 +526,7 @@ class DesktopAutomation:
         max_depth: int = 10,
     ) -> tuple[int, int] | None:
         """Recursively search AT-SPI tree for element."""
-        if depth > max_depth:
+        if depth > max_depth or Atspi is None:
             return None
 
         try:
@@ -576,10 +593,12 @@ class DesktopAutomation:
                                 timeout=5,
                             )
                             if name_result.returncode == 0:
-                                windows.append({
-                                    "id": wid,
-                                    "title": name_result.stdout.strip(),
-                                })
+                                windows.append(
+                                    {
+                                        "id": wid,
+                                        "title": name_result.stdout.strip(),
+                                    }
+                                )
             except Exception:
                 pass
 

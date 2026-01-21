@@ -44,7 +44,7 @@ _INCOMPLETE_TOKENS = {
 }
 
 
-def analyze_turn(text: str, endpoint_ms: float | None = None) -> dict[str, object]:
+def analyze_turn(text: str, endpoint_ms: float | None = None) -> dict[str, bool | int | str]:
     cleaned = (text or "").strip()
     if not cleaned:
         return {

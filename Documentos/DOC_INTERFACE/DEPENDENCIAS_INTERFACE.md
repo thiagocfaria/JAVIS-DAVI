@@ -1,5 +1,7 @@
 # Dependencias da interface (entrada/saida)
 
+**Atualizado em:** 2026-01-19
+
 Este documento lista todas as dependencias usadas pela interface de voz/texto, com o papel de cada uma e como instalar.
 
 ## Politica de GPU (CPU-first)
@@ -95,6 +97,21 @@ Este documento lista todas as dependencias usadas pela interface de voz/texto, c
 - `onnxruntime` - Silero via ONNX (opcional).
   - Para que serve: acelerar Silero no CPU quando `JARVIS_SILERO_USE_ONNX=1`.
   - Instalar: `pip install onnxruntime`
+- `speexdsp` - AEC (cancelamento de eco) via Speex (opcional).
+  - Para que serve: cancelar eco do TTS capturado pelo microfone.
+  - Como usa: `JARVIS_AEC_BACKEND=speex` habilita o backend Speex.
+  - Instalar: `pip install speexdsp`
+  - Requisito sistema: `sudo apt install swig libspeexdsp-dev`
+- `webrtc-audio-processing` - AEC via WebRTC (opcional).
+  - Para que serve: cancelamento de eco e processamento de audio avancado.
+  - Como usa: `JARVIS_AEC_BACKEND=webrtc` habilita o backend WebRTC.
+  - Instalar: `pip install webrtc-audio-processing`
+  - Requisito sistema: `sudo apt install swig libspeexdsp-dev`
+- `piper-tts` - TTS Piper via Python (opcional, recomendado).
+  - Para que serve: backend Python do Piper (modelo carregado em memoria, menor TTFA).
+  - Como usa: `JARVIS_PIPER_BACKEND=python` usa o backend Python em vez de CLI.
+  - Instalar: `pip install piper-tts`
+  - Nota: instala automaticamente o binario `piper` em `.venv/bin/piper`.
 - `pytest` - runner de testes.
   - Para que serve: rodar a suite automatizada da interface.
   - Como usa: `PYTHONPATH=. pytest -q testes/`

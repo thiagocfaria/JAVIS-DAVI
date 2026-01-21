@@ -20,7 +20,9 @@ def _run_bench(backend: str, runs: int) -> dict:
         "--runs",
         str(runs),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT, env=os.environ.copy())
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd=ROOT, env=os.environ.copy()
+    )
     if result.returncode != 0:
         return {"error": (result.stderr or result.stdout).strip(), "backend": backend}
     try:
@@ -36,7 +38,9 @@ def _speedup(py: float, rs: float) -> float:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compare Python vs Rust vision benchmarks")
+    parser = argparse.ArgumentParser(
+        description="Compare Python vs Rust vision benchmarks"
+    )
     parser.add_argument("--runs", type=int, default=5, help="number of runs per metric")
     parser.add_argument("--output", type=str, help="output JSON path (optional)")
     args = parser.parse_args()
