@@ -1123,13 +1123,13 @@ def _bench_barge_in(
         # Espera TTS começar a reproduzir áudio
         time.sleep(delay_ms / 1000.0)
 
-        # Mede tempo REAL até áudio parar (com wait_completion)
+        # Mede tempo REAL até áudio parar
         stop_start = time.perf_counter()
 
-        # stop(wait_completion=True) aguarda término dos processos internamente
+        # stop() aguarda término dos processos internamente via _terminate_process
         # - Kill dos processos (aplay primeiro, piper depois)
-        # - Wait até processos terminarem (timeout 0.5s)
-        tts.stop(wait_completion=True)
+        # - Wait até processos terminarem (timeout 1s)
+        tts.stop()
 
         # Delay adicional para dreno de buffer ALSA
         # Configurável via env: JARVIS_BENCH_ALSA_DRAIN_MS (default: 50ms)

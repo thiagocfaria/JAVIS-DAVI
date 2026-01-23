@@ -50,7 +50,7 @@ PROFILES: dict[str, VoiceProfile] = {
         "pre_roll_ms": 150,
         "post_roll_ms": 150,
         "vad_aggressiveness": 2,
-        "stt_model": "small",
+        "stt_model": "tiny",
     },
     "noisy_room": {
         "name": "noisy_room",
@@ -59,7 +59,7 @@ PROFILES: dict[str, VoiceProfile] = {
         "pre_roll_ms": 200,
         "post_roll_ms": 200,
         "vad_aggressiveness": 1,
-        "stt_model": "small",
+        "stt_model": "tiny",
     },
 }
 

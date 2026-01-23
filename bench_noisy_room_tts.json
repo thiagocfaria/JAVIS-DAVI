@@ -1,0 +1,27 @@
+{
+  "repeat": 2,
+  "latency_ms_avg": 1.01615950006817,
+  "latency_ms_p50": 1.01615950006817,
+  "latency_ms_p95": 1.9251887499194709,
+  "latency_ms_p99": 2.005991349906253,
+  "latency_ms_p995": null,
+  "cpu_time_s_avg": 0.0006680000000000041,
+  "rss_kb": 20792,
+  "psutil_cpu_percent": 0.0,
+  "psutil_rss_bytes": 21442560,
+  "psutil_vms_bytes": 41897984,
+  "psutil_available": true,
+  "scenario": "tts",
+  "text": "teste do perfil noisy room para ambientes barulhentos",
+  "tts_mode": "local",
+  "benchmark_config": {
+    "timestamp": "2026-01-23T11:16:35.476856+00:00",
+    "git_commit": "0b75c7b",
+    "python_version": "3.12.3",
+    "tts_mode": "local"
+  },
+  "tts_engine": "espeak-ng",
+  "tts_first_audio_ms_avg": 0.643297499664186,
+  "tts_first_audio_ms_p50": 0.643297499664186,
+  "tts_first_audio_ms_p95": 0.6506806507786678
+}

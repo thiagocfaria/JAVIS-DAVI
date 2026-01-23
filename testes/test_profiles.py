@@ -61,7 +61,7 @@ class TestProfileStructure:
         assert profile["pre_roll_ms"] == 150
         assert profile["post_roll_ms"] == 150
         assert profile["vad_aggressiveness"] == 2
-        assert profile["stt_model"] == "small"
+        assert profile["stt_model"] == "tiny"
 
     def test_noisy_room_profile(self) -> None:
         """Test NOISY_ROOM profile parameters."""
@@ -72,7 +72,7 @@ class TestProfileStructure:
         assert profile["pre_roll_ms"] == 200
         assert profile["post_roll_ms"] == 200
         assert profile["vad_aggressiveness"] == 1
-        assert profile["stt_model"] == "small"
+        assert profile["stt_model"] == "tiny"
 
 
 class TestLoadProfile:
@@ -228,7 +228,7 @@ class TestApplyProfile:
             assert os.environ.get("JARVIS_VAD_SILENCE_MS") == "600"
             assert os.environ.get("JARVIS_MIN_AUDIO_SECONDS") == "0.4"
             assert os.environ.get("JARVIS_VAD_AGGRESSIVENESS") == "2"
-            assert os.environ.get("JARVIS_STT_MODEL") == "small"
+            assert os.environ.get("JARVIS_STT_MODEL") == "tiny"
         finally:
             os.environ.clear()
             os.environ.update(old_env)
@@ -255,7 +255,7 @@ class TestApplyProfile:
             assert os.environ.get("JARVIS_VAD_SILENCE_MS") == "800"
             assert os.environ.get("JARVIS_MIN_AUDIO_SECONDS") == "0.5"
             assert os.environ.get("JARVIS_VAD_AGGRESSIVENESS") == "1"
-            assert os.environ.get("JARVIS_STT_MODEL") == "small"
+            assert os.environ.get("JARVIS_STT_MODEL") == "tiny"
         finally:
             os.environ.clear()
             os.environ.update(old_env)

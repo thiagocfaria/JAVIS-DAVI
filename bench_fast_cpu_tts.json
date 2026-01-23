@@ -1,0 +1,27 @@
+{
+  "repeat": 2,
+  "latency_ms_avg": 0.8790734996182437,
+  "latency_ms_p50": 0.8790734996182437,
+  "latency_ms_p95": 2.0906566495341394,
+  "latency_ms_p99": 2.1983529295266635,
+  "latency_ms_p995": null,
+  "cpu_time_s_avg": 0.0005985000000000031,
+  "rss_kb": 20736,
+  "psutil_cpu_percent": 0.0,
+  "psutil_rss_bytes": 21442560,
+  "psutil_vms_bytes": 42078208,
+  "psutil_available": true,
+  "scenario": "tts",
+  "text": "oi jarvis, teste de perfil fast cpu",
+  "tts_mode": "local",
+  "benchmark_config": {
+    "timestamp": "2026-01-23T11:16:13.725583+00:00",
+    "git_commit": "0b75c7b",
+    "python_version": "3.12.3",
+    "tts_mode": "local"
+  },
+  "tts_engine": "espeak-ng",
+  "tts_first_audio_ms_avg": 0.48193100019489066,
+  "tts_first_audio_ms_p50": 0.48193100019489066,
+  "tts_first_audio_ms_p95": 0.6743843006461248
+}

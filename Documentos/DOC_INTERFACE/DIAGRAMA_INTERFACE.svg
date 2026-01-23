@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1400" viewBox="0 0 1500 1400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <style>
+      .card { rx:14; ry:14; stroke-width:2; }
+      .done { fill:#16a34a; stroke:#15803d; }
+      .progress { fill:#0ea5e9; stroke:#0284c7; }
+      .todo { fill:#f59e0b; stroke:#d97706; }
+      .critical { fill:#ef4444; stroke:#dc2626; }
+      .title { font-family: Arial, sans-serif; font-size: 26px; font-weight: bold; fill:#f1f5f9; }
+      .subtitle { font-family: Arial, sans-serif; font-size: 13px; fill:#94a3b8; }
+      .h2 { font-family: Arial, sans-serif; font-size: 15px; font-weight: bold; fill:#ffffff; }
+      .item { font-family: Arial, sans-serif; font-size: 11px; fill:#1e293b; }
+      .metric { font-family: Arial, sans-serif; font-size: 11px; fill:#f8fafc; }
+      .pct { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; fill:#ffffff; }
+      .arrow { stroke:#64748b; stroke-width:2; fill:none; marker-end:url(#arrowHead); }
+      .tap { stroke:#475569; stroke-width:1.5; stroke-dasharray:4 4; fill:none; }
+      .ring-bg { fill:none; stroke:#1e293b; stroke-width:8; }
+      .ring-ok { fill:none; stroke:#22c55e; stroke-width:8; stroke-linecap:round; }
+      .ring-warn { fill:none; stroke:#f59e0b; stroke-width:8; stroke-linecap:round; }
+      .ring-bad { fill:none; stroke:#ef4444; stroke-width:8; stroke-linecap:round; }
+    </style>
+    <marker id="arrowHead" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto">
+      <polygon points="0 0, 8 4, 0 8" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1500" height="1400" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="40" y="45" class="title">Interface Entrada/Saida - Checklist Plano OURO</text>
+  <text x="40" y="70" class="subtitle">Verde=OK | Azul=Em progresso | Laranja=Pendente | Vermelho=Critico | Circulos=Progresso % | Atualizado: 22/01/2026 21:06</text>
+
+  <!-- Legend -->
+  <rect x="1220" y="20" width="260" height="110" class="card" fill="#1e293b" stroke="#334155"/>
+  <rect x="1235" y="40" width="14" height="14" rx="3" fill="#16a34a"/>
+  <text x="1258" y="52" class="metric">Completo/OK</text>
+  <rect x="1235" y="60" width="14" height="14" rx="3" fill="#0ea5e9"/>
+  <text x="1258" y="72" class="metric">Em progresso</text>
+  <rect x="1235" y="80" width="14" height="14" rx="3" fill="#f59e0b"/>
+  <text x="1258" y="92" class="metric">Pendente</text>
+  <rect x="1235" y="100" width="14" height="14" rx="3" fill="#ef4444"/>
+  <text x="1258" y="112" class="metric">Critico/Gargalo</text>
+  <circle cx="1400" cy="75" r="25" class="ring-bg"/>
+  <text x="1430" y="80" class="metric">Progresso</text>
+
+  <!-- ==================== ROW 1: ENTRADA ==================== -->
+
+  <!-- AudioCapture -->
+  <rect x="40" y="130" width="200" height="170" class="card done"/>
+  <text x="55" y="155" class="h2">AudioCapture</text>
+  <text x="55" y="175" class="item">[OK] Mic/file input</text>
+  <text x="55" y="190" class="item">[OK] Pre-roll configurado</text>
+  <text x="55" y="205" class="item">[OK] AEC basico</text>
+  <text x="55" y="220" class="item">[OK] Auto device detection</text>
+  <text x="55" y="235" class="item">[OK] Clipping warning</text>
+  <text x="55" y="250" class="item">[  ] Validar CPU fraca</text>
+  <!-- Progress ring 83% -->
+  <circle cx="210" cy="270" r="20" class="ring-bg"/>
+  <circle cx="210" cy="270" r="20" class="ring-ok" stroke-dasharray="104 126" transform="rotate(-90 210 270)"/>
+  <text x="198" y="275" class="pct">83%</text>
+
+  <path d="M240 200 L270 200" class="arrow"/>
+
+  <!-- VAD/Endpointing -->
+  <rect x="270" y="130" width="200" height="170" class="card progress"/>
+  <text x="285" y="155" class="h2">VAD / Endpointing</text>
+  <text x="285" y="175" class="item">[OK] Silero VAD</text>
+  <text x="285" y="190" class="item">[OK] silence_ms config</text>
+  <text x="285" y="205" class="item">[OK] Wake word (text)</text>
+  <text x="285" y="220" class="item">[  ] Turn-taking parciais</text>
+  <text x="285" y="235" class="item">[  ] Post-roll adaptativo</text>
+  <text x="285" y="250" class="item">[  ] Perfis FAST/BALANCED</text>
+  <!-- Progress ring 50% -->
+  <circle cx="440" cy="270" r="20" class="ring-bg"/>
+  <circle cx="440" cy="270" r="20" class="ring-warn" stroke-dasharray="63 126" transform="rotate(-90 440 270)"/>
+  <text x="428" y="275" class="pct">50%</text>
+
+  <path d="M470 200 L500 200" class="arrow"/>
+
+  <!-- STT Backend -->
+  <rect x="500" y="130" width="220" height="190" class="card progress"/>
+  <text x="515" y="155" class="h2">STT Backend (87% tempo)</text>
+  <text x="515" y="175" class="item">[OK] faster-whisper tiny</text>
+  <text x="515" y="190" class="item">[OK] Parciais + finais</text>
+  <text x="515" y="205" class="item">[OK] Warmup pre-load modelo</text>
+  <text x="515" y="220" class="item">[  ] Comparar tiny/tiny.en/small</text>
+  <text x="515" y="235" class="item">[  ] Backend plugavel interface</text>
+  <text x="515" y="250" class="item">[  ] whisper.cpp alternativo</text>
+  <text x="515" y="265" class="item">[OK] p95 warm/cold padronizado</text>
+  <!-- Progress ring 57% (4/7 itens) -->
+  <circle cx="690" cy="290" r="20" class="ring-bg"/>
+  <circle cx="690" cy="290" r="20" class="ring-warn" stroke-dasharray="72 126" transform="rotate(-90 690 290)"/>
+  <text x="678" y="295" class="pct">57%</text>
+
+  <path d="M720 215 L750 215" class="arrow"/>
+
+  <!-- EventBus -->
+  <rect x="750" y="130" width="180" height="150" class="card done"/>
+  <text x="765" y="155" class="h2">EventBus</text>
+  <text x="765" y="175" class="item">[OK] Parciais para UI</text>
+  <text x="765" y="190" class="item">[OK] Finais para core</text>
+  <text x="765" y="205" class="item">[OK] Telemetria basica</text>
+  <text x="765" y="220" class="item">[OK] Metricas por etapa</text>
+  <!-- Progress ring 100% -->
+  <circle cx="900" cy="250" r="20" class="ring-bg"/>
+  <circle cx="900" cy="250" r="20" class="ring-ok" stroke-dasharray="126 126" transform="rotate(-90 900 250)"/>
+  <text x="882" y="255" class="pct">100%</text>
+
+  <path d="M930 205 L960 205" class="arrow"/>
+
+  <!-- Orchestrator -->
+  <rect x="960" y="130" width="220" height="170" class="card progress"/>
+  <text x="975" y="155" class="h2">Orchestrator / UI</text>
+  <text x="975" y="175" class="item">[OK] Policy engine</text>
+  <text x="975" y="190" class="item">[OK] Plan + execute</text>
+  <text x="975" y="205" class="item">[OK] Chat UI basico</text>
+  <text x="975" y="220" class="item">[  ] Watchdogs robustez</text>
+  <text x="975" y="235" class="item">[  ] Self-healing 24-72h</text>
+  <text x="975" y="250" class="item">[  ] 3 rodadas validacao</text>
+  <!-- Progress ring 50% -->
+  <circle cx="1150" cy="270" r="20" class="ring-bg"/>
+  <circle cx="1150" cy="270" r="20" class="ring-warn" stroke-dasharray="63 126" transform="rotate(-90 1150 270)"/>
+  <text x="1138" y="275" class="pct">50%</text>
+
+  <!-- ==================== ROW 2: CONTROLE ==================== -->
+
+  <!-- Barge-in Controller -->
+  <rect x="500" y="360" width="220" height="150" class="card done"/>
+  <text x="515" y="385" class="h2">BargeIn Controller</text>
+  <text x="515" y="405" class="item">[OK] SpeechStarted event</text>
+  <text x="515" y="420" class="item">[OK] Cancela TTS imediato</text>
+  <text x="515" y="435" class="item">[OK] Medir barge_in_stop_ms</text>
+  <text x="515" y="450" class="item">[OK] Meta: p95=60ms &lt; 80ms</text>
+  <text x="515" y="465" class="item">[  ] Teste ruido/overlap</text>
+  <!-- Progress ring 80% -->
+  <circle cx="690" cy="480" r="20" class="ring-bg"/>
+  <circle cx="690" cy="480" r="20" class="ring-ok" stroke-dasharray="100 126" transform="rotate(-90 690 480)"/>
+  <text x="678" y="485" class="pct">80%</text>
+
+  <path d="M610 320 L610 360" class="arrow"/>
+
+  <!-- Speaker Verify -->
+  <rect x="270" y="360" width="200" height="140" class="card progress"/>
+  <text x="285" y="385" class="h2">Speaker Verify</text>
+  <text x="285" y="405" class="item">[OK] Resemblyzer adapter</text>
+  <text x="285" y="420" class="item">[OK] Threshold config</text>
+  <text x="285" y="435" class="item">[  ] Cache embeddings</text>
+  <text x="285" y="450" class="item">[  ] Multi-speaker</text>
+  <!-- Progress ring 50% -->
+  <circle cx="440" cy="470" r="20" class="ring-bg"/>
+  <circle cx="440" cy="470" r="20" class="ring-warn" stroke-dasharray="63 126" transform="rotate(-90 440 470)"/>
+  <text x="428" y="475" class="pct">50%</text>
+
+  <!-- ==================== ROW 3: SAIDA ==================== -->
+
+  <!-- TTS Service -->
+  <rect x="750" y="360" width="200" height="160" class="card done"/>
+  <text x="765" y="385" class="h2">TTS Service (Piper)</text>
+  <text x="765" y="405" class="item">[OK] Piper local offline</text>
+  <text x="765" y="420" class="item">[OK] Streaming chunks</text>
+  <text x="765" y="435" class="item">[OK] Cache frases comuns</text>
+  <text x="765" y="450" class="item">[OK] Warmup on init</text>
+  <text x="765" y="465" class="item">[OK] Bench warm vs cold</text>
+  <!-- Progress ring 100% -->
+  <circle cx="920" cy="490" r="20" class="ring-bg"/>
+  <circle cx="920" cy="490" r="20" class="ring-ok" stroke-dasharray="126 126" transform="rotate(-90 920 490)"/>
+  <text x="902" y="495" class="pct">100%</text>
+
+  <path d="M720 430 L750 430" class="arrow"/>
+  <path d="M950 430 L980 430" class="arrow"/>
+
+  <!-- TTS Player -->
+  <rect x="980" y="360" width="200" height="150" class="card done"/>
+  <text x="995" y="385" class="h2">TTS Player</text>
+  <text x="995" y="405" class="item">[OK] aplay backend</text>
+  <text x="995" y="420" class="item">[OK] Device auto-select</text>
+  <text x="995" y="435" class="item">[OK] Overlap opcional</text>
+  <text x="995" y="450" class="item">[OK] Stop imediato barge-in</text>
+  <!-- Progress ring 100% -->
+  <circle cx="1150" cy="480" r="20" class="ring-bg"/>
+  <circle cx="1150" cy="480" r="20" class="ring-ok" stroke-dasharray="126 126" transform="rotate(-90 1150 480)"/>
+  <text x="1132" y="485" class="pct">100%</text>
+
+  <path d="M1080 510 L1080 550" class="arrow"/>
+
+  <!-- Audio Out -->
+  <rect x="980" y="680" width="200" height="90" class="card done"/>
+  <text x="995" y="705" class="h2">Audio Out</text>
+  <text x="995" y="725" class="item">[OK] Fone/caixa output</text>
+  <text x="995" y="740" class="item">[OK] AEC reference</text>
+  <!-- Progress ring 100% -->
+  <circle cx="1150" cy="720" r="20" class="ring-bg"/>
+  <circle cx="1150" cy="720" r="20" class="ring-ok" stroke-dasharray="126 126" transform="rotate(-90 1150 720)"/>
+  <text x="1132" y="725" class="pct">100%</text>
+
+  <!-- ==================== METRICS GAUGES ==================== -->
+
+  <rect x="40" y="680" width="420" height="280" class="card" fill="#1e293b" stroke="#334155"/>
+  <text x="60" y="710" class="h2" fill="#f1f5f9">MEDICOES - Progresso para OURO</text>
+
+  <!-- Gauge 1: EOS to First Audio - META OURO ATINGIDA -->
+  <circle cx="120" cy="810" r="45" class="ring-bg" stroke-width="10"/>
+  <circle cx="120" cy="810" r="45" class="ring-ok" stroke-width="10" stroke-dasharray="255 283" transform="rotate(-90 120 810)"/>
+  <text x="95" y="818" class="pct" fill="#22c55e">90%</text>
+  <text x="60" y="875" class="metric">EOS-to-Audio</text>
+  <text x="60" y="890" class="metric">p95: 1077ms OK</text>
+  <text x="60" y="905" class="metric">Meta: 1200ms</text>
+
+  <!-- Gauge 2: Barge-in Stop - META OURO ATINGIDA -->
+  <circle cx="240" cy="810" r="45" class="ring-bg" stroke-width="10"/>
+  <circle cx="240" cy="810" r="45" class="ring-ok" stroke-width="10" stroke-dasharray="283 283" transform="rotate(-90 240 810)"/>
+  <text x="217" y="818" class="pct" fill="#22c55e">100%</text>
+  <text x="190" y="875" class="metric">Barge-in Stop</text>
+  <text x="190" y="890" class="metric">p95: 60ms OK</text>
+  <text x="190" y="905" class="metric">Meta: 80ms</text>
+
+  <!-- Gauge 3: TTS First Audio -->
+  <circle cx="360" cy="810" r="45" class="ring-bg" stroke-width="10"/>
+  <circle cx="360" cy="810" r="45" class="ring-ok" stroke-width="10" stroke-dasharray="283 283" transform="rotate(-90 360 810)"/>
+  <text x="337" y="818" class="pct" fill="#22c55e">100%</text>
+  <text x="310" y="875" class="metric">TTS First Audio</text>
+  <text x="310" y="890" class="metric">Atual: ~53ms</text>
+  <text x="310" y="905" class="metric">Meta: 120ms</text>
+
+  <!-- Checklist Medicoes -->
+  <text x="60" y="940" class="item" fill="#22c55e">[OK] capture_ms implementado</text>
+  <text x="250" y="940" class="item" fill="#22c55e">[OK] vad_ms implementado</text>
+  <text x="60" y="955" class="item" fill="#22c55e">[OK] stt_ms implementado</text>
+  <text x="250" y="955" class="item" fill="#22c55e">[OK] tts_ms implementado</text>
+
+  <!-- ==================== CHECKLIST PENDENCIAS ==================== -->
+
+<rect x="475" y="680" width="310" height="280" fill="#2d2d44" stroke="#fbbf24" stroke-width="3" rx="12" ry="12"/>
+<text x="495" y="705" class="h2" fill="#fbbf24">PENDENCIAS (5)</text>
+
+<text x="495" y="730" style="font-family:Arial;font-size:11px;fill:#e8e8e8;">[  ] 1. Comparar tiny/small</text>
+<text x="495" y="748" style="font-family:Arial;font-size:11px;fill:#e8e8e8;">[  ] 2. Backend STT plugavel</text>
+<text x="495" y="766" style="font-family:Arial;font-size:11px;fill:#e8e8e8;">[  ] 3. Perfis FAST/BALANCED</text>
+<text x="495" y="784" style="font-family:Arial;font-size:11px;fill:#e8e8e8;">[  ] 4. Turn-taking parciais</text>
+<text x="495" y="802" style="font-family:Arial;font-size:11px;fill:#e8e8e8;">[  ] 5. Watchdogs 24-72h</text>
+<text x="495" y="930" style="font-family:Arial;font-size:10px;fill:#fbbf24;">5 pendentes</text>
+
+  <!-- ==================== PROGRESSO GERAL ==================== -->
+
+  <rect x="820" y="680" width="200" height="280" class="card" fill="#1e293b" stroke="#7c3aed"/>
+  <text x="840" y="710" class="h2" fill="#a78bfa">PROGRESSO GERAL</text>
+
+  <!-- Big gauge - 75% (38 de 50 itens aprox) -->
+  <circle cx="920" cy="840" r="70" fill="none" stroke="#1e293b" stroke-width="14"/>
+  <circle cx="920" cy="840" r="70" fill="none" stroke="#22c55e" stroke-width="14" stroke-dasharray="330 440" transform="rotate(-90 920 840)"/>
+  <text x="885" y="850" style="font-family:Arial;font-size:28px;font-weight:bold;fill:#22c55e">75%</text>
+
+  <text x="840" y="930" class="metric">Itens OK: 38 de 50</text>
+  <text x="840" y="950" class="metric">Pendentes: 12 itens</text>
+
+  <!-- ==================== METRICAS ATUAIS ==================== -->
+
+  <rect x="1040" y="680" width="220" height="280" class="card" fill="#1e293b" stroke="#22c55e"/>
+  <text x="1060" y="710" class="h2" fill="#86efac">METRICAS ATUAIS</text>
+
+  <text x="1060" y="735" class="metric">STT (87% tempo):</text>
+  <text x="1060" y="750" class="metric">  p50: 553ms | p95: 946ms</text>
+
+  <text x="1060" y="775" class="metric">TTS:</text>
+  <text x="1060" y="790" class="metric">  p50: 96ms | p95: 209ms</text>
+
+  <text x="1060" y="815" class="metric">Endpointing:</text>
+  <text x="1060" y="830" class="metric">  p50: 0.12ms | p95: 0.23ms</text>
+
+  <text x="1060" y="855" class="metric" fill="#22c55e">Barge-in stop:</text>
+  <text x="1060" y="870" class="metric" fill="#22c55e">  p50: 52ms | p95: 60ms</text>
+
+  <text x="1060" y="900" class="metric" fill="#22c55e">EOS-to-Audio:</text>
+  <text x="1060" y="915" class="metric" fill="#22c55e">  p50: 654ms | p95: 1077ms</text>
+
+  <text x="1060" y="945" class="metric" fill="#86efac">3/3 METAS OURO OK</text>
+
+  <!-- ==================== METAS OURO ==================== -->
+
+  <rect x="40" y="1000" width="560" height="100" class="card" fill="#1e1e2e" stroke="#22c55e"/>
+  <text x="60" y="1030" class="h2" fill="#86efac">METAS PLANO OURO - 3/3 ATINGIDAS</text>
+  <text x="60" y="1055" class="metric" fill="#22c55e">1. eos_to_first_audio p95 &lt;= 1200ms (atual 1077ms) .................... ATINGIDO</text>
+  <text x="60" y="1075" class="metric" fill="#22c55e">2. barge_in_stop p95 &lt; 80ms (atual 60ms) ............................... ATINGIDO</text>
+  <text x="60" y="1095" class="metric" fill="#22c55e">3. tts_first_audio p95 &lt; 120ms (atual ~53ms) ........................... ATINGIDO</text>
+
+  <!-- ==================== PROXIMOS PASSOS ==================== -->
+
+  <rect x="620" y="1000" width="380" height="100" class="card" fill="#1e293b" stroke="#0ea5e9"/>
+  <text x="640" y="1030" class="h2" fill="#7dd3fc">PROXIMOS PASSOS</text>
+  <text x="640" y="1055" class="metric">1. Comparar tiny vs tiny.en vs small</text>
+  <text x="640" y="1075" class="metric">2. Implementar perfis FAST/BALANCED</text>
+  <text x="640" y="1095" class="metric">3. Watchdogs + robustez 24-72h</text>
+
+  <!-- ==================== ROBUSTEZ ==================== -->
+
+  <rect x="1020" y="1000" width="240" height="100" class="card" fill="#1e293b" stroke="#f59e0b"/>
+  <text x="1040" y="1030" class="h2" fill="#fbbf24">ROBUSTEZ</text>
+  <text x="1040" y="1055" class="metric">[  ] Teste 8h sem crash</text>
+  <text x="1040" y="1075" class="metric">[  ] Teste 24-72h self-heal</text>
+  <text x="1040" y="1095" class="metric">[  ] 3 rodadas validacao</text>
+
+  <!-- Telemetry dots -->
+  <circle cx="140" cy="285" r="5" fill="#64748b"/>
+  <circle cx="370" cy="285" r="5" fill="#64748b"/>
+  <circle cx="610" cy="305" r="5" fill="#64748b"/>
+  <circle cx="850" cy="360" r="5" fill="#64748b"/>
+  <circle cx="1080" cy="680" r="5" fill="#64748b"/>
+
+</svg>

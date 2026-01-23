@@ -1,0 +1,27 @@
+{
+  "repeat": 2,
+  "latency_ms_avg": 0.8349210002052132,
+  "latency_ms_p50": 0.8349210002052132,
+  "latency_ms_p95": 1.9996470002297428,
+  "latency_ms_p99": 2.1031782002319233,
+  "latency_ms_p995": null,
+  "cpu_time_s_avg": 0.0005830000000000002,
+  "rss_kb": 20768,
+  "psutil_cpu_percent": 1050.2,
+  "psutil_rss_bytes": 21454848,
+  "psutil_vms_bytes": 42074112,
+  "psutil_available": true,
+  "scenario": "tts",
+  "text": "teste do perfil balanced cpu",
+  "tts_mode": "local",
+  "benchmark_config": {
+    "timestamp": "2026-01-23T11:16:26.846575+00:00",
+    "git_commit": "0b75c7b",
+    "python_version": "3.12.3",
+    "tts_mode": "local"
+  },
+  "tts_engine": "espeak-ng",
+  "tts_first_audio_ms_avg": 0.46602149996033404,
+  "tts_first_audio_ms_p50": 0.46602149996033404,
+  "tts_first_audio_ms_p95": 0.7060636511596385
+}

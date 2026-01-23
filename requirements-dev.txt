@@ -1,0 +1,12 @@
+# Dev dependencies for Jarvis
+# Install: pip install -r requirements-dev.txt
+
+# Linting & formatting
+ruff>=0.14.0
+
+# Type checking
+mypy>=1.8.0
+
+# Testing (already in requirements.txt but useful to have here too)
+pytest>=7.4
+pytest-cov>=4.1.0
