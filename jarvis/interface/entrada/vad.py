@@ -296,13 +296,21 @@ def apply_aec_to_audio(
 def resolve_vad_aggressiveness(default: int = 2) -> int:
     value = _env_int_optional("JARVIS_VAD_AGGRESSIVENESS")
     if value is None:
-        # If not explicitly set, try to get from active profile
-        try:
-            from jarvis.interface.infra.profiles import load_profile
-            profile = load_profile()
-            default = profile["vad_aggressiveness"]
-        except Exception:
-            pass
+        # If not explicitly set via env var, try to get from active profile
+        # BUT only if default is still the global default (2)
+        # If caller passed a specific default, respect it
+        if default == 2:
+            try:
+                from jarvis.interface.infra.profiles import load_profile
+                profile = load_profile()
+                default = profile["vad_aggressiveness"]
+            except Exception:
+                pass
+        # Clamp default to valid range [0, 3]
+        if default < 0:
+            return 0
+        if default > 3:
+            return 3
         return default
     if value < 0:
         return 0

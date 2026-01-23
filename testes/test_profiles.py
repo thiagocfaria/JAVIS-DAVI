@@ -14,7 +14,6 @@ from jarvis.interface.infra.profiles import (
     PROFILES,
     load_profile,
     apply_profile,
-    VoiceProfile,
 )
 
 
