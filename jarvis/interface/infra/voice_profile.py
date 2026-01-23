@@ -272,6 +272,15 @@ def auto_configure_voice_profile(config: Any) -> tuple[bool, str | None]:
     if not _env_bool("JARVIS_AUTO_CONFIGURE", True):
         return True, None
 
+    # Apply voice profile if JARVIS_VOICE_PROFILE is set
+    if _env_is_set("JARVIS_VOICE_PROFILE"):
+        try:
+            from jarvis.interface.infra.profiles import load_profile, apply_profile
+            profile = load_profile()
+            apply_profile(profile)
+        except Exception:
+            pass
+
     # Pick a reasonable mic input automatically if user didn't choose one.
     _auto_select_audio_input_device()
 
