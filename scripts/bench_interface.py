@@ -10,9 +10,28 @@ import threading
 import wave
 import shutil
 import subprocess
+from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
+
+
+@dataclass
+class IterationMetrics:
+    """Per-iteration timing breakdown for eos_to_first_audio benchmark."""
+
+    iteration: int
+    eos_ts: float  # timestamp inicio
+    trim_ms: float  # tempo de processamento do trim (perf_counter)
+    endpointing_ms: float  # tempo calculo endpointing
+    stt_ms: float  # tempo transcricao
+    tts_first_audio_ms: float  # tempo até primeiro áudio (NÃO tempo total)
+    tts_total_ms: float | None  # tempo total do speak (opcional, para contexto)
+    ack_ms: float | None  # tempo ack (se habilitado)
+    total_eos_to_first_audio_ms: float
+    overhead_ms: float  # gap nao medido entre componentes (clampeado >= 0)
+    bottleneck: str  # "endpointing" | "stt" | "tts"
+    trimmed_audio_duration_ms: float  # duração do áudio pós-trim (contexto)
 
 import resource
 
@@ -40,6 +59,74 @@ def _env_int(key: str, default: int) -> int:
         return int(value)
     except ValueError:
         return default
+
+
+def _calc_p99(values: list[float]) -> float | None:
+    """Calcula p99 se houver amostras suficientes (N >= 2)."""
+    if len(values) < 2:
+        return None
+    return statistics.quantiles(values, n=100)[-1]
+
+
+def _calc_p995(values: list[float]) -> float | None:
+    """Calcula p99.5 apenas se N >= 200."""
+    if len(values) < 200:
+        return None
+    return statistics.quantiles(values, n=200)[-1]
+
+
+def _get_git_commit() -> str | None:
+    """Retorna o commit hash atual do git, se disponível."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+def _build_benchmark_config(
+    *,
+    warmup: bool | None = None,
+    require_wake_word: bool | None = None,
+    stt_model: str | None = None,
+    resample: bool | None = None,
+    **extra: Any,
+) -> dict[str, Any]:
+    """
+    Constrói o dicionário benchmark_config com informações do ambiente.
+
+    Registra todas as configurações relevantes para reproduzir o benchmark.
+    """
+    import platform
+    from datetime import datetime, timezone
+
+    config: dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "git_commit": _get_git_commit(),
+        "python_version": platform.python_version(),
+    }
+
+    # Adiciona parâmetros opcionais (apenas se não forem None)
+    if warmup is not None:
+        config["warmup"] = warmup
+    if require_wake_word is not None:
+        config["require_wake_word"] = require_wake_word
+    if stt_model is not None:
+        config["stt_model"] = stt_model
+    if resample is not None:
+        config["resample"] = resample
+
+    # Adiciona parâmetros extras
+    config.update(extra)
+
+    return config
 
 
 def _read_wav(path: Path) -> tuple[bytes, int, int]:
@@ -170,6 +257,8 @@ def _measure(fn, repeat: int, *, enable_gpu: bool = False) -> dict[str, Any]:
             if len(durations_ms) >= 2
             else durations_ms[0]
         ),
+        "latency_ms_p99": _calc_p99(durations_ms),
+        "latency_ms_p995": _calc_p995(durations_ms),
         "cpu_time_s_avg": statistics.mean(cpu_times),
         "rss_kb": rss_kb,
     }
@@ -234,6 +323,16 @@ def _bench_stt(
 
     result = _measure(run, repeat, enable_gpu=enable_gpu)
     result.update({"scenario": "stt", "audio": str(audio_path) if audio_path else "none"})
+
+    # Adiciona benchmark_config
+    stt_model = os.environ.get("JARVIS_STT_MODEL", "tiny").strip() or "tiny"
+    result["benchmark_config"] = _build_benchmark_config(
+        warmup=warmup,
+        require_wake_word=require_wake_word,
+        stt_model=stt_model,
+        resample=resample,
+    )
+
     if print_text:
         result["transcribed_text_last"] = last_text
         result["require_wake_word"] = require_wake_word
@@ -350,6 +449,8 @@ def _bench_stt_realtimestt(
             if len(durations_ms) >= 2
             else durations_ms[0]
         ),
+        "latency_ms_p99": _calc_p99(durations_ms),
+        "latency_ms_p995": _calc_p995(durations_ms),
         "realtimestt_ttfp_ms_p50": statistics.median(ttfp_ms) if ttfp_ms else None,
         "rss_kb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
         "scenario": "stt_realtimestt",
@@ -358,6 +459,12 @@ def _bench_stt_realtimestt(
         "language": language or None,
         "pace_realtime": pace_realtime,
     }
+    result["benchmark_config"] = _build_benchmark_config(
+        stt_model=model,
+        resample=resample,
+        pace_realtime=pace_realtime,
+        language=language or None,
+    )
     if enable_gpu:
         result.update(_collect_gpu_metrics())
     return result
@@ -380,6 +487,7 @@ def _bench_vad(
 
     result = _measure(run, repeat, enable_gpu=enable_gpu)
     result.update({"scenario": "vad", "audio": str(audio_path) if audio_path else "none"})
+    result["benchmark_config"] = _build_benchmark_config(resample=resample)
     return result
 
 
@@ -503,6 +611,10 @@ def _bench_endpointing(
             "silence_frames": results[0]["silence_frames"] if results else 0,
         }
     )
+    result["benchmark_config"] = _build_benchmark_config(
+        resample=resample,
+        vad_silence_ms=silence_ms,
+    )
     return result
 
 
@@ -532,6 +644,7 @@ def _bench_tts(
 
     result = _measure(run, repeat, enable_gpu=enable_gpu)
     result.update({"scenario": "tts", "text": text, "tts_mode": mode})
+    result["benchmark_config"] = _build_benchmark_config(tts_mode=mode)
     if engines:
         result["tts_engine"] = max(set(engines), key=engines.count)
     if ack_values:
@@ -589,6 +702,9 @@ def _bench_llm_plan(
             "plan_notes_last": plan_notes[-1] if plan_notes else None,
         }
     )
+    result["benchmark_config"] = _build_benchmark_config(
+        llm_prompt_style=os.environ.get("JARVIS_LLM_PROMPT_STYLE", "compact"),
+    )
     return result
 
 
@@ -600,6 +716,18 @@ def _bench_eos_to_first_audio(
     resample: bool,
     enable_gpu: bool,
 ) -> dict[str, Any]:
+    """
+    Benchmark completo de eos_to_first_audio (endpointing + STT + TTS).
+
+    IMPORTANTE: Este benchmark SEMPRE faz warmup de STT e TTS (simula produção).
+    Para medir cold start, use o cenário 'stt' com --no-warmup.
+
+    Protocolo de warmup (linhas 657-680):
+    - STT: carrega modelo Whisper e faz 1 transcricao warmup
+    - TTS: faz 1 speak() warmup para carregar Piper
+
+    Meta OURO: p95 < 1200ms
+    """
     from jarvis.cerebro.config import load_config
     from jarvis.entrada.stt import SpeechToText
     from jarvis.voz.tts import TextToSpeech
@@ -627,22 +755,24 @@ def _bench_eos_to_first_audio(
     eos_to_first_audio_values: list[float] = []
     eos_to_ack_values: list[float] = []
     eos_to_phase1_values: list[float] = []
+    trim_ms_values: list[float] = []
     stt_ms_values: list[float] = []
-    tts_first_audio_ms_values: list[float] = []
+    tts_total_ms_values: list[float] = []
     tts_ack_ms_values: list[float] = []
     endpoint_reached_values: list[bool] = []
-    trimmed_ms_values: list[float] = []
     phase1_sources: list[str] = []
+    iterations_data: list[IterationMetrics] = []
 
     # Warm up STT model so repeat stats reflect "service already running"
     # (avoids p95 being dominated by first model load).
     try:
-        get_model = getattr(stt, "_get_model", None)
+        get_model = getattr(stt, "_get_whisper_model", None)
         if callable(get_model):
-            get_model()
+            get_model(realtime=False)
         transcribe = getattr(stt, "_transcribe_audio_bytes", None)
-        if callable(transcribe):
-            warm_bytes = frames[: min(len(frames), vad.bytes_per_frame * 2)]
+        bytes_per_frame = getattr(vad, "bytes_per_frame", None)
+        if callable(transcribe) and isinstance(bytes_per_frame, int) and bytes_per_frame > 0:
+            warm_bytes = frames[: min(len(frames), bytes_per_frame * 2)]
             if warm_bytes:
                 transcribe(
                     warm_bytes,
@@ -652,12 +782,29 @@ def _bench_eos_to_first_audio(
     except Exception:
         pass
 
-    for _ in range(repeat):
+    # Warm up TTS model (avoids first speak() loading Piper from scratch)
+    try:
+        tts.speak(reply_text[:20] if len(reply_text) > 20 else reply_text)
+    except Exception:
+        pass
+
+    for i in range(repeat):
+        # Start measuring total EOS-to-first-audio time from here
+        eos_ts = time.perf_counter()
+
+        # Track endpointing time
+        endpoint_start = time.perf_counter()
         endpoint = _compute_endpointing(frames, vad, silence_ms=silence_ms)
+        endpoint_end = time.perf_counter()
+        iter_endpointing_ms = (endpoint_end - endpoint_start) * 1000.0
+
         endpoint_reached = bool(endpoint.get("endpoint_reached"))
         bytes_per_frame = endpoint.get("bytes_per_frame")
         frame_ms = int(endpoint.get("frame_ms") or 30)
         last_voiced_idx = endpoint.get("last_voiced_idx")
+
+        # Measure trim processing time with perf_counter
+        trim_start = time.perf_counter()
         trimmed_audio = frames
         if (
             endpoint_reached
@@ -670,14 +817,11 @@ def _bench_eos_to_first_audio(
             end_frame_idx = last_voiced_idx + 1 + post_roll_frames
             end_bytes = min(len(frames), end_frame_idx * bytes_per_frame)
             trimmed_audio = frames[:end_bytes]
+        trim_end = time.perf_counter()
+        iter_trim_ms = (trim_end - trim_start) * 1000.0
+        trim_ms_values.append(iter_trim_ms)
 
         endpoint_reached_values.append(endpoint_reached)
-        if frame_ms > 0 and isinstance(bytes_per_frame, int) and bytes_per_frame > 0:
-            trimmed_ms_values.append(
-                (len(trimmed_audio) / float(bytes_per_frame)) * float(frame_ms)
-            )
-
-        eos_ts = time.perf_counter()
         if os.environ.get("JARVIS_BENCH_PHASE1", "").strip().lower() in {
             "1",
             "true",
@@ -695,32 +839,80 @@ def _bench_eos_to_first_audio(
                 src = phase1_metrics.get("tts_ack_source")
                 if isinstance(src, str) and src:
                     phase1_sources.append(src)
+
+        # Measure STT locally with perf_counter
+        stt_start = time.perf_counter()
         stt._transcribe_audio_bytes(  # type: ignore[attr-defined]
             trimmed_audio,
             require_wake_word=False,
             skip_speech_check=False,
         )
-        stt_metrics = stt.get_last_metrics()
-        stt_ms = stt_metrics.get("stt_ms")
-        if stt_ms is not None:
-            stt_ms_values.append(float(stt_ms))
+        stt_end = time.perf_counter()
+        iter_stt_ms = (stt_end - stt_start) * 1000.0
+        stt_ms_values.append(iter_stt_ms)
 
+        # Measure TTS locally with perf_counter (total time for context)
+        tts_start = time.perf_counter()
         tts.speak(reply_text)
+        tts_end = time.perf_counter()
+        iter_tts_total_ms = (tts_end - tts_start) * 1000.0
+        tts_total_ms_values.append(iter_tts_total_ms)
+
         tts_metrics = tts.get_last_metrics()
         first_audio_ts = tts_metrics.get("tts_first_audio_perf_ts")
         if first_audio_ts is None:
             first_audio_ts = time.perf_counter()
-        eos_to_first_audio_values.append((float(first_audio_ts) - eos_ts) * 1000.0)
+        iter_eos_to_first_audio_ms = (float(first_audio_ts) - eos_ts) * 1000.0
+        eos_to_first_audio_values.append(iter_eos_to_first_audio_ms)
         ack_ts = tts_metrics.get("tts_ack_perf_ts")
         if ack_ts is not None:
             eos_to_ack_values.append((float(ack_ts) - eos_ts) * 1000.0)
 
+        # Get tts_first_audio_ms from tts_metrics (time to first audio, NOT total)
         first_audio_ms = tts_metrics.get("tts_first_audio_ms")
-        if first_audio_ms is not None:
-            tts_first_audio_ms_values.append(float(first_audio_ms))
+        iter_tts_first_audio_ms = float(first_audio_ms) if first_audio_ms is not None else iter_tts_total_ms
+
         ack_ms = tts_metrics.get("tts_ack_ms")
+        iter_ack_ms: float | None = float(ack_ms) if ack_ms is not None else None
         if ack_ms is not None:
             tts_ack_ms_values.append(float(ack_ms))
+
+        # Calculate trimmed audio duration (for context)
+        iter_trimmed_audio_duration_ms = 0.0
+        if frame_ms > 0 and isinstance(bytes_per_frame, int) and bytes_per_frame > 0:
+            iter_trimmed_audio_duration_ms = (len(trimmed_audio) / float(bytes_per_frame)) * float(frame_ms)
+
+        # Calculate overhead (gap between measured components and total)
+        # Use tts_first_audio_ms (NOT tts_total_ms) for correct breakdown
+        # Clamp to >= 0 to avoid negative values from timing discrepancies
+        measured_sum = iter_endpointing_ms + iter_trim_ms + iter_stt_ms + iter_tts_first_audio_ms
+        iter_overhead_ms = max(0.0, iter_eos_to_first_audio_ms - measured_sum)
+
+        # Identify bottleneck (component with largest contribution - excluding ack)
+        # Use tts_first_audio_ms (NOT tts_total_ms) for accurate bottleneck identification
+        components: dict[str, float] = {
+            "endpointing": iter_endpointing_ms,
+            "stt": iter_stt_ms,
+            "tts": iter_tts_first_audio_ms,
+        }
+        iter_bottleneck = max(components, key=lambda k: components[k])
+
+        iterations_data.append(
+            IterationMetrics(
+                iteration=i,
+                eos_ts=eos_ts,
+                trim_ms=iter_trim_ms,
+                endpointing_ms=iter_endpointing_ms,
+                stt_ms=iter_stt_ms,
+                tts_first_audio_ms=iter_tts_first_audio_ms,
+                tts_total_ms=iter_tts_total_ms,
+                ack_ms=iter_ack_ms,
+                total_eos_to_first_audio_ms=iter_eos_to_first_audio_ms,
+                overhead_ms=iter_overhead_ms,
+                bottleneck=iter_bottleneck,
+                trimmed_audio_duration_ms=iter_trimmed_audio_duration_ms,
+            )
+        )
 
     eos_to_first_audio_p95 = (
         statistics.quantiles(eos_to_first_audio_values, n=20)[-1]
@@ -745,12 +937,12 @@ def _bench_eos_to_first_audio(
         ),
         "stt_warmed": True,
     }
-    if trimmed_ms_values:
-        result["trimmed_audio_ms_p50"] = statistics.median(trimmed_ms_values)
+    if trim_ms_values:
+        result["trim_ms_p50"] = statistics.median(trim_ms_values)
     if stt_ms_values:
         result["stt_ms_p50"] = statistics.median(stt_ms_values)
-    if tts_first_audio_ms_values:
-        result["tts_first_audio_ms_p50"] = statistics.median(tts_first_audio_ms_values)
+    if tts_total_ms_values:
+        result["tts_total_ms_p50"] = statistics.median(tts_total_ms_values)
     if eos_to_ack_values:
         eos_to_ack_p95 = (
             statistics.quantiles(eos_to_ack_values, n=20)[-1]
@@ -773,8 +965,104 @@ def _bench_eos_to_first_audio(
             result["phase1_source"] = max(set(phase1_sources), key=phase1_sources.count)
     if tts_ack_ms_values:
         result["tts_ack_ms_p50"] = statistics.median(tts_ack_ms_values)
+
+    # Adiciona benchmark_config (documenta que warmup é OBRIGATÓRIO neste cenário)
+    stt_model = os.environ.get("JARVIS_STT_MODEL", "tiny").strip() or "tiny"
+    result["benchmark_config"] = _build_benchmark_config(
+        warmup=True,  # SEMPRE True para eos_to_first_audio
+        stt_model=stt_model,
+        resample=resample,
+        vad_silence_ms=silence_ms,
+        vad_post_roll_ms=post_roll_ms,
+        note="warmup is MANDATORY for eos_to_first_audio (simulates production). For cold start, use 'stt' scenario with --no-warmup.",
+    )
+
     if enable_gpu:
         result.update(_collect_gpu_metrics())
+
+    # Top 10 slow runs with breakdown
+    if iterations_data:
+        sorted_runs = sorted(
+            iterations_data, key=lambda x: x.total_eos_to_first_audio_ms, reverse=True
+        )
+        top_10 = sorted_runs[:10]
+        top_10_output = [
+            {
+                "rank": rank + 1,
+                "iteration": m.iteration,
+                "total_ms": round(m.total_eos_to_first_audio_ms, 2),
+                "breakdown": {
+                    "endpointing_ms": round(m.endpointing_ms, 2),
+                    "trim_ms": round(m.trim_ms, 2),
+                    "stt_ms": round(m.stt_ms, 2),
+                    "tts_first_audio_ms": round(m.tts_first_audio_ms, 2),
+                    "ack_ms": round(m.ack_ms, 2) if m.ack_ms is not None else None,
+                    "overhead_ms": round(m.overhead_ms, 2),
+                },
+                "tts_total_ms": round(m.tts_total_ms, 2) if m.tts_total_ms else None,
+                "trimmed_audio_duration_ms": round(m.trimmed_audio_duration_ms, 2),
+                "bottleneck": m.bottleneck,
+            }
+            for rank, m in enumerate(top_10)
+        ]
+        result["top_10_slow_runs"] = top_10_output
+
+        # Stage breakdown with avg/p50/p95
+        def _calc_stats(values: list[float]) -> dict[str, float]:
+            # Filter out invalid values (None and 0.0 fallback values)
+            valid_values = [v for v in values if v is not None and v > 0.0]
+            if not valid_values:
+                return {"avg_ms": 0.0, "p50_ms": 0.0, "p95_ms": 0.0}
+            p95 = (
+                statistics.quantiles(valid_values, n=20)[-1]
+                if len(valid_values) >= 2
+                else valid_values[0]
+            )
+            return {
+                "avg_ms": round(statistics.mean(valid_values), 2),
+                "p50_ms": round(statistics.median(valid_values), 2),
+                "p95_ms": round(p95, 2),
+            }
+
+        def _calc_stats_optional(values: list[float | None]) -> dict[str, float]:
+            # For optional values like ack_ms that can be None
+            valid_values = [v for v in values if v is not None and v > 0.0]
+            if not valid_values:
+                return {"avg_ms": 0.0, "p50_ms": 0.0, "p95_ms": 0.0}
+            p95 = (
+                statistics.quantiles(valid_values, n=20)[-1]
+                if len(valid_values) >= 2
+                else valid_values[0]
+            )
+            return {
+                "avg_ms": round(statistics.mean(valid_values), 2),
+                "p50_ms": round(statistics.median(valid_values), 2),
+                "p95_ms": round(p95, 2),
+            }
+
+        endpointing_vals = [m.endpointing_ms for m in iterations_data]
+        trim_vals = [m.trim_ms for m in iterations_data]
+        stt_vals = [m.stt_ms for m in iterations_data]
+        tts_first_audio_vals = [m.tts_first_audio_ms for m in iterations_data]
+        ack_vals: list[float | None] = [m.ack_ms for m in iterations_data]
+        overhead_vals = [m.overhead_ms for m in iterations_data]
+
+        stage_breakdown: dict[str, Any] = {
+            "endpointing": _calc_stats(endpointing_vals),
+            "trim": _calc_stats(trim_vals),
+            "stt": _calc_stats(stt_vals),
+            "tts": _calc_stats(tts_first_audio_vals),  # tts_first_audio, NÃO tts_total
+            "ack": _calc_stats_optional(ack_vals),
+            "overhead": _calc_stats(overhead_vals),
+        }
+        result["stage_breakdown"] = stage_breakdown
+
+        # Bottleneck summary (count of bottlenecks per component)
+        bottleneck_counts: dict[str, int] = {}
+        for m in iterations_data:
+            bottleneck_counts[m.bottleneck] = bottleneck_counts.get(m.bottleneck, 0) + 1
+        result["bottleneck_summary"] = bottleneck_counts
+
     return result
 
 
@@ -792,6 +1080,92 @@ def _bench_speaker(
 
     result = _measure(run, repeat, enable_gpu=enable_gpu)
     result.update({"scenario": "speaker", "audio": str(audio_path) if audio_path else "none"})
+    result["benchmark_config"] = _build_benchmark_config(resample=resample)
+    return result
+
+
+def _bench_barge_in(
+    text: str, repeat: int, *, enable_gpu: bool, delay_ms: int = 200
+) -> dict[str, Any]:
+    """
+    Benchmark do tempo de barge-in (stop do TTS até silêncio real).
+
+    Mede o tempo entre chamar tts.stop() e o áudio REALMENTE parar:
+    - Poll até processo aplay terminar (proc.poll() != None)
+    - Delay adicional de 50ms para dreno de buffer ALSA
+    - Captura timestamp final após parada completa
+
+    Meta PRATA: p95 < 120ms
+    Meta OURO: p95 < 80ms
+    """
+    from types import SimpleNamespace
+    from jarvis.interface.saida.tts import TextToSpeech
+
+    config = SimpleNamespace(tts_mode="local")
+    tts = TextToSpeech(config)  # type: ignore[arg-type]
+
+    stop_times: list[float] = []
+
+    # Texto longo para garantir que TTS esteja reproduzindo
+    long_text = text * 5 if len(text) < 50 else text
+
+    def run() -> None:
+        # Inicia TTS em thread separada
+        def play_tts() -> None:
+            try:
+                tts.speak(long_text)
+            except Exception:
+                pass
+
+        tts_thread = threading.Thread(target=play_tts, daemon=True)
+        tts_thread.start()
+
+        # Espera TTS começar a reproduzir áudio
+        time.sleep(delay_ms / 1000.0)
+
+        # Mede tempo REAL até áudio parar (com wait_completion)
+        stop_start = time.perf_counter()
+
+        # stop(wait_completion=True) aguarda término dos processos internamente
+        # - Kill dos processos (aplay primeiro, piper depois)
+        # - Wait até processos terminarem (timeout 0.5s)
+        tts.stop(wait_completion=True)
+
+        # Delay adicional para dreno de buffer ALSA
+        # Configurável via env: JARVIS_BENCH_ALSA_DRAIN_MS (default: 50ms)
+        alsa_drain_ms = int(os.environ.get("JARVIS_BENCH_ALSA_DRAIN_MS", "50"))
+        time.sleep(alsa_drain_ms / 1000.0)
+
+        stop_end = time.perf_counter()
+
+        stop_ms = (stop_end - stop_start) * 1000.0
+        stop_times.append(stop_ms)
+
+        # Espera thread terminar para não acumular
+        tts_thread.join(timeout=1.0)
+
+    result = _measure(run, repeat, enable_gpu=enable_gpu)
+    result.update({
+        "scenario": "barge_in",
+        "text": text[:50] + "..." if len(text) > 50 else text,
+        "delay_before_stop_ms": delay_ms,
+    })
+    result["benchmark_config"] = _build_benchmark_config(
+        tts_mode="local",
+        delay_before_stop_ms=delay_ms,
+    )
+
+    if stop_times:
+        result["barge_in_stop_ms_avg"] = statistics.mean(stop_times)
+        result["barge_in_stop_ms_p50"] = statistics.median(stop_times)
+        result["barge_in_stop_ms_p95"] = (
+            statistics.quantiles(stop_times, n=20)[-1]
+            if len(stop_times) >= 2
+            else stop_times[0]
+        )
+        result["barge_in_stop_ms_min"] = min(stop_times)
+        result["barge_in_stop_ms_max"] = max(stop_times)
+
     return result
 
 
@@ -808,6 +1182,7 @@ def main() -> int:
             "speaker",
             "eos_to_first_audio",
             "llm_plan",
+            "barge_in",
         ],
     )
     parser.add_argument("--audio", type=str, help="caminho para WAV 16kHz mono")
@@ -842,7 +1217,22 @@ def main() -> int:
         action="store_true",
         help="reamostrar para 16 kHz quando o WAV nao estiver em 16 kHz",
     )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        choices=["fast_cpu", "balanced_cpu", "noisy_room"],
+        help="usar um perfil de voz pré-definido (fast_cpu, balanced_cpu, noisy_room)",
+    )
     args = parser.parse_args()
+
+    # Apply voice profile if specified
+    if args.profile:
+        try:
+            from jarvis.interface.infra.profiles import load_profile, apply_profile
+            profile = load_profile(args.profile)
+            apply_profile(profile)
+        except Exception as e:
+            print(f"Warning: Failed to apply profile '{args.profile}': {e}", flush=True)
 
     if args.scenario in {
         "stt",
@@ -896,8 +1286,16 @@ def main() -> int:
         )
     elif args.scenario == "llm_plan":
         result = _bench_llm_plan(args.text, args.repeat, enable_gpu=args.gpu)
+    elif args.scenario == "barge_in":
+        result = _bench_barge_in(args.text, args.repeat, enable_gpu=args.gpu)
     else:
         result = _bench_tts(args.text, args.repeat, args.tts_mode, enable_gpu=args.gpu)
+
+    # Add profile to result if it was applied
+    if args.profile:
+        if "benchmark_config" not in result:
+            result["benchmark_config"] = {}
+        result["benchmark_config"]["profile"] = args.profile
 
     output = json.dumps(result, ensure_ascii=True, indent=2)
     if args.json:
