@@ -306,6 +306,7 @@ class SpeechToText:
         self._metrics_enabled = _env_bool("JARVIS_STT_METRICS", False)
         self._last_metrics: dict[str, float | None] = {}
         self._last_vad_metrics: dict[str, float | None] = {}
+        self._last_turn_info: dict[str, bool | int | str] = {}
         self._reset_last_metrics()
         self._stt_profile = (
             (_env_str_optional("JARVIS_STT_PROFILE") or "").strip().lower()
@@ -407,7 +408,6 @@ class SpeechToText:
             1.0, max(0.0, _env_float("JARVIS_STT_COMMAND_BIAS_THRESHOLD", 0.82))
         )
         self._last_confidence = 1.0
-        self._last_turn_info: dict[str, object] = {}
         self._last_language_state: dict[str, object] = {}
         self._last_emotion: dict[str, object] | None = None
         self._last_speaker_state: dict[str, object] = {}
@@ -469,7 +469,13 @@ class SpeechToText:
             "JARVIS_STT_MODEL"
         )
         if not model_size:
-            model_size = "tiny" if self._fast_profile else "small"
+            # If not explicitly set, try to get from active profile
+            try:
+                from jarvis.interface.infra.profiles import load_profile
+                profile = load_profile()
+                model_size = profile["stt_model"]
+            except Exception:
+                model_size = "tiny" if self._fast_profile else "small"
         self._model_size = str(model_size)
 
         auto_fast_on_tiny = _env_bool("JARVIS_STT_AUTO_FAST_ON_TINY", True)
@@ -691,7 +697,8 @@ class SpeechToText:
             "stt_ms": None,
         }
         self._last_vad_metrics = {}
-        self._last_turn_info = {}
+        # _last_turn_info não é resetado aqui pois não é uma métrica técnica
+        # e já foi inicializado no __init__
         self._last_language_state = {}
         self._last_emotion = None
         self._last_speaker_state = {}
@@ -709,7 +716,7 @@ class SpeechToText:
     def get_last_confidence(self) -> float:
         return float(self._last_confidence)
 
-    def get_last_turn_info(self) -> dict[str, object]:
+    def get_last_turn_info(self) -> dict[str, bool | int | str]:
         return dict(self._last_turn_info)
 
     def get_last_language_state(self) -> dict[str, object]:
