@@ -13,7 +13,6 @@ import os
 import wave
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import difflib
 

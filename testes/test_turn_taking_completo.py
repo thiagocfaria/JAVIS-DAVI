@@ -6,7 +6,6 @@ Valida a heurística que decide se uma frase está completa ou incompleta.
 """
 from __future__ import annotations
 
-import os
 import pytest
 
 from jarvis.interface.entrada.turn_taking import analyze_turn

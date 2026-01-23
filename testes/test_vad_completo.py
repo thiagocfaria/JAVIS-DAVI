@@ -6,9 +6,8 @@ Valida WebRTC VAD, Silero VAD, streaming, AEC, e configurações.
 """
 from __future__ import annotations
 
-import os
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 class TestWebRTCVAD:
@@ -170,7 +169,7 @@ class TestSileroVAD:
     def test_silero_deactivity_detector_mock(self) -> None:
         """SileroDeactivityDetector deve funcionar com mock."""
         np = pytest.importorskip("numpy")
-        torch = pytest.importorskip("torch")
+        _torch = pytest.importorskip("torch")  # noqa: F841
 
         from jarvis.voz.adapters.vad_silero import SileroDeactivityDetector
 
@@ -197,8 +196,8 @@ class TestSileroVAD:
 
     def test_silero_trim_empty_audio(self) -> None:
         """SileroDeactivityDetector com áudio vazio."""
-        np = pytest.importorskip("numpy")
-        torch = pytest.importorskip("torch")
+        _np = pytest.importorskip("numpy")  # noqa: F841
+        _torch = pytest.importorskip("torch")  # noqa: F841
 
         from jarvis.voz.adapters.vad_silero import SileroDeactivityDetector
 

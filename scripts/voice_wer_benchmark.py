@@ -9,11 +9,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import wave
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 try:
     import numpy as np  # type: ignore

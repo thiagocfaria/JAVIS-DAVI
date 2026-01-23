@@ -7,10 +7,8 @@ Estes testes requerem os modelos carregados e são mais lentos.
 """
 from __future__ import annotations
 
-import os
 import wave
 from pathlib import Path
-from typing import Any
 
 import pytest
 

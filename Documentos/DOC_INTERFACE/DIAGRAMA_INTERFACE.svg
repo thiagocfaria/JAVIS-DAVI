@@ -190,14 +190,14 @@
   <path d="M1080 510 L1080 550" class="arrow"/>
 
   <!-- Audio Out -->
-  <rect x="980" y="680" width="200" height="90" class="card done"/>
-  <text x="995" y="705" class="h2">Audio Out</text>
-  <text x="995" y="725" class="item">[OK] Fone/caixa output</text>
-  <text x="995" y="740" class="item">[OK] AEC reference</text>
+  <rect x="980" y="560" width="200" height="90" class="card done"/>
+  <text x="995" y="585" class="h2">Audio Out</text>
+  <text x="995" y="605" class="item">[OK] Fone/caixa output</text>
+  <text x="995" y="620" class="item">[OK] AEC reference</text>
   <!-- Progress ring 100% -->
-  <circle cx="1150" cy="720" r="20" class="ring-bg"/>
-  <circle cx="1150" cy="720" r="20" class="ring-ok" stroke-dasharray="126 126" transform="rotate(-90 1150 720)"/>
-  <text x="1132" y="725" class="pct">100%</text>
+  <circle cx="1150" cy="600" r="20" class="ring-bg"/>
+  <circle cx="1150" cy="600" r="20" class="ring-ok" stroke-dasharray="126 126" transform="rotate(-90 1150 600)"/>
+  <text x="1132" y="605" class="pct">100%</text>
 
   <!-- ==================== METRICS GAUGES ==================== -->
 
@@ -261,25 +261,25 @@
 
   <!-- ==================== METRICAS ATUAIS ==================== -->
 
-  <rect x="1040" y="680" width="220" height="280" class="card" fill="#1e293b" stroke="#22c55e"/>
-  <text x="1060" y="710" class="h2" fill="#86efac">METRICAS ATUAIS</text>
+  <rect x="1100" y="680" width="220" height="280" class="card" fill="#1e293b" stroke="#22c55e"/>
+  <text x="1120" y="710" class="h2" fill="#86efac">METRICAS ATUAIS</text>
 
-  <text x="1060" y="735" class="metric">STT (87% tempo):</text>
-  <text x="1060" y="750" class="metric">  p50: 553ms | p95: 946ms</text>
+  <text x="1120" y="735" class="metric">STT (87% tempo):</text>
+  <text x="1120" y="750" class="metric">  p50: 553ms | p95: 946ms</text>
 
-  <text x="1060" y="775" class="metric">TTS:</text>
-  <text x="1060" y="790" class="metric">  p50: 96ms | p95: 209ms</text>
+  <text x="1120" y="775" class="metric">TTS:</text>
+  <text x="1120" y="790" class="metric">  p50: 96ms | p95: 209ms</text>
 
-  <text x="1060" y="815" class="metric">Endpointing:</text>
-  <text x="1060" y="830" class="metric">  p50: 0.12ms | p95: 0.23ms</text>
+  <text x="1120" y="815" class="metric">Endpointing:</text>
+  <text x="1120" y="830" class="metric">  p50: 0.12ms | p95: 0.23ms</text>
 
-  <text x="1060" y="855" class="metric" fill="#22c55e">Barge-in stop:</text>
-  <text x="1060" y="870" class="metric" fill="#22c55e">  p50: 52ms | p95: 60ms</text>
+  <text x="1120" y="855" class="metric" fill="#22c55e">Barge-in stop:</text>
+  <text x="1120" y="870" class="metric" fill="#22c55e">  p50: 52ms | p95: 60ms</text>
 
-  <text x="1060" y="900" class="metric" fill="#22c55e">EOS-to-Audio:</text>
-  <text x="1060" y="915" class="metric" fill="#22c55e">  p50: 654ms | p95: 1077ms</text>
+  <text x="1120" y="900" class="metric" fill="#22c55e">EOS-to-Audio:</text>
+  <text x="1120" y="915" class="metric" fill="#22c55e">  p50: 654ms | p95: 1077ms</text>
 
-  <text x="1060" y="945" class="metric" fill="#86efac">3/3 METAS OURO OK</text>
+  <text x="1120" y="945" class="metric" fill="#86efac">3/3 METAS OURO OK</text>
 
   <!-- ==================== METAS OURO ==================== -->
 
@@ -310,6 +310,6 @@
   <circle cx="370" cy="285" r="5" fill="#64748b"/>
   <circle cx="610" cy="305" r="5" fill="#64748b"/>
   <circle cx="850" cy="360" r="5" fill="#64748b"/>
-  <circle cx="1080" cy="680" r="5" fill="#64748b"/>
+  <circle cx="1200" cy="660" r="5" fill="#64748b"/>
 
 </svg>

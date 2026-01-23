@@ -142,7 +142,6 @@ class TestEmocaoAsync:
     def test_callback_nao_chamado_para_audio_curto(self) -> None:
         """Callback não deve ser chamado para áudio muito curto."""
         np = pytest.importorskip("numpy")
-        import threading
         import time
 
         samples = np.zeros(1600, dtype=np.int16)  # 100ms

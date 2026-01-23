@@ -6,13 +6,9 @@ Valida: cache, barge-in, word timing, chunking, phase1 ack.
 """
 from __future__ import annotations
 
-import os
 import tempfile
-import time
 from pathlib import Path
-from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
-from unittest.mock import MagicMock, patch
 
 import pytest
 

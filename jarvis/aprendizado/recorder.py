@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from PIL import Image as PILImage
-    from pynput import keyboard, mouse
 
 try:
     from pynput import keyboard as _keyboard, mouse as _mouse  # type: ignore
