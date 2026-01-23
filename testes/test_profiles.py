@@ -56,7 +56,7 @@ class TestProfileStructure:
         """Test BALANCED_CPU profile parameters."""
         profile = PROFILES["balanced_cpu"]
         assert profile["name"] == "balanced_cpu"
-        assert profile["silence_ms"] == 600
+        assert profile["silence_ms"] == 500
         assert profile["min_speech_ms"] == 400
         assert profile["pre_roll_ms"] == 150
         assert profile["post_roll_ms"] == 150
@@ -225,7 +225,7 @@ class TestApplyProfile:
             profile = load_profile("balanced_cpu")
             apply_profile(profile)
 
-            assert os.environ.get("JARVIS_VAD_SILENCE_MS") == "600"
+            assert os.environ.get("JARVIS_VAD_SILENCE_MS") == "500"
             assert os.environ.get("JARVIS_MIN_AUDIO_SECONDS") == "0.4"
             assert os.environ.get("JARVIS_VAD_AGGRESSIVENESS") == "2"
             assert os.environ.get("JARVIS_STT_MODEL") == "tiny"

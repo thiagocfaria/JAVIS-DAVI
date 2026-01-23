@@ -45,7 +45,7 @@ PROFILES: dict[str, VoiceProfile] = {
     },
     "balanced_cpu": {
         "name": "balanced_cpu",
-        "silence_ms": 600,
+        "silence_ms": 500,
         "min_speech_ms": 400,
         "pre_roll_ms": 150,
         "post_roll_ms": 150,
