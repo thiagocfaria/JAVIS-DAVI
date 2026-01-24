@@ -326,10 +326,17 @@ def _bench_stt(
 
     # Adiciona benchmark_config
     stt_model = os.environ.get("JARVIS_STT_MODEL", "tiny").strip() or "tiny"
+    stt_backend = "faster_whisper"
+    if hasattr(stt, "get_stt_backend_name"):
+        backend_name = stt.get_stt_backend_name()
+        if backend_name:
+            stt_backend = backend_name
+
     result["benchmark_config"] = _build_benchmark_config(
         warmup=warmup,
         require_wake_word=require_wake_word,
         stt_model=stt_model,
+        stt_backend=stt_backend,
         resample=resample,
     )
 
@@ -937,6 +944,15 @@ def _bench_eos_to_first_audio(
         ),
         "stt_warmed": True,
     }
+
+    # Add latency_ms_* aliases for dashboard compatibility
+    result["latency_ms_avg"] = result["eos_to_first_audio_ms_avg"]
+    result["latency_ms_p50"] = result["eos_to_first_audio_ms_p50"]
+    result["latency_ms_p95"] = result["eos_to_first_audio_ms_p95"]
+    if len(eos_to_first_audio_values) >= 2:
+        result["latency_ms_p99"] = _calc_p99(eos_to_first_audio_values)
+    else:
+        result["latency_ms_p99"] = None
     if trim_ms_values:
         result["trim_ms_p50"] = statistics.median(trim_ms_values)
     if stt_ms_values:
@@ -968,9 +984,16 @@ def _bench_eos_to_first_audio(
 
     # Adiciona benchmark_config (documenta que warmup é OBRIGATÓRIO neste cenário)
     stt_model = os.environ.get("JARVIS_STT_MODEL", "tiny").strip() or "tiny"
+    stt_backend = "faster_whisper"
+    if hasattr(stt, "get_stt_backend_name"):
+        backend_name = stt.get_stt_backend_name()
+        if backend_name:
+            stt_backend = backend_name
+
     result["benchmark_config"] = _build_benchmark_config(
         warmup=True,  # SEMPRE True para eos_to_first_audio
         stt_model=stt_model,
+        stt_backend=stt_backend,
         resample=resample,
         vad_silence_ms=silence_ms,
         vad_post_roll_ms=post_roll_ms,

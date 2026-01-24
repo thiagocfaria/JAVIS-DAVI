@@ -53,7 +53,7 @@ except Exception:
 try:
     from faster_whisper import WhisperModel  # type: ignore
 except ImportError:
-    WhisperModel = None
+    WhisperModel = None  # Legacy import, deprecated
 
 try:
     import ctranslate2  # type: ignore
@@ -62,11 +62,11 @@ except Exception:
 
 if TYPE_CHECKING:
     import numpy as _np
-    from faster_whisper import WhisperModel as WhisperModelType
+    from jarvis.interface.entrada.stt_backends.base import STTBackend
 
     NDArrayFloat: TypeAlias = _np.ndarray
 else:
-    WhisperModelType = Any
+    STTBackend = Any
     NDArrayFloat: TypeAlias = Any
 
 try:
@@ -296,9 +296,10 @@ class SpeechToText:
 
     def __init__(self, config: Config) -> None:
         self.config = config
-        self._local_model: WhisperModelType | None = None
-        self._realtime_model: WhisperModelType | None = None
-        self._fallback_models: dict[str, WhisperModelType] = {}
+        self._local_model: STTBackend | None = None
+        self._realtime_model: STTBackend | None = None
+        self._fallback_models: dict[str, STTBackend] = {}
+        self._stt_backend_name: str | None = None
         self._vad: Any | None = None
         self._streaming_vad: Any | None = None
 
@@ -1124,43 +1125,56 @@ class SpeechToText:
         )
         return device, compute_type
 
-    def _get_whisper_model(self, *, realtime: bool) -> WhisperModelType:
-        if WhisperModel is None:
-            raise STTError("Missing faster-whisper. Run: pip install faster-whisper")
+    def _get_whisper_model(self, *, realtime: bool) -> STTBackend:
+        from jarvis.interface.entrada.stt_backends.factory import create_backend
+
         if realtime and self._realtime_model_size:
             if self._realtime_model is None:
                 device, compute_type = self._resolve_device(self._realtime_model_size)
-                self._realtime_model = WhisperModel(
-                    self._realtime_model_size,
+                self._realtime_model = create_backend(
+                    model_size=self._realtime_model_size,
                     device=device,
                     compute_type=compute_type,
                     cpu_threads=self._cpu_threads,
                     num_workers=self._num_workers,
                 )
+                self._stt_backend_name = self._realtime_model.backend_name
             return self._realtime_model
+
         if self._local_model is None:
             device, compute_type = self._resolve_device(self._model_size)
-            self._local_model = WhisperModel(
-                self._model_size,
+            self._local_model = create_backend(
+                model_size=self._model_size,
                 device=device,
                 compute_type=compute_type,
                 cpu_threads=self._cpu_threads,
                 num_workers=self._num_workers,
             )
+            self._stt_backend_name = self._local_model.backend_name
+
         return self._local_model
 
-    def _get_fallback_model(self, model_size: str) -> WhisperModelType | None:
+    def get_stt_backend_name(self) -> str | None:
+        """
+        Return active STT backend name for metrics.
+
+        Returns:
+            Backend name string (e.g., "faster_whisper", "whisper_cpp") or None
+        """
+        return self._stt_backend_name
+
+    def _get_fallback_model(self, model_size: str) -> STTBackend | None:
+        from jarvis.interface.entrada.stt_backends.factory import create_backend
+
         if not model_size:
-            return None
-        if WhisperModel is None:
             return None
         cached = self._fallback_models.get(model_size)
         if cached is not None:
             return cached
         try:
             device, compute_type = self._resolve_device(model_size)
-            model = WhisperModel(
-                model_size,
+            model = create_backend(
+                model_size=model_size,
                 device=device,
                 compute_type=compute_type,
                 cpu_threads=self._cpu_threads,
@@ -1173,7 +1187,7 @@ class SpeechToText:
         return model
 
     def _transcribe_with_model(
-        self, audio_bytes: bytes, model: WhisperModelType
+        self, audio_bytes: bytes, model: STTBackend
     ) -> str:
         kwargs = self._build_whisper_kwargs()
         if np is not None:
