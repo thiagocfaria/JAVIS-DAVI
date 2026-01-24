@@ -1,8 +1,19 @@
 # Etapa 5: Backend STT Plugável - Implementação
 
-## Status: ✅ IMPLEMENTADO (Aguardando Validação)
+## Status: ✅ META OURO ATINGIDA
 
-Data: 2026-01-23
+Data: 2026-01-23 → 2026-01-24 (validação completa)
+
+## Resultados GOLD
+
+| Métrica | Baseline (faster_whisper) | GOLD (whisper_cpp) | Speedup |
+|---------|---------------------------|--------------------|---------|
+| p50 | 943ms | **373ms** | 2.53x |
+| p95 | 2238ms | **696ms** | 3.22x |
+| stt_ms p50 | 814ms | **240ms** | 3.39x |
+| endpoint_rate | 100% | 100% | - |
+
+**META OURO (p95 < 1200ms): ✅ ATINGIDA com margem de 504ms**
 
 ## Objetivo
 
@@ -228,22 +239,22 @@ print(f'GOLD target (<1200ms): {\"✅ PASS\" if gold[\"eos_to_first_audio_ms_p95
 
 ## Critérios de Aceitação
 
-### Performance (GOLD)
-- [ ] eos_to_first_audio p95 < 1200ms com whisper_cpp
-- [ ] Speedup ≥ 1.8x vs faster_whisper baseline
-- [ ] endpoint_reached_rate = 100%
-- [ ] Distribuição saudável (p99 - p50 < 800ms)
+### Performance (GOLD) ✅
+- [x] eos_to_first_audio p95 < 1200ms com whisper_cpp → **696ms** (margem 504ms)
+- [x] Speedup ≥ 1.8x vs faster_whisper baseline → **3.22x** (p95)
+- [x] endpoint_reached_rate = 100% → **100%**
+- [x] Distribuição saudável (p99 - p50 < 800ms) → **403ms** (776 - 373)
 
-### Backward Compatibility
+### Backward Compatibility ✅
 - [x] `JARVIS_STT_BACKEND=faster_whisper` funciona (imports passam)
 - [x] Código sem env var usa auto-selection (fallback funciona)
 - [x] SpeechToText initialization funciona
 
-### Métricas e Reprodutibilidade
+### Métricas e Reprodutibilidade ✅
 - [x] benchmark_config.stt_backend preenchido em todos os JSONs
 - [x] latency_ms_* aliases preenchidos (não null)
-- [ ] Áudio de teste versionado (voice_clean_16k.wav no repo)
-- [ ] Comandos de benchmark executados e documentados
+- [x] Áudio de teste versionado (voice_clean_16k.wav no repo)
+- [x] Comandos de benchmark executados e documentados
 
 ## Riscos Identificados
 

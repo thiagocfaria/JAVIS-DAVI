@@ -1,14 +1,12 @@
 """
 Whisper.cpp STT Backend.
 
-Adapter for whispercpp (CPU-optimized inference with GGML/GGUF models).
+Adapter for pywhispercpp (CPU-optimized inference with GGML/GGUF models).
 """
 
 from __future__ import annotations
 
 import os
-import tempfile
-import wave
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -25,19 +23,19 @@ from jarvis.interface.entrada.stt_backends.base import (
 )
 
 try:
-    import whispercpp  # type: ignore
+    from pywhispercpp.model import Model as PyWhisperModel  # type: ignore
 except ImportError:
-    whispercpp = None
+    PyWhisperModel = None
 
 
 def is_available() -> bool:
-    """Check if whispercpp backend is available."""
-    return whispercpp is not None
+    """Check if pywhispercpp backend is available."""
+    return PyWhisperModel is not None
 
 
 class WhisperCppBackend(STTBackendBase):
     """
-    STT backend using whisper.cpp (GGML/GGUF quantized models).
+    STT backend using whisper.cpp via pywhispercpp.
 
     Optimized for CPU inference with 2-3x speedup over faster-whisper.
     """
@@ -58,129 +56,65 @@ class WhisperCppBackend(STTBackendBase):
             cpu_threads: Number of CPU threads (0 = auto)
             **kwargs: Additional arguments
         """
-        if whispercpp is None:
+        if PyWhisperModel is None:
             raise ImportError(
-                "whispercpp not available. Install with: pip install whispercpp"
+                "pywhispercpp not available. Install with: pip install pywhispercpp"
             )
 
         self._model_size = model_size
         self._device = device
         self._cpu_threads = cpu_threads if cpu_threads > 0 else os.cpu_count() or 4
 
-        # Resolve model path
-        model_path = self._resolve_model_path(model_size)
+        # Resolve models directory
+        models_dir = self._resolve_models_dir()
 
-        # Initialize whispercpp model
-        self._model = whispercpp.Whisper.from_pretrained(
-            model_path,
+        # Initialize pywhispercpp model
+        self._model = PyWhisperModel(
+            model=model_size,
+            models_dir=models_dir,
             n_threads=self._cpu_threads,
+            redirect_whispercpp_logs_to=False,
         )
 
-    def _resolve_model_path(self, model_size: str) -> str:
+    def _resolve_models_dir(self) -> str:
         """
-        Resolve path to GGUF model file.
-
-        Search order:
-        1. ~/.cache/whisper/ggml-{model_size}-q5_k_s.bin
-        2. ~/.cache/whisper/ggml-{model_size}.bin
-        3. Auto-download via whispercpp
-
-        Args:
-            model_size: Model size string
+        Resolve path to models directory.
 
         Returns:
-            Path to model file
+            Path to models directory
         """
         cache_dir = Path.home() / ".cache" / "whisper"
         cache_dir.mkdir(parents=True, exist_ok=True)
+        return str(cache_dir)
 
-        # Try Q5_K_S quantized model (best speed/quality)
-        q5_path = cache_dir / f"ggml-{model_size}-q5_k_s.bin"
-        if q5_path.exists():
-            return str(q5_path)
-
-        # Try base quantized model
-        base_path = cache_dir / f"ggml-{model_size}.bin"
-        if base_path.exists():
-            return str(base_path)
-
-        # Fallback: use model name, let whispercpp handle download
-        # whispercpp will download to its default cache
-        return model_size
-
-    def _array_to_wav(self, audio: Any, sample_rate: int = 16000) -> str:
+    def _parse_result(self, segments: Any) -> Iterator[TranscriptionSegment]:
         """
-        Convert numpy array to temporary WAV file.
+        Parse pywhispercpp segments into TranscriptionSegment.
 
         Args:
-            audio: Float32 audio samples in [-1, 1]
-            sample_rate: Sample rate in Hz
-
-        Returns:
-            Path to temporary WAV file
-        """
-        if np is None:
-            raise ImportError("numpy required for audio conversion")
-
-        # Convert float32 to int16
-        if audio.dtype != np.int16:
-            audio_int16 = (audio * 32767.0).astype(np.int16)
-        else:
-            audio_int16 = audio
-
-        # Create temporary WAV file
-        fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="whisper_cpp_")
-        os.close(fd)
-
-        # Write WAV
-        with wave.open(wav_path, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(sample_rate)
-            wf.writeframes(audio_int16.tobytes())
-
-        return wav_path
-
-    def _parse_result(self, result: Any) -> Iterator[TranscriptionSegment]:
-        """
-        Parse whispercpp result into TranscriptionSegment.
-
-        Args:
-            result: Raw result from whispercpp
+            segments: List of Segment objects from pywhispercpp
 
         Yields:
             TranscriptionSegment instances
         """
-        # whispercpp returns a list of dicts with "text", "start", "end"
-        # or a single string
-        if isinstance(result, str):
-            # Single string result
-            yield TranscriptionSegment(text=result.strip())
+        if not segments:
             return
 
-        if isinstance(result, list):
-            for item in result:
-                if isinstance(item, dict):
-                    yield TranscriptionSegment(
-                        text=item.get("text", "").strip(),
-                        start=item.get("start", 0.0),
-                        end=item.get("end", 0.0),
-                    )
-                elif isinstance(item, str):
-                    yield TranscriptionSegment(text=item.strip())
-                elif hasattr(item, "text"):
-                    yield TranscriptionSegment(
-                        text=item.text.strip(),
-                        start=getattr(item, "start", 0.0),
-                        end=getattr(item, "end", 0.0),
-                    )
-            return
+        for seg in segments:
+            # pywhispercpp Segment has: text, t0, t1
+            text = getattr(seg, "text", str(seg)).strip()
+            if not text:
+                continue
 
-        # Fallback: try to extract text attribute
-        if hasattr(result, "text"):
-            yield TranscriptionSegment(text=result.text.strip())
-        else:
-            yield TranscriptionSegment(text=str(result).strip())
+            # t0/t1 are in milliseconds
+            t0 = getattr(seg, "t0", 0) / 1000.0 if hasattr(seg, "t0") else 0.0
+            t1 = getattr(seg, "t1", 0) / 1000.0 if hasattr(seg, "t1") else 0.0
+
+            yield TranscriptionSegment(
+                text=text,
+                start=t0,
+                end=t1,
+            )
 
     def transcribe(
         self,
@@ -196,51 +130,58 @@ class WhisperCppBackend(STTBackendBase):
         Args:
             audio: Audio data as numpy array (float32) or path to WAV file
             language: Language code (e.g., "pt", "en") or None for auto-detect
-            beam_size: Beam search size (may not be supported)
-            temperature: Sampling temperature (may not be supported)
+            beam_size: Beam search size
+            temperature: Sampling temperature
             **kwargs: Additional transcription options
 
         Returns:
             Tuple of (segments_iterator, transcription_info)
         """
-        # Convert numpy array to WAV if needed
-        temp_wav = None
-        if np is not None and hasattr(audio, "dtype"):
-            audio = self._array_to_samples(audio)
-            temp_wav = self._array_to_wav(audio)
-            audio_path = temp_wav
+        # Prepare transcription parameters
+        transcribe_kwargs: dict[str, Any] = {
+            "n_processors": self._cpu_threads,
+            "print_progress": False,
+            "print_realtime": False,
+        }
+
+        # Add language if specified
+        if language:
+            transcribe_kwargs["language"] = language
+
+        # Add decoding strategy: greedy for speed, beam_search for quality
+        if beam_size > 1:
+            transcribe_kwargs["beam_search"] = {"beam_size": beam_size, "patience": -1.0}
         else:
-            audio_path = audio
+            # Use greedy decoding with best_of=1 for maximum speed
+            transcribe_kwargs["greedy"] = {"best_of": 1}
 
-        try:
-            # Prepare transcription params
-            transcribe_params = {}
-            if language:
-                transcribe_params["language"] = language
+        if temperature > 0:
+            transcribe_kwargs["temperature"] = temperature
 
-            # Call whispercpp transcribe
-            # Note: whispercpp API may vary, adjust as needed
-            result = self._model.transcribe(audio_path, **transcribe_params)
+        # pywhispercpp.model.Model.transcribe accepts:
+        # - str: path to audio file
+        # - np.ndarray: float32 audio samples
+        if isinstance(audio, str):
+            # File path
+            segments = self._model.transcribe(audio, **transcribe_kwargs)
+        elif np is not None and hasattr(audio, "dtype"):
+            # Numpy array - normalize to float32
+            audio = self._array_to_samples(audio)
+            segments = self._model.transcribe(audio, **transcribe_kwargs)
+        else:
+            raise ValueError(f"Unsupported audio type: {type(audio)}")
 
-            # Parse result into segments
-            segments = list(self._parse_result(result))
+        # Parse result into segments list
+        segments_list = list(self._parse_result(segments))
 
-            # Create info (limited metadata from whisper.cpp)
-            info = TranscriptionInfo(
-                language=language or "en",
-                language_probability=1.0 if language else 0.0,
-                duration=segments[-1].end if segments else 0.0,
-            )
+        # Create info
+        info = TranscriptionInfo(
+            language=language or "en",
+            language_probability=1.0 if language else 0.0,
+            duration=segments_list[-1].end if segments_list else 0.0,
+        )
 
-            return iter(segments), info
-
-        finally:
-            # Clean up temporary WAV
-            if temp_wav and os.path.exists(temp_wav):
-                try:
-                    os.unlink(temp_wav)
-                except Exception:
-                    pass
+        return iter(segments_list), info
 
     @property
     def backend_name(self) -> str:
