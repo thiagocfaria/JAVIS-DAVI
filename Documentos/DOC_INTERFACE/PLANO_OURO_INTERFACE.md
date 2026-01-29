@@ -4,21 +4,27 @@ Documento guia (curto) para manter latência baixa e comportamento estável. Use
 
 ## Objetivos
 - **PRATA:** p95 do `eos_to_first_audio` ≤ 1200–1500ms; barge-in p95 ≤ 120ms; decisão→TTS p95 ≤ 200ms.
-- **OURO:** p95 do `eos_to_first_audio` ≤ 900–1200ms (**ATINGIDO:** p95=**1190ms** com faster_whisper, margem 10ms); barge-in p95 ≤ 80ms (atual: ~60ms); estabilidade 24–72h sem regressão (pendente).
+- **OURO:** p95 do `eos_to_first_audio` ≤ 900–1200ms (**ATINGIDO:** p95=**798.5ms** com faster_whisper, margem confortável 401.5ms); barge-in p95 ≤ 80ms (atual: ~60ms); estabilidade 24–72h sem regressão (pendente).
 
 ## Estado atual (jan/2026)
 
-**✅ Atualização 29/01/2026 (Validação Etapa 5 EM PROGRESSO — Correções):**
-- **Backend PRODUÇÃO:** `faster_whisper` (tiny) — **META OURO ATINGIDA** ✅
-  - **BLOCO 2 (Long-run 2000 iter):** p50: 636.2ms, p95: **798.5ms** (< 1200ms ✅), p99: 1136.6ms
-  - **⚠️ Degradação Detectada:** Slow runs clustered em iterações 1400-1700
-    - Causa: Thermal throttling ou GC em Python
-    - Impacto: Minimal (p95 mantém < 1200ms)
-    - Status: Requer validação 24-72h em ambiente final
-  - **CPU% VÁLIDO:** 219.1% (psutil_cpu_percent funciona)
-  - **System metrics:** null (pre_run_temp_celsius, pre_run_load_avg) → Requer re-run com add_system_metrics.py
-  - RSS: 301.8MB (estável, sem vazamento)
-  - cpu_time_avg: 1.44s
+**✅ Atualização 29/01/2026 (Validação Etapa 5 — Números Reais Confirmados):**
+- **Backend PRODUÇÃO:** `faster_whisper` (tiny) — **META OURO ATINGIDA CONFORTAVELMENTE** ✅
+  - **BLOCO 2 (Long-run 2000 iterações, 30-60min):**
+    - p50: 636.2ms (meta < 900ms ✅)
+    - p95: **798.5ms** (meta < 1200ms ✅, margem: 401.5ms)
+    - p99: 1136.6ms (vem de latency_ms_p99, não eos_to_first_audio_ms_p99)
+  - **⚠️ Degradação Detectada (IMPORTANTE):** Slow runs clustered em iterações 1400-1700
+    - Padrão: 10/10 slow runs no último quartil (Q4, 75-100%)
+    - Causa provável: Thermal throttling ou garbage collection em Python
+    - Impacto: Minimal (p95 mantém < 1200ms, sem violar meta OURO)
+    - Status: Documentado para validação 24-72h em produção
+    - Recomendação: Monitorar temperatura/carga se disponível
+  - **CPU% VÁLIDO:** 219.1% (psutil_cpu_percent funciona ✓)
+  - **System metrics:** null ⚠️ (pre_run_temp_celsius, pre_run_load_avg não coletados)
+    - Ação pendente: Re-rodar com add_system_metrics.py para coleta completa
+  - **RSS:** 301.8MB (estável, sem vazamento detectado)
+  - **cpu_time_avg:** 1.44s
 - **Backend EXPERIMENTAL:** `whisper_cpp` (tiny) — **REGRESSÃO SEVERA CONFIRMADA**
   - p50: ~2613ms (3.3x pior), p95: ~10042ms (8.4x pior)
   - Status: BLOQUEADO para produção
