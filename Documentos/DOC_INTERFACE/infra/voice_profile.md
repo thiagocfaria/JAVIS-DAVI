@@ -3,7 +3,7 @@
 - Caminho: `jarvis/interface/infra/voice_profile.py`
 - Papel: auto-configurar o perfil de voz para usuários não técnicos (Piper obrigatório, CPU/latência previsíveis).
 - Onde entra no fluxo: chamado por `jarvis/interface/entrada/app.py` antes de iniciar modos `--voice`/`--voice-loop`.
-- Atualizado em: 2026-01-19 (revisado com o codigo)
+- Atualizado em: 2026-01-28 (revisado com o código; backend STT padrão: faster_whisper tiny; whisper_cpp bloqueado)
 
 ## Responsabilidades
 - Aplicar o perfil de voz solicitado (`JARVIS_VOICE_PROFILE`) usando `profiles.py`.

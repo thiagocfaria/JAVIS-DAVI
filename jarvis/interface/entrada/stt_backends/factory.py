@@ -41,8 +41,12 @@ def select_backend_name(device: str = "cpu") -> str:
     1. JARVIS_STT_BACKEND env var (explicit override)
     2. Auto-detect:
        - GPU available → "ctranslate2" (faster-whisper GPU)
-       - CPU → "whisper_cpp" (CPU-optimized)
+       - CPU → "faster_whisper" (default; whisper_cpp bloqueado 2026-01-28)
     3. Fallback: "faster_whisper"
+
+    NOTE: whisper_cpp está bloqueado para produção (2026-01-28) devido a regressão
+    de performance (14-18x mais lento). Apenas usar com JARVIS_STT_BACKEND=whisper_cpp
+    explícito.
 
     Args:
         device: Device hint ("cpu", "cuda", "auto")
@@ -60,16 +64,8 @@ def select_backend_name(device: str = "cpu") -> str:
         # GPU available: use ctranslate2 (faster-whisper GPU backend)
         return "ctranslate2"
 
-    # CPU: prefer whisper_cpp if available
-    # Check if whisper_cpp is importable
-    try:
-        import whispercpp  # noqa: F401
-
-        return "whisper_cpp"
-    except ImportError:
-        pass
-
-    # Priority 3: Fallback to faster_whisper
+    # CPU: prefer faster_whisper (stable, p95=1190ms < META OURO)
+    # whisper_cpp BLOQUEADO até resolução da regressão
     return "faster_whisper"
 
 

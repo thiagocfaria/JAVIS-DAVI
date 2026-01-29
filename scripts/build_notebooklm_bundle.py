@@ -70,17 +70,18 @@ def collect_interface_files(root: Path) -> tuple[list[Path], list[Path], list[Pa
     skipped_binary: list[Path] = []
 
     code_files: list[Path] = []
-    entrada_dir = root / "jarvis" / "entrada"
-    if entrada_dir.exists():
-        code_files.extend(sorted(entrada_dir.glob("*.py")))
+    interface_dir = root / "jarvis" / "interface"
+    if interface_dir.exists():
+        code_files.extend(sorted(interface_dir.rglob("*.py")))
     else:
-        missing.append(entrada_dir)
+        missing.append(interface_dir)
 
     comunicacao_dir = root / "jarvis" / "comunicacao"
     add_if_exists(comunicacao_dir / "chat_inbox.py", code_files, missing)
     add_if_exists(comunicacao_dir / "chat_log.py", code_files, missing)
     add_if_exists(comunicacao_dir / "protocolo.py", code_files, missing)
 
+    # Camada de compat/adapters antiga (jarvis/voz)
     voz_dir = root / "jarvis" / "voz"
     if voz_dir.exists():
         code_files.extend(sorted(voz_dir.glob("*.py")))
@@ -161,6 +162,9 @@ def collect_interface_files(root: Path) -> tuple[list[Path], list[Path], list[Pa
         for path in sorted(docs_dir.rglob("*")):
             if not path.is_file():
                 continue
+            # Ignorar arquivos de histórico massivo de benchmark arquivado
+            if "bench_audio" in path.parts and "archive" in path.parts:
+                continue
             if is_probably_text(path):
                 doc_files.append(path)
             else:
@@ -198,18 +202,28 @@ def write_bundle(
 
     # Caminhos para documentos especiais
     deps_doc = root / "Documentos" / "DOC_INTERFACE" / "DEPENDENCIAS_INTERFACE.md"
-    testes_doc = root / "Documentos" / "DOC_INTERFACE" / "TESTES_INTERFACE.md"
-    testes_realizados_doc = (
-        root / "Documentos" / "DOC_INTERFACE" / "TESTES_REALISADOS_INTERFACE.MD"
+    testes_doc = (
+        root / "Documentos" / "DOC_INTERFACE" / "testes" / "TESTES_INTERFACE.md"
     )
+    testes_realizados_doc = root / "Documentos" / "DOC_INTERFACE" / "TESTES_REALISADOS_INTERFACE.MD"
     repos_doc = root / "Documentos" / "DOC_INTERFACE" / "repositorios_interface.md"
-    bench_history = root / "Documentos" / "DOC_INTERFACE" / "bench_history.json"
+    evolucao_doc = root / "Documentos" / "DOC_INTERFACE" / "EVOLUCAO_PERFOMACE.MD"
+    plano_doc = root / "Documentos" / "DOC_INTERFACE" / "PLANO_OURO_INTERFACE.md"
 
     with output_path.open("w", encoding="utf-8") as handle:
         handle.write("=" * 80 + "\n")
         handle.write("NOTEBOOKLM BUNDLE: INTERFACE ENTRADA/SAIDA\n")
         handle.write("Documento completo para analise de competencia atual\n")
         handle.write("=" * 80 + "\n\n")
+
+        # Indice rapido das secoes
+        handle.write("Indice:\n")
+        handle.write("1) Arquivos incluidos (lista)\n")
+        handle.write("2) Dependencias\n")
+        handle.write("3) Testes (suite + registro)\n")
+        handle.write("4) Repositorios\n")
+        handle.write("5) Historico de performance\n")
+        handle.write("6) Codigos fonte e documentacao completa\n\n")
 
         # Seção 1: Lista de arquivos incluídos
         handle.write("=" * 80 + "\n")
@@ -254,7 +268,7 @@ def write_bundle(
         if testes_realizados_doc.exists():
             handle.write(read_text(testes_realizados_doc))
         else:
-            handle.write("AVISO: Documento de testes realizados nao encontrado.\n")
+            handle.write("Sem registro dedicado no momento.\n")
         handle.write("\n")
 
         # Seção 4: Repositórios
@@ -303,18 +317,32 @@ def write_bundle(
 
         # Seção 5: Histórico de Benchmarks
         handle.write("\n" + "=" * 80 + "\n")
-        handle.write("SECAO 5: HISTORICO DE BENCHMARKS\n")
+        handle.write("SECAO 5: HISTORICO DE PERFORMANCE\n")
         handle.write("=" * 80 + "\n\n")
-        if bench_history.exists():
-            handle.write(read_text(bench_history))
+        if evolucao_doc.exists():
+            handle.write("--- EVOLUCAO_PERFOMACE.MD ---\n\n")
+            handle.write(read_text(evolucao_doc))
+            handle.write("\n")
         else:
-            handle.write("AVISO: Arquivo de historico de benchmarks nao encontrado.\n")
+            handle.write("AVISO: Documento de evolucao de performance nao encontrado.\n\n")
+        if plano_doc.exists():
+            handle.write("--- PLANO_OURO_INTERFACE.md (estado/metricas) ---\n\n")
+            handle.write(read_text(plano_doc))
+            handle.write("\n")
         handle.write("\n")
 
         # Seção 6: Códigos Fonte e Documentação
         handle.write("\n" + "=" * 80 + "\n")
         handle.write("SECAO 6: CODIGOS FONTE E DOCUMENTACAO COMPLETA\n")
         handle.write("=" * 80 + "\n\n")
+        handle.write(
+            "Resumo rapido: STT padrão whisper.cpp tiny com warmup; TTS Piper in-proc com warmup; "
+            "latencia EoS->1o audio p95 ~1077ms; barge-in ainda best-effort (~1s). "
+            "Backend streaming RealtimeSTT é opcional; wake word por audio é opcional "
+            "(Porcupine/OpenWakeWord). Profiles e dependencias detalhados nos docs.\n\n"
+            "Nota: Seção 6 é um dump integral dos arquivos listados na Seção 1 "
+            "para facilitar ingestão pela IA. Use o índice da Seção 1 para localizar caminhos.\n\n"
+        )
         for path in unique_files:
             content = read_text(path)
             handle.write(f"==== FILE: {rel(path)} ====\n")
@@ -327,7 +355,7 @@ def write_bundle(
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     default_out_dir = root / "NOTBOOKLM"
-    default_diagram = root / "Documentos" / "DIAGRAMA_ARQUITETURA.svg"
+    default_diagram = root / "Documentos" / "DOC_INTERFACE" / "DIAGRAMA_INTERFACE.svg"
 
     parser = argparse.ArgumentParser(
         description="Gera bundle do NotebookLM (PDF do diagrama + TXT da interface)."

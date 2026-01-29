@@ -1,0 +1,61 @@
+{
+  "wer_global": 0.6129032258064516,
+  "samples": [
+    {
+      "audio": "oi_jarvis_clean.wav",
+      "transcript": "Oi, Jardes.",
+      "expected": "oi jarvis",
+      "wer": 1.0,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "oi_jarvis_tv.wav",
+      "transcript": "Como ele? Oi! Jobs!",
+      "expected": "oi jarvis",
+      "wer": 2.0,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "oi_jarvis_tv_alta.wav",
+      "transcript": "Oi, jars!",
+      "expected": "oi jarvis",
+      "wer": 1.0,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "comando_longo.wav",
+      "transcript": "J\u00e1 \u00e9 o teste longo de comando de voz para Bertmark.",
+      "expected": "jarvis, este \u00e9 um teste longo de comando de voz para benchmark",
+      "wer": 0.3333333333333333,
+      "words": 12,
+      "correct": false
+    },
+    {
+      "audio": "comando_longo_tv.wav",
+      "transcript": "J\u00e1 este \u00e9 um teste longo de um comando de voz, o arabete mar.",
+      "expected": "jarvis, este \u00e9 um teste longo de comando de voz para benchmark",
+      "wer": 0.5,
+      "words": 12,
+      "correct": false
+    },
+    {
+      "audio": "ruido_puro.wav",
+      "transcript": "At\u00e9 bom, tchau!",
+      "expected": "",
+      "wer": 1.0,
+      "words": 0,
+      "correct": false
+    },
+    {
+      "audio": "sussurro.wav",
+      "transcript": "Gers.",
+      "expected": "jarvis",
+      "wer": 1.0,
+      "words": 1,
+      "correct": false
+    }
+  ]
+}

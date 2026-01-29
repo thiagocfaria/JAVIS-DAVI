@@ -65,16 +65,28 @@ class WhisperCppBackend(STTBackendBase):
         self._device = device
         self._cpu_threads = cpu_threads if cpu_threads > 0 else os.cpu_count() or 4
 
-        # Resolve models directory
-        models_dir = self._resolve_models_dir()
+        # Check for model path override
+        model_path_override = os.environ.get("JARVIS_WHISPER_CPP_MODEL_PATH", "").strip()
 
-        # Initialize pywhispercpp model
-        self._model = PyWhisperModel(
-            model=model_size,
-            models_dir=models_dir,
-            n_threads=self._cpu_threads,
-            redirect_whispercpp_logs_to=False,
-        )
+        # Resolve models directory and model path
+        if model_path_override:
+            # Use explicit model path
+            self._model_path = model_path_override
+            self._model = PyWhisperModel(
+                model=self._model_path,
+                n_threads=self._cpu_threads,
+                redirect_whispercpp_logs_to=False,
+            )
+        else:
+            # Use standard model resolution (model_size + models_dir)
+            models_dir = self._resolve_models_dir()
+            self._model_path = f"{models_dir}/ggml-{model_size}.bin"
+            self._model = PyWhisperModel(
+                model=model_size,
+                models_dir=models_dir,
+                n_threads=self._cpu_threads,
+                redirect_whispercpp_logs_to=False,
+            )
 
     def _resolve_models_dir(self) -> str:
         """
@@ -138,8 +150,11 @@ class WhisperCppBackend(STTBackendBase):
             Tuple of (segments_iterator, transcription_info)
         """
         # Prepare transcription parameters
+        # NOTE: n_processors > 1 splits audio into chunks which degrades quality
+        # for short audio. Use n_processors=1 for audio < 30s (default case).
+        # Only use parallel processing for very long audio (> 60s).
         transcribe_kwargs: dict[str, Any] = {
-            "n_processors": self._cpu_threads,
+            "n_processors": 1,  # Single processor for quality
             "print_progress": False,
             "print_realtime": False,
         }
@@ -192,6 +207,11 @@ class WhisperCppBackend(STTBackendBase):
     def model_name(self) -> str:
         """Return model identifier."""
         return self._model_size
+
+    @property
+    def model_path(self) -> str:
+        """Return path to loaded model file."""
+        return self._model_path
 
 
 def create_backend(

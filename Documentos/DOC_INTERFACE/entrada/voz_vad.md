@@ -3,7 +3,7 @@
 - Caminho: `jarvis/interface/entrada/vad.py`
 - Papel: VAD (detectar fala) e gravacao streaming.
 - Onde entra no fluxo: usado pelo STT para cortar silencio.
-- Atualizado em: 2026-01-10 (revisado com o codigo)
+- Atualizado em: 2026-01-24 (revisado com o código)
 
 ## Responsabilidades
 - Detectar fala em frames PCM int16.

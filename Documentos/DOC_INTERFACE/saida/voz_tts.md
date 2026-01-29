@@ -3,21 +3,19 @@
 - Caminho: `jarvis/interface/saida/tts.py`
 - Papel: TTS local (Piper) com fallback para espeak-ng.
 - Onde entra no fluxo: saida de voz (fala do Jarvis).
-- Atualizado em: 2026-01-22 (Etapa 1 - Warmup implementado e META OURO atingida)
+- Atualizado em: 2026-01-24 (backend Piper in-proc, TTFA warm ~50–80ms)
 
 ## Responsabilidades
-- Resolver modelo Piper e executar pipeline `piper | aplay`.
-- Procurar modelo em `JARVIS_PIPER_MODELS_DIR`, `~/.local/share/piper-models`, `~/.local/share/piper`,
-  `/usr/share/piper-voices`, `/usr/local/share/piper-voices`.
-- Fallback para espeak-ng.
+- Resolver engine/backends de TTS (Piper in-proc preferido, CLI como fallback; espeak-ng como último recurso).
+- Manter modelo Piper carregado em memória (backend Python via `piper-tts`) para TTFA baixo.
+- Suportar streaming/chunking, cache de frases curtas e barge-in (interromper playback).
 - Modo silencioso (`tts_mode=none`).
 
-## Entrada e saida
+## Entrada e saída
 - Entrada: texto UTF-8.
-- Saida: audio no dispositivo de saida (ALSA).
-- Saida opcional: callback `on_audio_chunk` para receber chunks de audio (bytes).
+- Saída: áudio no dispositivo ALSA; opcional callback `on_audio_chunk` (streaming).
 
-## Configuracao (env/config)
+## Configuração (env/config)
 - `JARVIS_TTS_ENGINE` (`auto`/`piper`/`espeak-ng`) seleciona engine de forma explicita.
   - `auto` (padrao): tenta Piper; se falhar, cai para espeak-ng.
   - `piper`: tenta usar Piper; se indisponivel, pode cair para espeak-ng (ou ficar mudo se `JARVIS_TTS_ENGINE_STRICT=1`).
@@ -66,10 +64,10 @@
 - `JARVIS_TTS_WPM` (palavras por minuto para estimativa; default 150)
 - `JARVIS_AEC_BACKEND` (`simple`/`none`) quando quiser alimentar referencia de playback
 
-## Dependencias diretas
-- `piper` (binario)
-- `espeak-ng` (binario)
-- `aplay` (binario)
+## Dependências diretas
+- `piper-tts` (backend Python e binário `piper`)
+- `espeak-ng` (binário fallback)
+- `aplay` (binário)
 
 ## Testes relacionados
 - `testes/test_tts_interface.py`
@@ -162,26 +160,19 @@ export JARVIS_TTS_ACK_PHRASE="Entendi. Já vou responder."
    - Se mostrar `['piper', 'espeak-ng']`: Piper disponivel (usara voz humanizada)
    - Se mostrar apenas `['espeak-ng']`: Piper nao encontrado (usara voz robotica)
 
-## Comandos uteis
+## Comandos úteis
 - Teste: `PYTHONPATH=. pytest -q testes/test_tts_interface.py`
 - Falar: `PYTHONPATH=. python -c "from jarvis.interface.saida.tts import TextToSpeech; from types import SimpleNamespace; TextToSpeech(SimpleNamespace(tts_mode='local')).speak('ola')"`
 - Verificar engines: `PYTHONPATH=. python -c "from jarvis.interface.saida.tts import check_tts_deps; print(check_tts_deps())"`
 
 ## Qualidade e limites
 - Ignora texto vazio/espacos.
-- **Piper (voz humanizada)**: TTS neural local de alta qualidade. Usado quando disponivel.
-- **espeak-ng (voz robotica)**: Fallback quando Piper nao esta disponivel ou modelo nao encontrado.
-- O sistema tenta usar Piper primeiro; se falhar (binario nao encontrado ou modelo ausente), usa espeak-ng automaticamente.
-- Piper procura binario em: PATH, `~/.local/bin/piper`, `/usr/local/bin/piper`, `/usr/bin/piper`, `~/bin/piper`.
-- Piper procura modelos em: `JARVIS_PIPER_MODELS_DIR`, `~/.local/share/piper-models`, `~/.local/share/piper`, `/usr/share/piper-voices`, `/usr/local/share/piper-voices`.
-- Piper usa `--output-raw` e toca em 22050 Hz via `aplay`.
-- Com `JARVIS_TTS_STREAMING=1`, o audio sai em chunks (permite interromper e medir TTFA).
-- Se piper falhar e espeak-ng nao existir, nao ha audio.
-- Preflight avisa quando piper esta instalado sem modelo local.
-- Chamadas sao serializadas (lock interno) para evitar sobreposicao.
-- `JARVIS_TTS_VOLUME=0` silencia a fala (mantem fluxo).
-- Com `JARVIS_AEC_BACKEND=simple`, o audio do Piper e enviado como referencia de playback (AEC).
-- Com `JARVIS_DEBUG=1`, logs mostram qual engine esta sendo usado e motivo de fallback.
+- Piper in-proc preferido (TTFA warm baixo); CLI é fallback quando backend Python não carrega.
+- Fallback para espeak-ng se Piper indisponível (ainda depende de binário/modelo).
+- Streaming + `JARVIS_TTS_BARGE_IN=1` permitem interromper playback; `_terminate_process` usa `terminate` + `wait(1s)` + `kill`, então barge-in é best-effort (pode atrasar se o subprocess travar).
+- `JARVIS_TTS_VOLUME=0` silencia fala mantendo fluxo.
+- AEC simples: áudio do Piper pode ser usado como referência (`JARVIS_AEC_BACKEND=simple`).
+- Logs de debug (`JARVIS_DEBUG=1`) mostram engine/fallback.
 
 
 ## Performance (estimativa)
@@ -189,12 +180,9 @@ export JARVIS_TTS_ACK_PHRASE="Entendi. Já vou responder."
 - Medir: use `/usr/bin/time -v <comando>` e monitore `top`/`htop`.
 
 ## Observabilidade
-- Logs opcionais via `JARVIS_DEBUG=1` (erros e fallback piper->espeak).
-- `TextToSpeech.get_last_metrics()` retorna `tts_ms`, `play_ms`, `tts_first_audio_ms` e `tts_first_audio_perf_ts` da ultima fala.
-- `TextToSpeech.get_last_word_timings()` retorna lista de palavras com `start_ms`/`end_ms` (estimado).
-- `tts_first_audio_ms` (TTFA - Time To First Audio) representa o tempo desde o inicio do TTS ate o primeiro audio ficar disponivel.
-  - Com Piper + `JARVIS_TTS_STREAMING=1`: e o primeiro chunk real de audio (TTFA real).
-  - Com espeak-ng: e uma aproximacao (tempo ate iniciar o processo de fala), porque nao existe stream de chunks.
+- `TextToSpeech.get_last_metrics()`: `tts_ms`, `play_ms`, `tts_first_audio_ms`, `tts_first_audio_perf_ts`.
+- `TextToSpeech.get_last_word_timings()`: palavras com `start_ms`/`end_ms` (estimado).
+- Logs via `JARVIS_DEBUG=1` (engine/fallback/erros).
 
 ## Fase 1 (ack imediato do orchestrator)
 No modo voz (`jarvis/cerebro/orchestrator.py`), existe um “ack” opcional de latencia percebida:
@@ -204,7 +192,7 @@ No modo voz (`jarvis/cerebro/orchestrator.py`), existe um “ack” opcional de 
 ## Warmup (implementado - Etapa 1)
 - **Warmup TTS:** `tts.speak(reply_text[:20])` implementado em `scripts/bench_interface.py` (linhas 676-680).
 - **Beneficio:** Pre-carrega o modelo Piper antes das medições, evitando cold start no p95.
-- **Impacto medido:** p95 reduzido de ~1500ms para 1077ms quando combinado com warmup STT (META OURO atingida).
+- **Impacto medido:** p95 reduzido de ~1500ms para **~1190ms** quando combinado com warmup STT (META OURO atingida no limite com faster_whisper).
 - **Nota:** O warmup usa uma substring curta do texto de resposta para ser rápido e relevante.
 
 ## Problemas conhecidos (hoje)

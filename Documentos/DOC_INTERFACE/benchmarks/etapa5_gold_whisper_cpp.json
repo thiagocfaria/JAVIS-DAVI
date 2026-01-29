@@ -2,25 +2,25 @@
   "scenario": "eos_to_first_audio",
   "audio": "Documentos/DOC_INTERFACE/bench_audio/voice_clean_16k.wav",
   "reply_text": "ola jarvis",
-  "repeat": 10,
-  "eos_to_first_audio_ms_avg": 393.9618592999068,
-  "eos_to_first_audio_ms_p50": 372.5297729997692,
-  "eos_to_first_audio_ms_p95": 695.8035442995879,
-  "rss_kb": 1715148,
+  "repeat": 30,
+  "eos_to_first_audio_ms_avg": 5781.160929666668,
+  "eos_to_first_audio_ms_p50": 4526.915666000036,
+  "eos_to_first_audio_ms_p95": 16964.06061714999,
+  "rss_kb": 230328,
   "endpoint_silence_ms": 400,
   "endpoint_post_roll_ms": 200,
   "endpoint_reached_rate": 1.0,
   "stt_warmed": true,
-  "latency_ms_avg": 393.9618592999068,
-  "latency_ms_p50": 372.5297729997692,
-  "latency_ms_p95": 695.8035442995879,
-  "latency_ms_p99": 775.8653344595858,
-  "trim_ms_p50": 0.006448999556596391,
-  "stt_ms_p50": 239.98582199965313,
-  "tts_total_ms_p50": 1061.5131550002843,
+  "latency_ms_avg": 5781.160929666668,
+  "latency_ms_p50": 4526.915666000036,
+  "latency_ms_p95": 16964.06061714999,
+  "latency_ms_p99": 30124.349216229995,
+  "trim_ms_p50": 0.00458150000781643,
+  "stt_ms_p50": 4522.91918100002,
+  "tts_total_ms_p50": 1.0891449999803626,
   "benchmark_config": {
-    "timestamp": "2026-01-24T02:13:21.982967+00:00",
-    "git_commit": "af65587",
+    "timestamp": "2026-01-28T02:48:15.510002+00:00",
+    "git_commit": "77daca0",
     "python_version": "3.12.3",
     "warmup": true,
     "stt_model": "tiny",
@@ -30,188 +30,193 @@
     "vad_post_roll_ms": 200,
     "note": "warmup is MANDATORY for eos_to_first_audio (simulates production). For cold start, use 'stt' scenario with --no-warmup."
   },
+  "cpu_time_s_avg": 15.397234233333334,
+  "psutil_cpu_percent": 0.0,
+  "psutil_rss_bytes": 236285952,
+  "psutil_vms_bytes": 1943965696,
+  "psutil_available": true,
   "top_10_slow_runs": [
     {
       "rank": 1,
-      "iteration": 0,
-      "total_ms": 613.92,
+      "iteration": 1,
+      "total_ms": 22801.29,
       "breakdown": {
-        "endpointing_ms": 0.16,
+        "endpointing_ms": 0.17,
         "trim_ms": 0.01,
-        "stt_ms": 484.98,
-        "tts_first_audio_ms": 128.53,
+        "stt_ms": 22799.04,
+        "tts_first_audio_ms": 2.01,
         "ack_ms": null,
-        "overhead_ms": 0.24
+        "overhead_ms": 0.06
       },
-      "tts_total_ms": 954.68,
+      "tts_total_ms": 2.04,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 2,
-      "iteration": 9,
-      "total_ms": 431.96,
+      "iteration": 2,
+      "total_ms": 12188.15,
       "breakdown": {
-        "endpointing_ms": 0.16,
-        "trim_ms": 0.01,
-        "stt_ms": 284.4,
-        "tts_first_audio_ms": 147.28,
+        "endpointing_ms": 0.1,
+        "trim_ms": 0.0,
+        "stt_ms": 12180.9,
+        "tts_first_audio_ms": 7.11,
         "ack_ms": null,
-        "overhead_ms": 0.12
+        "overhead_ms": 0.03
       },
-      "tts_total_ms": 1110.33,
+      "tts_total_ms": 7.14,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 3,
-      "iteration": 1,
-      "total_ms": 408.0,
+      "iteration": 0,
+      "total_ms": 10659.39,
       "breakdown": {
-        "endpointing_ms": 0.11,
-        "trim_ms": 0.01,
-        "stt_ms": 312.28,
-        "tts_first_audio_ms": 95.48,
+        "endpointing_ms": 0.19,
+        "trim_ms": 0.02,
+        "stt_ms": 10658.06,
+        "tts_first_audio_ms": 1.03,
         "ack_ms": null,
-        "overhead_ms": 0.13
+        "overhead_ms": 0.08
       },
-      "tts_total_ms": 938.65,
+      "tts_total_ms": 1.1,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 4,
-      "iteration": 6,
-      "total_ms": 398.81,
+      "iteration": 8,
+      "total_ms": 10282.68,
       "breakdown": {
-        "endpointing_ms": 0.13,
+        "endpointing_ms": 0.15,
         "trim_ms": 0.01,
-        "stt_ms": 272.1,
-        "tts_first_audio_ms": 126.37,
+        "stt_ms": 10275.6,
+        "tts_first_audio_ms": 6.88,
         "ack_ms": null,
-        "overhead_ms": 0.22
+        "overhead_ms": 0.04
       },
-      "tts_total_ms": 1146.9,
+      "tts_total_ms": 6.9,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 5,
-      "iteration": 8,
-      "total_ms": 392.33,
+      "iteration": 7,
+      "total_ms": 9013.68,
       "breakdown": {
-        "endpointing_ms": 0.25,
-        "trim_ms": 0.01,
-        "stt_ms": 259.33,
-        "tts_first_audio_ms": 132.62,
+        "endpointing_ms": 0.1,
+        "trim_ms": 0.0,
+        "stt_ms": 9012.79,
+        "tts_first_audio_ms": 0.75,
         "ack_ms": null,
-        "overhead_ms": 0.13
+        "overhead_ms": 0.04
       },
-      "tts_total_ms": 990.46,
+      "tts_total_ms": 0.79,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 6,
-      "iteration": 2,
-      "total_ms": 352.73,
+      "iteration": 23,
+      "total_ms": 5514.15,
       "breakdown": {
-        "endpointing_ms": 0.23,
+        "endpointing_ms": 0.14,
         "trim_ms": 0.01,
-        "stt_ms": 199.81,
-        "tts_first_audio_ms": 152.54,
+        "stt_ms": 5506.49,
+        "tts_first_audio_ms": 7.48,
         "ack_ms": null,
-        "overhead_ms": 0.14
+        "overhead_ms": 0.04
       },
-      "tts_total_ms": 1016.26,
+      "tts_total_ms": 7.54,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 7,
-      "iteration": 7,
-      "total_ms": 351.9,
+      "iteration": 4,
+      "total_ms": 5017.37,
       "breakdown": {
-        "endpointing_ms": 0.11,
-        "trim_ms": 0.01,
-        "stt_ms": 220.64,
-        "tts_first_audio_ms": 130.91,
+        "endpointing_ms": 0.1,
+        "trim_ms": 0.0,
+        "stt_ms": 5016.59,
+        "tts_first_audio_ms": 0.65,
         "ack_ms": null,
-        "overhead_ms": 0.23
+        "overhead_ms": 0.03
       },
-      "tts_total_ms": 1106.77,
+      "tts_total_ms": 0.67,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 8,
-      "iteration": 3,
-      "total_ms": 343.09,
+      "iteration": 18,
+      "total_ms": 4974.55,
       "breakdown": {
-        "endpointing_ms": 0.1,
+        "endpointing_ms": 0.16,
         "trim_ms": 0.0,
-        "stt_ms": 205.08,
-        "tts_first_audio_ms": 137.79,
+        "stt_ms": 4967.61,
+        "tts_first_audio_ms": 6.74,
         "ack_ms": null,
-        "overhead_ms": 0.13
+        "overhead_ms": 0.04
       },
-      "tts_total_ms": 1136.36,
+      "tts_total_ms": 6.77,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 9,
-      "iteration": 5,
-      "total_ms": 340.0,
+      "iteration": 27,
+      "total_ms": 4816.81,
       "breakdown": {
-        "endpointing_ms": 0.17,
+        "endpointing_ms": 0.15,
         "trim_ms": 0.01,
-        "stt_ms": 216.02,
-        "tts_first_audio_ms": 123.59,
+        "stt_ms": 4815.56,
+        "tts_first_audio_ms": 1.06,
         "ack_ms": null,
-        "overhead_ms": 0.2
+        "overhead_ms": 0.04
       },
-      "tts_total_ms": 1143.94,
+      "tts_total_ms": 1.09,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     },
     {
       "rank": 10,
-      "iteration": 4,
-      "total_ms": 306.86,
+      "iteration": 25,
+      "total_ms": 4768.85,
       "breakdown": {
-        "endpointing_ms": 0.15,
-        "trim_ms": 0.01,
-        "stt_ms": 198.0,
-        "tts_first_audio_ms": 108.58,
+        "endpointing_ms": 0.11,
+        "trim_ms": 0.0,
+        "stt_ms": 4767.53,
+        "tts_first_audio_ms": 1.16,
         "ack_ms": null,
-        "overhead_ms": 0.12
+        "overhead_ms": 0.04
       },
-      "tts_total_ms": 987.57,
+      "tts_total_ms": 1.2,
       "trimmed_audio_duration_ms": 300.0,
       "bottleneck": "stt"
     }
   ],
   "stage_breakdown": {
     "endpointing": {
-      "avg_ms": 0.16,
-      "p50_ms": 0.15,
-      "p95_ms": 0.25
+      "avg_ms": 0.35,
+      "p50_ms": 0.14,
+      "p95_ms": 2.95
     },
     "trim": {
       "avg_ms": 0.01,
-      "p50_ms": 0.01,
-      "p95_ms": 0.01
+      "p50_ms": 0.0,
+      "p95_ms": 0.02
     },
     "stt": {
-      "avg_ms": 265.26,
-      "p50_ms": 239.99,
-      "p95_ms": 562.69
+      "avg_ms": 5778.31,
+      "p50_ms": 4522.92,
+      "p95_ms": 16959.07
     },
     "tts": {
-      "avg_ms": 128.37,
-      "p50_ms": 129.72,
-      "p95_ms": 154.91
+      "avg_ms": 2.46,
+      "p50_ms": 1.05,
+      "p95_ms": 7.59
     },
     "ack": {
       "avg_ms": 0.0,
@@ -219,12 +224,12 @@
       "p95_ms": 0.0
     },
     "overhead": {
-      "avg_ms": 0.17,
-      "p50_ms": 0.14,
-      "p95_ms": 0.25
+      "avg_ms": 0.04,
+      "p50_ms": 0.04,
+      "p95_ms": 0.08
     }
   },
   "bottleneck_summary": {
-    "stt": 10
+    "stt": 30
   }
 }

@@ -1,0 +1,61 @@
+{
+  "wer_global": 0.3870967741935484,
+  "samples": [
+    {
+      "audio": "oi_jarvis_clean.wav",
+      "transcript": "",
+      "expected": "oi jarvis",
+      "wer": 1.0,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "oi_jarvis_tv.wav",
+      "transcript": "Oi! Jobs!",
+      "expected": "oi jarvis",
+      "wer": 1.0,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "oi_jarvis_tv_alta.wav",
+      "transcript": "Oi, Jarls!",
+      "expected": "oi jarvis",
+      "wer": 1.0,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "comando_longo.wav",
+      "transcript": "este \u00e9 um teste longo de comando de voz para Batchmark",
+      "expected": "jarvis, este \u00e9 um teste longo de comando de voz para benchmark",
+      "wer": 0.16666666666666666,
+      "words": 12,
+      "correct": false
+    },
+    {
+      "audio": "comando_longo_tv.wav",
+      "transcript": "este \u00e9 um teste longo de um comando de voz para Batchmark",
+      "expected": "jarvis, este \u00e9 um teste longo de comando de voz para benchmark",
+      "wer": 0.25,
+      "words": 12,
+      "correct": false
+    },
+    {
+      "audio": "ruido_puro.wav",
+      "transcript": "T\u00e1 bom. T\u00e1 bom, t\u00e1 bom, t\u00e1 bom.",
+      "expected": "",
+      "wer": 1.0,
+      "words": 0,
+      "correct": false
+    },
+    {
+      "audio": "sussurro.wav",
+      "transcript": "Jeves",
+      "expected": "jarvis",
+      "wer": 1.0,
+      "words": 1,
+      "correct": false
+    }
+  ]
+}

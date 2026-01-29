@@ -1,139 +1,91 @@
 # DOC_INTERFACE - Documentação da Interface de Entrada/Saída
 
-Documentação técnica do sistema de interface de voz offline do Jarvis (Pop!_OS, CPU fraca).
+# Documentação da interface de entrada/saída
 
-## Estrutura de Pastas
+Documentação técnica do sistema de voz local do Jarvis, espelhando o código em `jarvis/interface/` e a camada de compatibilidade em `jarvis/voz/`.
 
-A documentação está organizada espelhando a arquitetura do código em `jarvis/interface/`:
+## Estrutura de pastas (docs)
 
 ```
 DOC_INTERFACE/
-├── entrada/          # Documentação de componentes de entrada
-│   ├── entrada_stt.md              # STT (Speech-to-Text)
-│   ├── entrada_app.md              # Aplicação entrada
-│   ├── entrada_preflight.md        # Verificação pré-voo
-│   ├── voz_vad.md                  # VAD (Voice Activity Detection)
-│   ├── voz_speaker_verify.md       # Verificação de speaker
-│   ├── voz_adapters_*.md           # Adaptadores (RealtimeSTT, Silero, etc.)
-│   └── terceiros_realtimestt.md    # Integração RealtimeSTT
-│
-├── saida/            # Documentação de componentes de saída
-│   └── voz_tts.md                  # TTS (Text-to-Speech) - Piper
-│
-├── audio/            # Documentação de utilitários de áudio
-│   └── entrada_audio_utils.md      # Utilidades de áudio
-│
-├── infra/            # Documentação de infraestrutura
-│   ├── comunicacao_chat_inbox.md   # Chat inbox
-│   ├── comunicacao_chat_log.md     # Chat log
-│   └── comunicacao_protocolo.md    # Protocolos de comunicação
-│
-├── bench_audio/      # Áudios de referência para benchmarks
-├── test_audio/       # Áudios de teste
-│
-└── [raiz]/           # Documentos de alto nível
-    ├── PLANO_OURO_INTERFACE.md           # Plano para atingir métricas OURO
-    ├── CORRECOES_DOCINTERFACE.MD         # Correções e estado atual
-    ├── MELHORIAS_FUTURAS.md              # Backlog de melhorias
-    ├── benchmark_interface.md            # Documentação de benchmarks
-    ├── DIAGRAMA_INTERFACE.md             # Diagrama de arquitetura
-    ├── DIAGRAMA_INTERFACE.svg            # Diagrama visual
-    ├── bench_history.json                # Histórico de benchmarks
-    ├── EVOLUCAO_PERFOMACE.MD             # Evolução de performance
-    └── DEPENDENCIAS_INTERFACE.md         # Dependências do sistema
+├── entrada/                  # Entrada (STT, VAD, wake word, preflight, UI)
+├── saida/                    # Saída (TTS)
+├── voz/                      # Adapters/compat do pacote jarvis/voz (wake word, VAD, RealtimeSTT)
+├── audio/                    # Utilidades de áudio
+├── telemetria/               # Telemetria da interface (stub atual)
+├── infra/                    # Perfis, decisão de modelo, comunicação
+├── benchmarks/               # WER e perf medidos
+├── bench_audio/              # Áudios de referência para bench (com README)
+├── test_audio/               # Áudios de teste (com README)
+├── testes/                   # Roteiros de teste/benchmark
+└── raiz                      # Docs de visão geral e dependências
 ```
 
-## Documentos Principais
+## Índice rápido (docs)
+- Visão: `PLANO_OURO_INTERFACE.md`, `EVOLUCAO_PERFOMACE.MD`, `orchestrator_voice.md`
+- Dependências: `DEPENDENCIAS_INTERFACE.md`
+- Entrada: `entrada/entrada_stt.md`, `entrada/entrada_app.md`, `entrada/voz_vad.md`, `entrada/voz_speaker_verify.md`
+- Saída: `saida/voz_tts.md`
+- Adapters/voz: `voz/README.md`, `voz/adapters/voz_adapters_*.md`, `voz/terceiros_realtimestt.md`
+- Infra/perfis: `infra/decisao_stt_model_tiny.md`, `infra/ETAPA5_BACKEND_PLUGAVEL.md`, `infra/profiles.md`, `infra/voice_profile.md`
+- Testes/bench: `testes/TESTES_INTERFACE.md`, `testes/benchmark_interface.md`, `testes/TESTE_MANUAL.md`, `testes/TESTES_VOZ_SEM_MICROFONE.MD`
+- Áudios: `bench_audio/README.md`, `test_audio/README.md`
+- Telemetria: `telemetria/telemetria.md` (stub)
 
-### Por onde começar
-1. **PLANO_OURO_INTERFACE.md** - Roadmap executável com agentes Claude
-2. **DIAGRAMA_INTERFACE.md** - Visão arquitetural do sistema
-3. **CORRECOES_DOCINTERFACE.MD** - Estado atual e baseline
+## Mapa código → doc
+- `jarvis/interface/entrada/stt.py` → `entrada/entrada_stt.md`
+- `jarvis/interface/entrada/vad.py` → `entrada/voz_vad.md`
+- `jarvis/interface/entrada/speaker_verify.py` → `entrada/voz_speaker_verify.md`
+- `jarvis/interface/entrada/app.py` → `entrada/entrada_app.md`
+- `jarvis/interface/entrada/preflight.py` → `entrada/entrada_preflight.md`
+- `jarvis/interface/entrada/chat_ui.py` → `entrada/entrada_chat_ui.md`
+- `jarvis/interface/entrada/gui_panel.py` → `entrada/entrada_gui_panel.md`
+- `jarvis/interface/entrada/shortcut.py` → `entrada/entrada_shortcut.md`
+- `jarvis/interface/entrada/followup.py` → `entrada/entrada_followup.md`
+- `jarvis/interface/entrada/turn_taking.py` → `entrada/entrada_turn_taking.md`
+- `jarvis/interface/entrada/emocao.py` → `entrada/entrada_emocao.md`
+- `jarvis/interface/audio/audio_utils.py` → `audio/entrada_audio_utils.md`
+- `jarvis/interface/infra/chat_inbox.py` → `infra/comunicacao_chat_inbox.md`
+- `jarvis/interface/infra/chat_log.py` → `infra/comunicacao_chat_log.md`
+- `jarvis/interface/infra/profiles.py` → `infra/profiles.md`
+- `jarvis/interface/infra/voice_profile.py` → `infra/voice_profile.md`
+- `jarvis/interface/infra/` (decisão tiny/backends) → `infra/decisao_stt_model_tiny.md`, `infra/ETAPA5_BACKEND_PLUGAVEL.md`
+- `jarvis/interface/saida/tts.py` → `saida/voz_tts.md`
+- `jarvis/interface/telemetria/__init__.py` → `telemetria/telemetria.md` (stub)
+- `jarvis/voz/adapters/*.py` → `voz/adapters/voz_adapters_*.md`
+- `jarvis/third_party/realtimestt` → `voz/terceiros_realtimestt.md`
 
-### Componentes Críticos
-- **entrada/entrada_stt.md** - STT (Whisper) com warmup implementado
-- **saida/voz_tts.md** - TTS (Piper) com warmup implementado
-- **benchmark_interface.md** - Benchmarks e métricas (META OURO atingida)
+## Dependências (resumo + onde ler)
+- STT: `faster-whisper` (padrão tiny, produção), `pywhispercpp` (bloqueado por regressão) — ver `DEPENDENCIAS_INTERFACE.md`
+- Streaming STT: `RealtimeSTT` + `pyaudio` (opcional) — `DEPENDENCIAS_INTERFACE.md` e `voz/terceiros_realtimestt.md`
+- TTS: `piper-tts` (backend Python/CLI) + `espeak-ng` (fallback) — `saida/voz_tts.md`
+- Áudio básico: `sounddevice`, `webrtcvad`, `numpy`, `scipy`, `aplay` — `DEPENDENCIAS_INTERFACE.md`
+- Wake word (opcional): `pvporcupine`, `openwakeword` — `voz/adapters/voz_adapters_wakeword_*.md`
+- Speaker verify (opcional): `resemblyzer` — `entrada/voz_speaker_verify.md`
+- Deactivity Silero (opcional): `torch` — `voz/adapters/voz_adapters_vad_silero.md`
+## Por onde começar
+- `PLANO_OURO_INTERFACE.md` — objetivos, estado atual (faster_whisper tiny padrão, p95 ~1190ms; whisper_cpp bloqueado).
+- `EVOLUCAO_PERFOMACE.MD` — histórico resumido de performance.
+- `DEPENDENCIAS_INTERFACE.md` — dependências e flags principais.
+- `orchestrator_voice.md` — visão do fluxo de voz no orquestrador.
 
-## Status Atual (22/01/2026 - Etapa 1)
+## Componentes
+- Entrada: `entrada/entrada_stt.md`, `entrada/voz_vad.md`, `entrada/voz_speaker_verify.md`, `entrada/entrada_app.md`.
+- Saída: `saida/voz_tts.md` (Piper/espeak, warmup implementado).
+- Adapters/voz: `voz/` (wake word Porcupine/OpenWakeWord, VAD Silero, RealtimeSTT vendorizado).
+- Infra: `infra/decisao_stt_model_tiny.md`, `infra/ETAPA5_BACKEND_PLUGAVEL.md`, `infra/profiles.md`, `infra/voice_profile.md`.
+- Telemetria: `telemetria/telemetria.md` (stub; sem APIs ativas ainda).
 
-### ✅ META OURO ATINGIDA
-- **eos_to_first_audio p95:** 1077ms (meta: < 1200ms, margem: 10.3%)
-- **Warmup STT+TTS:** Implementado e funcionando
-- **Bottleneck identificado:** STT é responsável por ~88% do tempo total
+## Status de performance (28/01/2026)
+- Meta OURO atingida no limite para `eos_to_first_audio_ms p95`: ~1190ms com warmup STT+TTS (faster_whisper).
+- Barge-in: `barge_in_stop_ms p95 ~60ms` (OK).
 
-### 🔴 Pendências Críticas
-- **barge_in_stop_ms p95:** 1005ms (meta OURO: < 80ms) - REQUER CORREÇÃO
-- **Causa:** `_terminate_process()` bloqueia até 1s esperando processo terminar
+## Comandos úteis
+- Testes: `PYTHONPATH=. pytest -q testes/`
+- Benchmark principal (voz limpa, warmup):  
+  `PYTHONPATH=. JARVIS_STT_MODEL=tiny python scripts/bench_interface.py eos_to_first_audio --audio Documentos/DOC_INTERFACE/bench_audio/voice_clean.wav --text "ok" --repeat 20 --resample`
 
-## Metas de Performance
-
-### PRATA
-- `eos_to_first_audio_ms` p95 ≤ 1200–1500ms ✅
-- `barge_in_stop_ms` p95 ≤ 120ms 🔴
-- `decision_to_tts_first_audio_ms` p95 ≤ 200ms
-
-### OURO
-- `eos_to_first_audio_ms` p95 ≤ 900–1200ms ✅
-- `barge_in_stop_ms` p95 ≤ 80ms 🔴
-- `decision_to_tts_first_audio_ms` p95 ≤ 120ms
-- Estabilidade 24–72h
-
-## Comandos Úteis
-
-### Testes
-```bash
-PYTHONPATH=. pytest -q testes/
-```
-
-### Lint
-```bash
-ruff check jarvis/interface/
-```
-
-### Benchmark Principal (com warmup)
-```bash
-PYTHONPATH=. JARVIS_STT_MODEL=tiny python scripts/bench_interface.py \
-  eos_to_first_audio \
-  --audio Documentos/DOC_INTERFACE/bench_audio/voice_clean.wav \
-  --text "ok" \
-  --repeat 20 \
-  --resample
-```
-
-### Benchmark Barge-in
-```bash
-PYTHONPATH=. python scripts/bench_interface.py barge_in \
-  --text "Esta é uma frase longa para testar o barge-in" \
-  --repeat 20
-```
-
-## Agentes Claude Disponíveis
-
-Use `@agente` ou leia o arquivo `.claude/agents/[nome].md` para ativar:
-
-| Agente | Papel | Quando Usar |
-|--------|-------|-------------|
-| `arquiteto` | Desenha mudanças | Antes de implementar |
-| `implementador` | Implementa tickets | Durante desenvolvimento |
-| `analista` | Analisa benchmarks | Após rodar benchmarks |
-| `revisor` | Code review | Antes de merge |
-| `documentador` | Atualiza docs | Após mudanças |
-| `testador` | Cria/roda testes | Junto com implementação |
-
-## Regras do Jogo (Plano OURO)
-
-1. **1 mudança por vez** - commits pequenos e focados
-2. **Sempre rodar** - pytest + benchmark após mudanças
-3. **Sempre registrar** - p50/p95/p99 + config usada
-4. **Se p95 piorar > 5%** - reverte
-5. **Sem doc curta** - não mergeia
-
-## Histórico de Mudanças
-
-### Etapa 1 (22/01/2026)
-- ✅ Implementado warmup STT (`_get_whisper_model(realtime=False)` + transcription warmup)
-- ✅ Implementado warmup TTS (`tts.speak(reply_text[:20])`)
-- ✅ META OURO atingida: p95 = 1077ms < 1200ms
-- ✅ Reorganização da documentação em pastas (entrada/, saida/, audio/, infra/)
-- 🔴 Identificado problema crítico: barge_in p95 = 1005ms (requer correção urgente)
+## Notas de organização
+- `entrada/` cobre tudo que vive em `jarvis/interface/entrada/`.
+- `saida/` cobre `jarvis/interface/saida/tts.py`.
+- `voz/` documenta a camada `jarvis/voz/` (compat/adapters usados pelo STT e wake word). Mantemos separado para refletir o código e evitar confundir entrada/saída.

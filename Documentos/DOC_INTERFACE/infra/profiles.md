@@ -3,7 +3,7 @@
 - Caminho: `jarvis/interface/infra/profiles.py`
 - Papel: definir perfis de voz pré-definidos (fast_cpu, balanced_cpu, noisy_room) e aplicar envs padrão.
 - Onde entra no fluxo: chamado por `voice_profile.auto_configure_voice_profile` e pelo preflight para sugerir parâmetros.
-- Atualizado em: 2026-01-19 (revisado com o codigo)
+- Atualizado em: 2026-01-28 (revisado com o código; todos os perfis usam STT tiny, backend padrão faster_whisper; whisper_cpp bloqueado)
 
 ## Responsabilidades
 - Guardar perfis com parâmetros de VAD/STT (silence_ms, pre/post-roll, modelo STT).

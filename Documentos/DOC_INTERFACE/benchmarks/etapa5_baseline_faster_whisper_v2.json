@@ -1,0 +1,235 @@
+{
+  "scenario": "eos_to_first_audio",
+  "audio": "Documentos/DOC_INTERFACE/bench_audio/voice_clean_16k.wav",
+  "reply_text": "ola jarvis",
+  "repeat": 30,
+  "eos_to_first_audio_ms_avg": 807.9941876333123,
+  "eos_to_first_audio_ms_p50": 795.6451625000227,
+  "eos_to_first_audio_ms_p95": 1190.3332154499594,
+  "rss_kb": 410460,
+  "endpoint_silence_ms": 400,
+  "endpoint_post_roll_ms": 200,
+  "endpoint_reached_rate": 1.0,
+  "stt_warmed": true,
+  "latency_ms_avg": 807.9941876333123,
+  "latency_ms_p50": 795.6451625000227,
+  "latency_ms_p95": 1190.3332154499594,
+  "latency_ms_p99": 1228.4954070899812,
+  "trim_ms_p50": 0.0033625000241954695,
+  "stt_ms_p50": 794.9048609999636,
+  "tts_total_ms_p50": 0.6325534999405136,
+  "benchmark_config": {
+    "timestamp": "2026-01-28T03:07:26.109578+00:00",
+    "git_commit": "77daca0",
+    "python_version": "3.12.3",
+    "warmup": true,
+    "stt_model": "tiny",
+    "resample": false,
+    "stt_backend": "faster_whisper",
+    "vad_silence_ms": 400,
+    "vad_post_roll_ms": 200,
+    "note": "warmup is MANDATORY for eos_to_first_audio (simulates production). For cold start, use 'stt' scenario with --no-warmup."
+  },
+  "cpu_time_s_avg": 1.6432675999999995,
+  "psutil_cpu_percent": 0.0,
+  "psutil_rss_bytes": 312819712,
+  "psutil_vms_bytes": 1758531584,
+  "psutil_available": true,
+  "top_10_slow_runs": [
+    {
+      "rank": 1,
+      "iteration": 19,
+      "total_ms": 1207.26,
+      "breakdown": {
+        "endpointing_ms": 0.12,
+        "trim_ms": 0.0,
+        "stt_ms": 1206.37,
+        "tts_first_audio_ms": 0.73,
+        "ack_ms": null,
+        "overhead_ms": 0.03
+      },
+      "tts_total_ms": 0.76,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 2,
+      "iteration": 20,
+      "total_ms": 1176.48,
+      "breakdown": {
+        "endpointing_ms": 0.15,
+        "trim_ms": 0.01,
+        "stt_ms": 1175.74,
+        "tts_first_audio_ms": 0.56,
+        "ack_ms": null,
+        "overhead_ms": 0.03
+      },
+      "tts_total_ms": 0.58,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 3,
+      "iteration": 23,
+      "total_ms": 1059.76,
+      "breakdown": {
+        "endpointing_ms": 0.1,
+        "trim_ms": 0.0,
+        "stt_ms": 1058.93,
+        "tts_first_audio_ms": 0.69,
+        "ack_ms": null,
+        "overhead_ms": 0.03
+      },
+      "tts_total_ms": 0.72,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 4,
+      "iteration": 28,
+      "total_ms": 996.75,
+      "breakdown": {
+        "endpointing_ms": 0.1,
+        "trim_ms": 0.0,
+        "stt_ms": 996.09,
+        "tts_first_audio_ms": 0.53,
+        "ack_ms": null,
+        "overhead_ms": 0.03
+      },
+      "tts_total_ms": 0.55,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 5,
+      "iteration": 21,
+      "total_ms": 983.36,
+      "breakdown": {
+        "endpointing_ms": 0.1,
+        "trim_ms": 0.0,
+        "stt_ms": 982.62,
+        "tts_first_audio_ms": 0.6,
+        "ack_ms": null,
+        "overhead_ms": 0.04
+      },
+      "tts_total_ms": 0.63,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 6,
+      "iteration": 18,
+      "total_ms": 982.35,
+      "breakdown": {
+        "endpointing_ms": 0.09,
+        "trim_ms": 0.0,
+        "stt_ms": 981.61,
+        "tts_first_audio_ms": 0.61,
+        "ack_ms": null,
+        "overhead_ms": 0.03
+      },
+      "tts_total_ms": 0.64,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 7,
+      "iteration": 0,
+      "total_ms": 978.88,
+      "breakdown": {
+        "endpointing_ms": 0.11,
+        "trim_ms": 0.0,
+        "stt_ms": 978.15,
+        "tts_first_audio_ms": 0.56,
+        "ack_ms": null,
+        "overhead_ms": 0.05
+      },
+      "tts_total_ms": 0.61,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 8,
+      "iteration": 25,
+      "total_ms": 970.0,
+      "breakdown": {
+        "endpointing_ms": 0.12,
+        "trim_ms": 0.01,
+        "stt_ms": 969.15,
+        "tts_first_audio_ms": 0.67,
+        "ack_ms": null,
+        "overhead_ms": 0.05
+      },
+      "tts_total_ms": 0.7,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 9,
+      "iteration": 29,
+      "total_ms": 961.6,
+      "breakdown": {
+        "endpointing_ms": 0.1,
+        "trim_ms": 0.0,
+        "stt_ms": 960.8,
+        "tts_first_audio_ms": 0.67,
+        "ack_ms": null,
+        "overhead_ms": 0.03
+      },
+      "tts_total_ms": 0.69,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    },
+    {
+      "rank": 10,
+      "iteration": 22,
+      "total_ms": 946.65,
+      "breakdown": {
+        "endpointing_ms": 0.11,
+        "trim_ms": 0.0,
+        "stt_ms": 945.61,
+        "tts_first_audio_ms": 0.87,
+        "ack_ms": null,
+        "overhead_ms": 0.06
+      },
+      "tts_total_ms": 0.92,
+      "trimmed_audio_duration_ms": 300.0,
+      "bottleneck": "stt"
+    }
+  ],
+  "stage_breakdown": {
+    "endpointing": {
+      "avg_ms": 0.11,
+      "p50_ms": 0.11,
+      "p95_ms": 0.15
+    },
+    "trim": {
+      "avg_ms": 0.0,
+      "p50_ms": 0.0,
+      "p95_ms": 0.01
+    },
+    "stt": {
+      "avg_ms": 807.02,
+      "p50_ms": 794.9,
+      "p95_ms": 1189.53
+    },
+    "tts": {
+      "avg_ms": 0.83,
+      "p50_ms": 0.61,
+      "p95_ms": 3.56
+    },
+    "ack": {
+      "avg_ms": 0.0,
+      "p50_ms": 0.0,
+      "p95_ms": 0.0
+    },
+    "overhead": {
+      "avg_ms": 0.03,
+      "p50_ms": 0.03,
+      "p95_ms": 0.05
+    }
+  },
+  "bottleneck_summary": {
+    "stt": 30
+  }
+}

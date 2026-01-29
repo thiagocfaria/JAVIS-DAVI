@@ -1,9 +1,9 @@
 # interface/entrada/stt.py
 
 - Caminho: `jarvis/interface/entrada/stt.py`
-- Papel: capturar audio, aplicar VAD/trim e transcrever localmente.
+- Papel: capturar audio, aplicar VAD/trim e transcrever localmente (backend plugável).
 - Onde entra no fluxo: usado pelo orquestrador no modo voz.
-- Atualizado em: 2026-01-22 (Etapa 1 - Warmup implementado e META OURO atingida)
+- Atualizado em: 2026-01-28 (backend padrão faster_whisper tiny; whisper_cpp bloqueado; warmup implementado)
 
 ## Responsabilidades
 - Capturar audio (sounddevice) em SR nativo e reamostrar para 16 kHz.
@@ -24,6 +24,7 @@
 ## Configuracao (env/config)
 ### Basico
 - `JARVIS_STT_MODE` (config `stt_mode`)
+- `JARVIS_STT_BACKEND` (`faster_whisper` default; `whisper_cpp` bloqueado; `ctranslate2` opcional)
 - `JARVIS_STT_MODEL` (tamanho do modelo; default varia com `JARVIS_STT_PROFILE`)
 - `JARVIS_STT_PROFILE` (`fast|low_latency|turbo`) - aplica defaults mais rapidos
 - `JARVIS_STT_LATENCY_MODE=1` (atalho para perfil rapido)
@@ -65,7 +66,7 @@
 - `JARVIS_FORCE_SPEECH_OK` (ignora "sem fala" quando necessario)
 - `JARVIS_AUDIO_TRIM_BACKEND` (`none|rust`)
 
-### Streaming (RealtimeSTT opcional)
+### Streaming (RealtimeSTT opcional, único que gera parciais)
 - `JARVIS_STT_STREAMING=1`
 - `JARVIS_STT_STREAMING_BACKEND` (`realtimestt`)
 - `JARVIS_STT_STREAMING_FORCE_START` (default true)
@@ -76,6 +77,7 @@
 - `JARVIS_STT_REALTIME_MODEL` (modelo separado para parciais)
 - `JARVIS_SILERO_DEACTIVITY`, `JARVIS_SILERO_SENSITIVITY`
 - `JARVIS_SILERO_USE_ONNX`, `JARVIS_SILERO_AUTO_DOWNLOAD`
+- Observação: parciais/overlap só existem com backend streaming (RealtimeSTT). O backend padrão `faster_whisper` roda offline e não emite parciais.
 
 ### Wake word
 - `JARVIS_REQUIRE_WAKE_WORD`, `JARVIS_WAKE_WORD`
@@ -97,11 +99,10 @@
 
 ## Dependencias diretas
 - `sounddevice`, `numpy`, `scipy` (reamostra; sem `scipy` a reamostragem falha)
-- `faster-whisper`
+- Backends STT: `pywhispercpp` (default), `faster-whisper` (alternativo/ctranslate2)
 - `jarvis/voz/vad.py` (StreamingVAD, VoiceActivityDetector)
 - `jarvis_audio` (opcional)
-- `RealtimeSTT` (opcional, backend streaming)
-- `pyaudio` (opcional, captura interna do RealtimeSTT)
+- `RealtimeSTT` + `pyaudio` (opcional, streaming com parciais)
 - `pvporcupine` / `openwakeword` (opcional, wake word por audio)
 - `torch` (opcional, Silero deactivity)
 
@@ -169,7 +170,7 @@
 - **Warmup STT:** `_get_whisper_model(realtime=False)` e warmup transcription com audio curto implementados em `scripts/bench_interface.py` (linhas 658-674).
 - **Beneficio:** Evita que o p95 seja dominado pelo primeiro carregamento do modelo (cold start).
 - **Uso:** `--no-warmup` desabilita o warmup (útil para medir cold start isoladamente).
-- **Impacto medido:** Redução significativa em outliers; p95 passou de ~1500ms para 1077ms (META OURO atingida).
+- **Impacto medido:** Redução significativa em outliers; p95 passou de ~1500ms para **~1190ms** (META OURO atingida no limite com faster_whisper).
 
 ## Problemas conhecidos (hoje)
 - AEC simples depende de referencia de playback (so existe quando o TTS gera audio).

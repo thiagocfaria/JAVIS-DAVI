@@ -111,6 +111,7 @@ def _build_benchmark_config(
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "git_commit": _get_git_commit(),
         "python_version": platform.python_version(),
+        "cpu_threads": int(os.environ.get("JARVIS_STT_CPU_THREADS", 1)),  # Default 1 unless overridden
     }
 
     # Adiciona parâmetros opcionais (apenas se não forem None)
@@ -171,16 +172,27 @@ def _load_audio(
 
 
 def _collect_psutil_metrics(proc) -> dict[str, Any] | None:
+    """
+    Collect psutil memory metrics for the process.
+
+    Args:
+        proc: psutil.Process instance
+
+    Returns:
+        Dict with psutil memory metrics or None if error
+
+    Note:
+        CPU% is calculated separately from cpu_time/wall_time ratio.
+        psutil.cpu_percent() is unreliable in benchmark context.
+    """
     try:
-        cpu_percent = proc.cpu_percent(interval=None)
         mem = proc.memory_info()
+        return {
+            "psutil_rss_bytes": getattr(mem, "rss", 0),
+            "psutil_vms_bytes": getattr(mem, "vms", 0),
+        }
     except Exception:
         return None
-    return {
-        "psutil_cpu_percent": cpu_percent,
-        "psutil_rss_bytes": getattr(mem, "rss", 0),
-        "psutil_vms_bytes": getattr(mem, "vms", 0),
-    }
 
 
 def _collect_gpu_metrics() -> dict[str, Any]:
@@ -232,7 +244,6 @@ def _measure(fn, repeat: int, *, enable_gpu: bool = False) -> dict[str, Any]:
     if psutil is not None:
         try:
             psutil_proc = psutil.Process()
-            psutil_proc.cpu_percent(interval=None)
         except Exception:
             psutil_proc = None
     for _ in range(repeat):
@@ -248,6 +259,12 @@ def _measure(fn, repeat: int, *, enable_gpu: bool = False) -> dict[str, Any]:
         )
     rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     durations_ms = [d * 1000.0 for d in durations]
+
+    # Calculate CPU% from cpu_time and wall_time
+    cpu_time_avg = statistics.mean(cpu_times)
+    wall_time_avg = statistics.mean(durations)
+    cpu_percent_calculated = (cpu_time_avg / wall_time_avg * 100.0) if wall_time_avg > 0 else 0.0
+
     result = {
         "repeat": repeat,
         "latency_ms_avg": statistics.mean(durations_ms),
@@ -259,14 +276,18 @@ def _measure(fn, repeat: int, *, enable_gpu: bool = False) -> dict[str, Any]:
         ),
         "latency_ms_p99": _calc_p99(durations_ms),
         "latency_ms_p995": _calc_p995(durations_ms),
-        "cpu_time_s_avg": statistics.mean(cpu_times),
+        "cpu_time_s_avg": cpu_time_avg,
+        "cpu_percent": round(cpu_percent_calculated, 1),
         "rss_kb": rss_kb,
     }
+
+    # Collect psutil memory metrics (RSS, VMS)
     if psutil_proc is not None:
         psutil_metrics = _collect_psutil_metrics(psutil_proc)
         if psutil_metrics:
             result.update(psutil_metrics)
             result["psutil_available"] = True
+
     if enable_gpu:
         result.update(_collect_gpu_metrics())
     return result
@@ -327,17 +348,28 @@ def _bench_stt(
     # Adiciona benchmark_config
     stt_model = os.environ.get("JARVIS_STT_MODEL", "tiny").strip() or "tiny"
     stt_backend = "faster_whisper"
+    stt_model_path = None
     if hasattr(stt, "get_stt_backend_name"):
         backend_name = stt.get_stt_backend_name()
         if backend_name:
             stt_backend = backend_name
 
+    # Try to get model_path from backend (for whisper_cpp)
+    try:
+        model = getattr(stt, "_local_model", None) or getattr(stt, "_realtime_model", None)
+        if model and hasattr(model, "model_path"):
+            stt_model_path = model.model_path
+    except Exception:
+        pass
+
+    config_extra = {"stt_model_path": stt_model_path} if stt_model_path else {}
     result["benchmark_config"] = _build_benchmark_config(
         warmup=warmup,
         require_wake_word=require_wake_word,
         stt_model=stt_model,
         stt_backend=stt_backend,
         resample=resample,
+        **config_extra,
     )
 
     if print_text:
@@ -769,6 +801,15 @@ def _bench_eos_to_first_audio(
     endpoint_reached_values: list[bool] = []
     phase1_sources: list[str] = []
     iterations_data: list[IterationMetrics] = []
+    cpu_times: list[float] = []
+
+    # Initialize psutil for memory measurement
+    psutil_proc = None
+    if psutil is not None:
+        try:
+            psutil_proc = psutil.Process()
+        except Exception:
+            psutil_proc = None
 
     # Warm up STT model so repeat stats reflect "service already running"
     # (avoids p95 being dominated by first model load).
@@ -797,6 +838,7 @@ def _bench_eos_to_first_audio(
 
     for i in range(repeat):
         # Start measuring total EOS-to-first-audio time from here
+        start_usage = resource.getrusage(resource.RUSAGE_SELF)
         eos_ts = time.perf_counter()
 
         # Track endpointing time
@@ -921,6 +963,13 @@ def _bench_eos_to_first_audio(
             )
         )
 
+        # Collect CPU time for this iteration
+        end_usage = resource.getrusage(resource.RUSAGE_SELF)
+        cpu_times.append(
+            (end_usage.ru_utime - start_usage.ru_utime)
+            + (end_usage.ru_stime - start_usage.ru_stime)
+        )
+
     eos_to_first_audio_p95 = (
         statistics.quantiles(eos_to_first_audio_values, n=20)[-1]
         if len(eos_to_first_audio_values) >= 2
@@ -985,11 +1034,21 @@ def _bench_eos_to_first_audio(
     # Adiciona benchmark_config (documenta que warmup é OBRIGATÓRIO neste cenário)
     stt_model = os.environ.get("JARVIS_STT_MODEL", "tiny").strip() or "tiny"
     stt_backend = "faster_whisper"
+    stt_model_path = None
     if hasattr(stt, "get_stt_backend_name"):
         backend_name = stt.get_stt_backend_name()
         if backend_name:
             stt_backend = backend_name
 
+    # Try to get model_path from backend (for whisper_cpp)
+    try:
+        model = getattr(stt, "_local_model", None) or getattr(stt, "_realtime_model", None)
+        if model and hasattr(model, "model_path"):
+            stt_model_path = model.model_path
+    except Exception:
+        pass
+
+    config_extra = {"stt_model_path": stt_model_path} if stt_model_path else {}
     result["benchmark_config"] = _build_benchmark_config(
         warmup=True,  # SEMPRE True para eos_to_first_audio
         stt_model=stt_model,
@@ -998,10 +1057,28 @@ def _bench_eos_to_first_audio(
         vad_silence_ms=silence_ms,
         vad_post_roll_ms=post_roll_ms,
         note="warmup is MANDATORY for eos_to_first_audio (simulates production). For cold start, use 'stt' scenario with --no-warmup.",
+        **config_extra,
     )
 
     if enable_gpu:
         result.update(_collect_gpu_metrics())
+
+    # Add CPU time average and calculate CPU%
+    if cpu_times:
+        cpu_time_avg = statistics.mean(cpu_times)
+        result["cpu_time_s_avg"] = cpu_time_avg
+
+        # Calculate CPU% from cpu_time and wall_time
+        wall_time_avg = statistics.mean(eos_to_first_audio_values) / 1000.0  # Convert ms to s
+        cpu_percent = (cpu_time_avg / wall_time_avg * 100.0) if wall_time_avg > 0 else 0.0
+        result["cpu_percent"] = round(cpu_percent, 1)
+
+    # Collect psutil memory metrics (RSS, VMS)
+    if psutil_proc is not None:
+        psutil_metrics = _collect_psutil_metrics(psutil_proc)
+        if psutil_metrics:
+            result.update(psutil_metrics)
+            result["psutil_available"] = True
 
     # Top 10 slow runs with breakdown
     if iterations_data:

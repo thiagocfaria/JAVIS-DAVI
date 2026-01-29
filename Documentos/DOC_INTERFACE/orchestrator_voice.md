@@ -18,6 +18,7 @@ Quando habilitado, o Jarvis pode emitir um “ack” imediato (frase curta ou be
   - `TextToSpeech.play_phase1_ack()` (em `jarvis/interface/saida/tts.py`) usa:
     - Preferencia: frase humanizada pre-gerada via `JARVIS_TTS_ACK_PHRASE` (Piper)
     - Fallback: earcon/beep (nao usa espeak-ng)
+  - Telemetria: `eos_to_phase1_ms` e `eos_to_ack_ms` expostos em `voice_stage_metrics`.
 
 ### 2) Overlap: prefetch de plano com parciais (quando houver)
 Quando o backend de STT fornece parciais (RealtimeSTT), da para comecar a “pensar” (gerar o plano) antes do texto final estar 100% pronto.
@@ -29,6 +30,7 @@ Quando o backend de STT fornece parciais (RealtimeSTT), da para comecar a “pen
 - Regras de seguranca/qualidade:
   - O plano prefetch nao substitui o fluxo normal “a qualquer custo”.
   - Se o plano prefetch for invalido/falhar, o fluxo normal gera um novo plano.
+- Observacao: overlap depende de parciais do backend de STT; o default `faster_whisper` (tiny) e offline e nao gera parciais. So entra em acao com streaming (RealtimeSTT).
 
 ## Métricas (telemetria)
 O evento `voice_stage_metrics` agora inclui:

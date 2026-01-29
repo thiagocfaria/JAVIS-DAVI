@@ -3,7 +3,7 @@
 - Caminho: `jarvis/interface/entrada/speaker_verify.py`
 - Papel: verificar se a voz do comando e do locutor cadastrado.
 - Onde entra no fluxo: filtro opcional antes de aceitar comando de voz.
-- Atualizado em: 2026-01-10 (politica de audio curto ajustada)
+- Atualizado em: 2026-01-24 (política de áudio curto conferida; segue ativa)
 
 ## Responsabilidades
 - Criar embedding (enroll) e salvar voiceprint.

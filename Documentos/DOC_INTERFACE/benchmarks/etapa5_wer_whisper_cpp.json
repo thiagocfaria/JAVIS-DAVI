@@ -1,0 +1,61 @@
+{
+  "wer_global": 1.0,
+  "samples": [
+    {
+      "audio": "oi_jarvis_clean.wav",
+      "transcript": "Oi, Jardes!",
+      "expected": "oi jarvis",
+      "wer": 1.0,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "oi_jarvis_tv.wav",
+      "transcript": "- Oi! Jardes!",
+      "expected": "oi jarvis",
+      "wer": 1.5,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "oi_jarvis_tv_alta.wav",
+      "transcript": "Oi, jars!",
+      "expected": "oi jarvis",
+      "wer": 1.0,
+      "words": 2,
+      "correct": false
+    },
+    {
+      "audio": "comando_longo.wav",
+      "transcript": "J\u00e1 \u00e9 o teste longo de comando de voz para Bertmark.",
+      "expected": "jarvis, este \u00e9 um teste longo de comando de voz para benchmark",
+      "wer": 0.3333333333333333,
+      "words": 12,
+      "correct": false
+    },
+    {
+      "audio": "comando_longo_tv.wav",
+      "transcript": "- Sim, que o copo se? - J\u00e1, esse \u00e9 um teste longo de comando de voz, para Betty Marcos. - No copo. A gente de copo.",
+      "expected": "jarvis, este \u00e9 um teste longo de comando de voz para benchmark",
+      "wer": 1.5833333333333333,
+      "words": 12,
+      "correct": false
+    },
+    {
+      "audio": "ruido_puro.wav",
+      "transcript": "Vamos, vamos, vamos, vamos.",
+      "expected": "",
+      "wer": 1.0,
+      "words": 0,
+      "correct": false
+    },
+    {
+      "audio": "sussurro.wav",
+      "transcript": "Jeves",
+      "expected": "jarvis",
+      "wer": 1.0,
+      "words": 1,
+      "correct": false
+    }
+  ]
+}

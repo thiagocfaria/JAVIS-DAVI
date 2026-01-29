@@ -3,7 +3,7 @@
 - Caminho: `jarvis/interface/entrada/app.py`
 - Papel: entrypoint da interface (CLI) para voz, texto, painel e preflight.
 - Onde entra no fluxo: recebe comandos e aciona o orquestrador (fora do escopo da interface).
-- Atualizado em: 2026-01-14 (revisado com o codigo e flags conferidas)
+- Atualizado em: 2026-01-24 (revisado com o código atual)
 
 ## Responsabilidades
 - Parsear flags de fluxo (`--text`, `--voice`, `--voice-loop`, `--loop`, `--gui-panel`, `--chat-ui`).
@@ -18,6 +18,9 @@
 - Criar `Orchestrator` e `ChatInbox` para drenar comandos de UI/arquivo.
 - Iniciar loop de voz ou loop interativo.
 - Acionar `ChatShortcut` quando pedido (`--enable-shortcut`).
+- Auto-config de voz (Piper/STT) via `voice_profile.auto_configure_voice_profile` ao usar modos de voz.
+- Auto-relocate de paths se o data dir configurado não for gravável (usa `storage/jarvis_data` como fallback).
+- Desliga `require_approval` em `--dry-run` e `--gui-panel` para não travar a UX.
 
 ## Entrada e saida
 - Entrada: args CLI + linhas do inbox (texto) + opcional microfone.
@@ -35,6 +38,7 @@
 - `jarvis.interface.infra.chat_inbox.ChatInbox`
 - `jarvis.interface.entrada.preflight.run_preflight`
 - `jarvis.interface.entrada.shortcut.ChatShortcut`
+- `jarvis.interface.infra.voice_profile.auto_configure_voice_profile`
 
 ## Testes relacionados
 - `testes/test_app_voice_interface.py`

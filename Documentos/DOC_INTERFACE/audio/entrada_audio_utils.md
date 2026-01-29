@@ -3,18 +3,19 @@
 - Caminho: `jarvis/interface/audio/audio_utils.py`
 - Papel: contrato de audio (SAMPLE_RATE, BYTES_PER_SAMPLE) e coercoes para PCM bytes.
 - Onde entra no fluxo: usado por STT, VAD, trim Rust e testes.
-- Atualizado em: 2026-01-10 (revisado com o codigo)
+- Atualizado em: 2026-01-24 (revisado com o código)
 
 ## Responsabilidades
-- Normalizar diferentes tipos (bytes, list[int], list[frames]) para `bytes`.
-- Garantir int16 little-endian.
+- Normalizar payloads de áudio para `bytes` PCM int16 LE (mono).
+- Rejeitar tipos/formatos inesperados (None, listas com valores fora de int16, buffers desalinhados).
 
-## Entrada e saida
-- Entrada: payload variado (bytes, list, memoryview, array).
-- Saida: `bytes` PCM int16 LE mono 16 kHz.
+## Entrada e saída
+- Aceita: `bytes`/`bytearray`/`memoryview`, objetos com `tobytes()`, listas de ints, listas de frames (`bytes`).
+- Retorna: `bytes` PCM int16 LE (mono, 16 kHz por contrato).
 
-## Configuracao
+## Configuração
 - Constantes: `SAMPLE_RATE=16000`, `BYTES_PER_SAMPLE=2`.
+  - Não reamostra nem valida canais; só garante formato int16 LE.
 
 ## Dependencias diretas
 - Apenas stdlib (`array`).
@@ -28,8 +29,8 @@
 - Testes: `PYTHONPATH=. pytest -q testes/test_stt_flow.py::test_write_wav_coerces_payloads`
 
 ## Qualidade e limites
-- Se o payload nao e suportado, levanta `TypeError`.
-- Se o payload em bytes nao estiver alinhado a 2 bytes (int16), levanta `TypeError`.
+- Levanta `TypeError` para: payload `None`, tipo não suportado, buffer ímpar (não alinhado a int16), ints fora de -32768..32767.
+- Não reamostra nem checa número de canais; assume contrato mono/16 kHz definido pelo restante da interface.
 
 
 ## Performance (estimativa)
