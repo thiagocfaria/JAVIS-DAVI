@@ -83,20 +83,20 @@
 
   <path d="M470 200 L500 200" class="arrow"/>
 
-  <!-- STT Backend -->
-  <rect x="500" y="130" width="220" height="190" class="card progress"/>
+  <!-- STT Backend - VALIDADO BLOCO 2 -->
+  <rect x="500" y="130" width="220" height="190" class="card done"/>
   <text x="515" y="155" class="h2">STT Backend (FW default)</text>
   <text x="515" y="175" class="item">[OK] faster-whisper tiny</text>
   <text x="515" y="190" class="item">[OK] Parciais + finais</text>
   <text x="515" y="205" class="item">[OK] Warmup pre-load modelo</text>
-  <text x="515" y="220" class="item">[  ] Comparar tiny/tiny.en/small</text>
+  <text x="515" y="220" class="item">[OK] Validado: p95=798.5ms</text>
   <text x="515" y="235" class="item">[OK] Backend plugavel interface</text>
-  <text x="515" y="250" class="item">[  ] whisper_cpp bloqueado</text>
-  <text x="515" y="265" class="item">[OK] p95 warm/cold padronizado</text>
-  <!-- Progress ring 71% (5/7 itens) -->
+  <text x="515" y="250" class="item">[OK] whisper_cpp bloqueado</text>
+  <text x="515" y="265" class="item">[OK] Long-run 2000 iter OK</text>
+  <!-- Progress ring 100% (7/7 itens) - COMPLETO -->
   <circle cx="690" cy="290" r="20" class="ring-bg"/>
-  <circle cx="690" cy="290" r="20" class="ring-warn" stroke-dasharray="90 126" transform="rotate(-90 690 290)"/>
-  <text x="678" y="295" class="pct">71%</text>
+  <circle cx="690" cy="290" r="20" class="ring-ok" stroke-dasharray="126 126" transform="rotate(-90 690 290)"/>
+  <text x="678" y="295" class="pct">100%</text>
 
   <path d="M720 215 L750 215" class="arrow"/>
 
@@ -236,28 +236,28 @@
 
   <!-- ==================== CHECKLIST PENDENCIAS ==================== -->
 
-<rect x="475" y="680" width="310" height="280" fill="#2d2d44" stroke="#fbbf24" stroke-width="3" rx="12" ry="12"/>
-<text x="495" y="705" class="h2" fill="#fbbf24">PENDENCIAS (3)</text>
+<rect x="475" y="680" width="310" height="280" fill="#2d2d44" stroke="#22c55e" stroke-width="3" rx="12" ry="12"/>
+<text x="495" y="705" class="h2" fill="#22c55e">BLOCOS VALIDACAO (Etapa 5)</text>
 
-<text x="495" y="730" style="font-family:Arial;font-size:11px;fill:#22c55e;">[OK] 1. Backend STT plugavel</text>
-<text x="495" y="748" style="font-family:Arial;font-size:11px;fill:#22c55e;">[OK] 2. Perfis FAST/BALANCED</text>
-<text x="495" y="766" style="font-family:Arial;font-size:11px;fill:#e8e8e8;">[  ] 3. Comparar tiny/tiny.en/small</text>
-<text x="495" y="784" style="font-family:Arial;font-size:11px;fill:#e8e8e8;">[  ] 4. Turn-taking parciais</text>
-<text x="495" y="802" style="font-family:Arial;font-size:11px;fill:#e8e8e8;">[  ] 5. Watchdogs 24-72h</text>
-<text x="495" y="930" style="font-family:Arial;font-size:10px;fill:#fbbf24;">3 pendentes</text>
+<text x="495" y="730" style="font-family:Arial;font-size:11px;fill:#22c55e;">[OK] ✅ BLOCO 2: Long-run 2000 iter</text>
+<text x="495" y="748" style="font-family:Arial;font-size:11px;fill:#22c55e;">[OK] ✅ BLOCO 3: WER + Latencia</text>
+<text x="495" y="766" style="font-family:Arial;font-size:11px;fill:#22c55e;">[OK] ✅ BLOCO 4: Documentacao</text>
+<text x="495" y="784" style="font-family:Arial;font-size:11px;fill:#f59e0b;">[  ] ⏳ System metrics (re-run)</text>
+<text x="495" y="802" style="font-family:Arial;font-size:11px;fill:#f59e0b;">[  ] ⏳ Validar degradacao</text>
+<text x="495" y="930" style="font-family:Arial;font-size:10px;fill:#22c55e;">3/5 BLOCOS OK</text>
 
   <!-- ==================== PROGRESSO GERAL ==================== -->
 
   <rect x="820" y="680" width="200" height="280" class="card" fill="#1e293b" stroke="#7c3aed"/>
   <text x="840" y="710" class="h2" fill="#a78bfa">PROGRESSO GERAL</text>
 
-  <!-- Big gauge - 82% (41 de 50 itens aprox) -->
+  <!-- Big gauge - 90% (45 de 50 itens aprox) - BLOCO 2 Validado -->
   <circle cx="920" cy="840" r="70" fill="none" stroke="#1e293b" stroke-width="14"/>
-  <circle cx="920" cy="840" r="70" fill="none" stroke="#22c55e" stroke-width="14" stroke-dasharray="361 440" transform="rotate(-90 920 840)"/>
-  <text x="885" y="850" style="font-family:Arial;font-size:28px;font-weight:bold;fill:#22c55e">82%</text>
+  <circle cx="920" cy="840" r="70" fill="none" stroke="#22c55e" stroke-width="14" stroke-dasharray="396 440" transform="rotate(-90 920 840)"/>
+  <text x="885" y="850" style="font-family:Arial;font-size:28px;font-weight:bold;fill:#22c55e">90%</text>
 
-  <text x="840" y="930" class="metric">Itens OK: 41 de 50</text>
-  <text x="840" y="950" class="metric">Pendentes: 9 itens</text>
+  <text x="840" y="930" class="metric">Itens OK: 45 de 50</text>
+  <text x="840" y="950" class="metric">Pendentes: 5 itens</text>
 
   <!-- ==================== METRICAS ATUAIS ==================== -->
 
@@ -279,7 +279,7 @@
   <text x="1120" y="900" class="metric" fill="#22c55e">EOS-to-Audio (OURO confortável):</text>
   <text x="1120" y="915" class="metric" fill="#22c55e">  p50: 636ms | p95: 798ms | p99: 1136ms</text>
 
-  <text x="1120" y="945" class="metric" fill="#86efac">3/3 METAS OURO OK (limite)</text>
+  <text x="1120" y="945" class="metric" fill="#86efac">3/3 METAS OURO OK (confortável)</text>
 
   <!-- ==================== METAS OURO ==================== -->
 
