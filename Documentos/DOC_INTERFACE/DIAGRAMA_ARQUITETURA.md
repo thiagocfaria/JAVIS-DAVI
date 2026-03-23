@@ -210,7 +210,7 @@ jarvis/interface/
 ### 5. ADAPTADORES DE VOZ
 
 ```
-jarvis/voz/adapters/
+jarvis/interface/entrada/adapters/
 ├── base.py                    # Interface base
 ├── stt_realtimestt.py         # STT streaming (RealtimeSTT)
 ├── vad_silero.py              # VAD alternativo (Silero)

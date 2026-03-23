@@ -1,6 +1,6 @@
-# voz/adapters/vad_silero.py
+# interface/entrada/adapters/vad_silero.py
 
-- Caminho: `jarvis/voz/adapters/vad_silero.py`
+- Caminho oficial: `jarvis/interface/entrada/adapters/vad_silero.py`
 - Papel: deactivity detection com Silero (fim de fala mais robusto).
 - Onde entra no fluxo: usado pelo STT (`SpeechToText._record_until_silence`).
 - Atualizado em: 2026-01-11

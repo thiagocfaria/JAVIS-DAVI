@@ -117,7 +117,7 @@
 - `testes/test_stt_silero_deactivity.py`
 
 ## Comandos uteis
-- Smoke: `PYTHONPATH=. python -c "from jarvis.entrada.stt import SpeechToText; print('ok')"`
+- Smoke: `PYTHONPATH=. python -c "from jarvis.interface.entrada.stt import SpeechToText; print('ok')"`
 - Testes STT: `PYTHONPATH=. pytest -q testes/test_stt_flow.py testes/test_stt_filters.py`
 - Teste reamostragem: `PYTHONPATH=. pytest -q testes/test_audio_resample.py`
 - Build Rust (opcional): `bash scripts/build_rust_audio.sh`
