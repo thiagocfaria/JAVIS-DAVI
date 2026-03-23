@@ -40,8 +40,8 @@ from ..telemetria.latency import RollingPercentiles
 from ..telemetria.telemetry import Telemetry
 from ..validacao.plano import validar_plano
 from ..validacao.validator import Validator
-from ..voz.adapters.speaker_resemblyzer import ResemblyzerSpeakerVerifier
-from ..voz.tts import TextToSpeech
+from jarvis.interface.entrada.adapters.speaker_resemblyzer import ResemblyzerSpeakerVerifier
+from jarvis.interface.saida.tts import TextToSpeech
 from .actions import Action, ActionPlan
 from .config import Config
 from .llm import BudgetedLLMClient, LLMClient, _safe_json_loads, build_local_llm_client
