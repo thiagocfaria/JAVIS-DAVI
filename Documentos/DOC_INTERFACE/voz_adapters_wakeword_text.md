@@ -1,6 +1,6 @@
-# voz/adapters/wakeword_text.py
+# interface/entrada/adapters/wakeword_text.py
 
-- Caminho: `jarvis/voz/adapters/wakeword_text.py`
+- Caminho oficial: `jarvis/interface/entrada/adapters/wakeword_text.py`
 - Papel: adapter de wake word para fluxos baseados em texto.
 - Onde entra no fluxo: usado pelo STT/orquestrador para filtrar comandos.
 - Atualizado em: 2026-01-14 (revisado com o codigo)
@@ -17,7 +17,7 @@
 - Repassa `wake_word` e `require` para o filtro.
 
 ## Dependencias diretas
-- `jarvis.entrada.stt.apply_wake_word_filter`
+- `jarvis.interface.entrada.stt.apply_wake_word_filter`
 
 ## Testes relacionados
 - `testes/test_stt_filters.py` (cobre o filtro)
@@ -31,7 +31,7 @@
 - Wake word por audio existe como opcional (Porcupine ou OpenWakeWord).
 
 ## Wake word por audio (opcional)
-- Modulos: `jarvis/voz/adapters/wakeword_porcupine.py` e `jarvis/voz/adapters/wakeword_openwakeword.py`.
+- Modulos oficiais relacionados: `jarvis/interface/entrada/adapters/wakeword_porcupine.py` e `jarvis/interface/entrada/adapters/wakeword_openwakeword.py`.
 - Ativar: `JARVIS_WAKE_WORD_AUDIO=1`.
 - Backend: `JARVIS_WAKE_WORD_AUDIO_BACKEND=pvporcupine` (default) ou `openwakeword`.
 - Porcupine: exige `JARVIS_PORCUPINE_ACCESS_KEY` (ou `JARVIS_PORCUPINE_KEYWORD_PATH`).

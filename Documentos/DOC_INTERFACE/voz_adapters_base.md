@@ -1,6 +1,6 @@
-# voz/adapters/base.py
+# interface/entrada/adapters/base.py
 
-- Caminho: `jarvis/voz/adapters/base.py`
+- Caminho oficial: `jarvis/interface/entrada/adapters/base.py`
 - Papel: protocolos (interfaces) para wake word e speaker verification.
 - Onde entra no fluxo: padroniza como o orquestrador usa adapters.
 - Atualizado em: 2026-01-10 (revisado com o codigo)
