@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from jarvis.voz import speaker_verify
+from jarvis.interface.entrada import speaker_verify
 
 from .base import SampleRate, SpeakerVerifier, validate_audio_i16
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from jarvis.entrada.stt import apply_wake_word_filter
+from jarvis.interface.entrada.stt import apply_wake_word_filter
 
 from .base import SampleRate, WakeWordDetector
 

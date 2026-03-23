@@ -14,8 +14,8 @@ from .shortcut import check_shortcut_deps
 from . import stt as stt_module
 from .stt import check_stt_deps
 from jarvis.validacao.validator import check_validator_deps
-from jarvis.voz.adapters import vad_silero, wakeword_openwakeword, wakeword_porcupine
-from jarvis.voz.tts import TextToSpeech, check_tts_deps
+from jarvis.interface.entrada.adapters import vad_silero, wakeword_openwakeword, wakeword_porcupine
+from jarvis.interface.saida.tts import TextToSpeech, check_tts_deps
 
 
 @dataclass(frozen=True)
@@ -803,7 +803,7 @@ def _check_chat_shortcut() -> CheckResult:
             detail="Wayland detectado: atalhos globais via pynput podem falhar",
             hint=(
                 "Use X11/XWayland (DISPLAY) ou configure o atalho no seu ambiente (GNOME/KDE) para chamar: "
-                "python -m jarvis.entrada.chat_ui"
+                "python -m jarvis.interface.entrada.chat_ui"
             ),
         )
     return CheckResult(

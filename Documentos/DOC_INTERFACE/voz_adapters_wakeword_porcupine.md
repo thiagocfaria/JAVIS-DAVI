@@ -1,6 +1,6 @@
-# voz/adapters/wakeword_porcupine.py
+# interface/entrada/adapters/wakeword_porcupine.py
 
-- Caminho: `jarvis/voz/adapters/wakeword_porcupine.py`
+- Caminho oficial: `jarvis/interface/entrada/adapters/wakeword_porcupine.py`
 - Papel: detector de wake word por audio (PCM int16 16 kHz).
 - Onde entra no fluxo: usado pelo STT quando `JARVIS_WAKE_WORD_AUDIO=1` e backend Porcupine.
 - Atualizado em: 2026-01-14 (revisado com o codigo)

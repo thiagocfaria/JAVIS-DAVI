@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 from jarvis.cerebro.actions import Action, ActionPlan
 from jarvis.cerebro.config import load_config
 from jarvis.cerebro.orchestrator import Orchestrator
-from jarvis.comunicacao.chat_log import ChatLog
+from jarvis.interface.infra.chat_log import ChatLog
 from jarvis.memoria.memory import HybridMemoryStore, LocalMemoryCache
 from jarvis.memoria.procedures import ProcedureStore
 from jarvis.seguranca.policy import PolicyKernel
