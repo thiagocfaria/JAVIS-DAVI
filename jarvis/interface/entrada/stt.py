@@ -70,7 +70,7 @@ else:
     NDArrayFloat: TypeAlias = Any
 
 try:
-    from jarvis.voz import vad as vad_module
+    from . import vad as vad_module
 except Exception:
     vad_module = None
 
@@ -567,7 +567,7 @@ class SpeechToText:
             try:
                 backend = self._wake_word_audio_backend
                 if backend in {"oww", "openwakeword", "openwakewords"}:
-                    from jarvis.voz.adapters.wakeword_openwakeword import (
+                    from jarvis.interface.entrada.adapters.wakeword_openwakeword import (
                         build_openwakeword_detector,
                     )
 
@@ -580,7 +580,7 @@ class SpeechToText:
                         self._debug(
                             f"wake word backend desconhecido: {backend}, usando pvporcupine"
                         )
-                    from jarvis.voz.adapters.wakeword_porcupine import (
+                    from jarvis.interface.entrada.adapters.wakeword_porcupine import (
                         build_porcupine_detector,
                     )
 
@@ -593,7 +593,7 @@ class SpeechToText:
 
         if self._silero_deactivity_enabled:
             try:
-                from jarvis.voz.adapters.vad_silero import (
+                from jarvis.interface.entrada.adapters.vad_silero import (
                     build_silero_deactivity_detector,
                 )
 
@@ -750,7 +750,7 @@ class SpeechToText:
         if not self._use_realtimestt() or self._realtimestt_failed:
             return None
         try:
-            from jarvis.voz.adapters import stt_realtimestt
+            from jarvis.interface.entrada.adapters import stt_realtimestt
         except Exception as exc:
             self._debug(f"realtimestt import failed: {exc}")
             self._realtimestt_failed = True
@@ -2350,7 +2350,7 @@ def check_stt_deps() -> dict:
     except Exception:
         pyaudio_available = False
     try:
-        from jarvis.voz.adapters import stt_realtimestt
+        from jarvis.interface.entrada.adapters import stt_realtimestt
 
         realtimestt_available = stt_realtimestt.is_available()
     except Exception:

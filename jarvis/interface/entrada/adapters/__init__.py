@@ -1,6 +1,6 @@
-"""Compat: reexporta adapters de voz para a nova interface."""
+"""API publica estavel para adapters de entrada da interface."""
 
-from jarvis.voz.adapters import (  # noqa: F401
+from . import (
     base,
     speaker_resemblyzer,
     stt_realtimestt,

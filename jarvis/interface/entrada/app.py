@@ -264,12 +264,12 @@ def main() -> int:
             elif reason == "wayland_no_x11":
                 print("Aviso: atalho global indisponível (Wayland sem X11).")
                 print(
-                    "Dica: configure um atalho do sistema para executar: python -m jarvis.entrada.chat_ui"
+                    "Dica: configure um atalho do sistema para executar: python -m jarvis.interface.entrada.chat_ui"
                 )
             else:
                 print("Aviso: atalho global indisponível (falha ao iniciar listener).")
                 print(
-                    "Dica: configure um atalho do sistema para executar: python -m jarvis.entrada.chat_ui"
+                    "Dica: configure um atalho do sistema para executar: python -m jarvis.interface.entrada.chat_ui"
                 )
             chat_shortcut = None
 
