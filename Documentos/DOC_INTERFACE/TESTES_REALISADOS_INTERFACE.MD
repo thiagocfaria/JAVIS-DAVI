@@ -170,13 +170,13 @@ Objetivo: validar em uso real (microfone/saida de audio) com **voz humanizada** 
   - chunk=4096: `tts_first_audio_ms_p50`: 1789 ms / `tts_first_audio_ms_p95`: 1969 ms (**melhor aqui**)
 
 - Benchmark: cache de frases curtas (Piper)
-- Comando: `PYTHONPATH=. JARVIS_TTS_ENGINE=piper JARVIS_TTS_ENGINE_STRICT=1 JARVIS_PIPER_MODELS_DIR=storage/models/piper JARVIS_PIPER_VOICE=pt_BR-faber-medium JARVIS_TTS_STREAMING=1 JARVIS_TTS_STREAM_CHUNK_BYTES=4096 JARVIS_TTS_CACHE=1 JARVIS_TTS_ACK_EARCON=0 JARVIS_TTS_VOLUME=0 ./.venv/bin/python -c "from types import SimpleNamespace; from jarvis.voz.tts import TextToSpeech; tts=TextToSpeech(SimpleNamespace(tts_mode='local')); t='Entendi. Ja vou responder.'; tts.speak(t); m1=tts.get_last_metrics(); tts.speak(t); m2=tts.get_last_metrics(); keys=['tts_engine','tts_first_audio_ms','tts_ack_source']; print('run1', {k:m1.get(k) for k in keys}); print('run2', {k:m2.get(k) for k in keys})"`
+- Comando: `PYTHONPATH=. JARVIS_TTS_ENGINE=piper JARVIS_TTS_ENGINE_STRICT=1 JARVIS_PIPER_MODELS_DIR=storage/models/piper JARVIS_PIPER_VOICE=pt_BR-faber-medium JARVIS_TTS_STREAMING=1 JARVIS_TTS_STREAM_CHUNK_BYTES=4096 JARVIS_TTS_CACHE=1 JARVIS_TTS_ACK_EARCON=0 JARVIS_TTS_VOLUME=0 ./.venv/bin/python -c "from types import SimpleNamespace; from jarvis.interface.saida.tts import TextToSpeech; tts=TextToSpeech(SimpleNamespace(tts_mode='local')); t='Entendi. Ja vou responder.'; tts.speak(t); m1=tts.get_last_metrics(); tts.speak(t); m2=tts.get_last_metrics(); keys=['tts_engine','tts_first_audio_ms','tts_ack_source']; print('run1', {k:m1.get(k) for k in keys}); print('run2', {k:m2.get(k) for k in keys})"`
 - Resultado:
   - run1: `tts_engine='piper'`, `tts_first_audio_ms` ~ 1441 ms (cache miss)
   - run2: `tts_engine='piper'`, `tts_first_audio_ms` = 0 ms, `tts_ack_source='cache'` (cache hit)
 
 - Benchmark: fase 1 (ack imediato do orchestrator) — overhead da chamada
-- Comando: `PYTHONPATH=. JARVIS_TTS_ENGINE=piper JARVIS_TTS_ENGINE_STRICT=1 JARVIS_PIPER_MODELS_DIR=storage/models/piper JARVIS_PIPER_VOICE=pt_BR-faber-medium JARVIS_TTS_STREAMING=1 JARVIS_TTS_VOLUME=0 JARVIS_TTS_ACK_PHRASE="Entendi. Já vou responder." JARVIS_TTS_ACK_PHRASE_WARMUP_BLOCKING=1 ./.venv/bin/python -c "import statistics, time; from types import SimpleNamespace; from jarvis.voz.tts import TextToSpeech; tts=TextToSpeech(SimpleNamespace(tts_mode='local')); values=[]; \nfor _ in range(50):\n s=time.perf_counter(); tts.play_phase1_ack(); e=time.perf_counter(); values.append((e-s)*1000.0)\nprint({'repeat':len(values),'call_ms_p50':statistics.median(values),'call_ms_p95':statistics.quantiles(values,n=20)[-1]})\nprint('tts_metrics', {k: tts.get_last_metrics().get(k) for k in ('tts_engine','tts_first_audio_ms','tts_ack_source')})\"`
+- Comando: `PYTHONPATH=. JARVIS_TTS_ENGINE=piper JARVIS_TTS_ENGINE_STRICT=1 JARVIS_PIPER_MODELS_DIR=storage/models/piper JARVIS_PIPER_VOICE=pt_BR-faber-medium JARVIS_TTS_STREAMING=1 JARVIS_TTS_VOLUME=0 JARVIS_TTS_ACK_PHRASE="Entendi. Já vou responder." JARVIS_TTS_ACK_PHRASE_WARMUP_BLOCKING=1 ./.venv/bin/python -c "import statistics, time; from types import SimpleNamespace; from jarvis.interface.saida.tts import TextToSpeech; tts=TextToSpeech(SimpleNamespace(tts_mode='local')); values=[]; \nfor _ in range(50):\n s=time.perf_counter(); tts.play_phase1_ack(); e=time.perf_counter(); values.append((e-s)*1000.0)\nprint({'repeat':len(values),'call_ms_p50':statistics.median(values),'call_ms_p95':statistics.quantiles(values,n=20)[-1]})\nprint('tts_metrics', {k: tts.get_last_metrics().get(k) for k in ('tts_engine','tts_first_audio_ms','tts_ack_source')})\"`
 - Resultado (resumo):
   - `call_ms_p50`: 0.003 ms
   - `call_ms_p95`: 0.009 ms
@@ -727,7 +727,7 @@ import time
 import wave
 from pathlib import Path
 from jarvis.cerebro.config import load_config
-from jarvis.entrada.stt import SpeechToText
+from jarvis.interface.entrada.stt import SpeechToText
 
 wav_path = Path('jarvis/REPOSITORIOS_CLONAR/realtimestt/RealtimeSTT/warmup_audio.wav')
 with wave.open(str(wav_path), 'rb') as f:

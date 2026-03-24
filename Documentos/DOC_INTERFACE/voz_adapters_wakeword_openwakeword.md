@@ -1,6 +1,6 @@
-# voz/adapters/wakeword_openwakeword.py
+# interface/entrada/adapters/wakeword_openwakeword.py
 
-- Caminho: `jarvis/voz/adapters/wakeword_openwakeword.py`
+- Caminho oficial: `jarvis/interface/entrada/adapters/wakeword_openwakeword.py`
 - Papel: detector de wake word por audio (PCM int16 16 kHz) usando OpenWakeWord.
 - Onde entra no fluxo: usado pelo STT quando `JARVIS_WAKE_WORD_AUDIO=1` e backend `openwakeword`.
 - Atualizado em: 2026-01-14 (revisado com o codigo)

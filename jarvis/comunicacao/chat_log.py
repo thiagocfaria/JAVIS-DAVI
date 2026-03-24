@@ -1,4 +1,20 @@
 """Compat: alias para o modulo chat_log na nova interface."""
 
-from jarvis.interface.infra.chat_log import *  # noqa: F403, F401
-from jarvis.interface.infra.chat_log import ChatLog  # noqa: F401
+from __future__ import annotations
+
+import sys as _sys
+from importlib import import_module as _import_module
+from typing import Any as _Any
+
+_mod = _import_module("jarvis.interface.infra.chat_log")
+
+ChatLog = getattr(_mod, "ChatLog")
+
+__all__ = ["ChatLog"]
+
+
+def __getattr__(name: str) -> _Any:
+    return getattr(_mod, name)
+
+
+_sys.modules[__name__] = _mod

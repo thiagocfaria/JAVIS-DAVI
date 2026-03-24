@@ -201,12 +201,12 @@ Este documento lista todas as dependencias usadas pela interface de voz/texto, c
 - `JARVIS_AUDIO_NS_GATE_RMS`
 
 ## Comandos de verificacao rapida
-- Preflight: `PYTHONPATH=. python -m jarvis.entrada.app --preflight`
-- STT deps: `python -c "from jarvis.entrada.stt import check_stt_deps; print(check_stt_deps())"`
-- TTS deps: `python -c "from jarvis.voz.tts import check_tts_deps; print(check_tts_deps())"`
+- Preflight: `PYTHONPATH=. python -m jarvis.interface.entrada.app --preflight`
+- STT deps: `python -c "from jarvis.interface.entrada.stt import check_stt_deps; print(check_stt_deps())"`
+- TTS deps: `python -c "from jarvis.interface.saida.tts import check_tts_deps; print(check_tts_deps())"`
 - Profiling (py-spy): `py-spy --version`
 
 ## Status local (verificar antes de testar)
-- Rode preflight: `PYTHONPATH=. python -m jarvis.entrada.app --preflight --preflight-profile voice`
+- Rode preflight: `PYTHONPATH=. python -m jarvis.interface.entrada.app --preflight --preflight-profile voice`
 - Rode o benchmark: `PYTHONPATH=. python scripts/bench_interface.py stt --audio Documentos/DOC_INTERFACE/bench_audio/voice_clean.wav --repeat 3 --resample`
 - Registre resultados em `Documentos/DOC_INTERFACE/TESTES_REALISADOS_INTERFACE.MD`.

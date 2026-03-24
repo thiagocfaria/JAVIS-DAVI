@@ -459,7 +459,7 @@ import time
 import wave
 from pathlib import Path
 from jarvis.cerebro.config import load_config
-from jarvis.entrada.stt import SpeechToText
+from jarvis.interface.entrada.stt import SpeechToText
 
 wav_path = Path('jarvis/REPOSITORIOS_CLONAR/realtimestt/RealtimeSTT/warmup_audio.wav')
 with wave.open(str(wav_path), 'rb') as f:
