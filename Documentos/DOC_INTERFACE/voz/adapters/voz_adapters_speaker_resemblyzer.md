@@ -1,6 +1,6 @@
-# voz/adapters/speaker_resemblyzer.py
+# interface/entrada/adapters/speaker_resemblyzer.py
 
-- Caminho: `jarvis/voz/adapters/speaker_resemblyzer.py`
+- Caminho oficial: `jarvis/interface/entrada/adapters/speaker_resemblyzer.py`
 - Papel: adapter para speaker verification via Resemblyzer.
 - Onde entra no fluxo: usado pelo orquestrador antes de aceitar comando.
 - Atualizado em: 2026-01-10 (revisado com o codigo)
@@ -18,7 +18,7 @@
 - Usa as mesmas envs do `speaker_verify.py`.
 
 ## Dependencias diretas
-- `jarvis.voz.speaker_verify`
+- `jarvis.interface.entrada.speaker_verify`
 
 ## Testes relacionados
 - `testes/test_voice_adapters.py`

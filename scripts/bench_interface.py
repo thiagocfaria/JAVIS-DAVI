@@ -304,7 +304,7 @@ def _bench_stt(
     warmup: bool,
 ) -> dict[str, Any]:
     from jarvis.cerebro.config import load_config
-    from jarvis.entrada.stt import SpeechToText
+    from jarvis.interface.entrada.stt import SpeechToText
 
     if audio_path is None:
         raise ValueError("audio_path is required for STT benchmark")
@@ -382,7 +382,7 @@ def _bench_stt(
 def _bench_stt_realtimestt(
     audio_path: Path | None, repeat: int, *, resample: bool, enable_gpu: bool
 ) -> dict[str, Any]:
-    from jarvis.voz.adapters import stt_realtimestt
+    from jarvis.interface.entrada.adapters import stt_realtimestt
 
     if audio_path is None:
         raise ValueError("audio_path is required for STT realtime benchmark")
@@ -512,7 +512,7 @@ def _bench_stt_realtimestt(
 def _bench_vad(
     audio_path: Path | None, repeat: int, *, resample: bool, enable_gpu: bool
 ) -> dict[str, Any]:
-    from jarvis.entrada.stt import SpeechToText
+    from jarvis.interface.entrada.stt import SpeechToText
     from jarvis.cerebro.config import load_config
 
     if audio_path is None:
@@ -601,7 +601,7 @@ def _compute_endpointing(
 def _bench_endpointing(
     audio_path: Path | None, repeat: int, *, resample: bool, enable_gpu: bool
 ) -> dict[str, Any]:
-    from jarvis.voz.vad import VoiceActivityDetector, resolve_vad_aggressiveness
+    from jarvis.interface.entrada.vad import VoiceActivityDetector, resolve_vad_aggressiveness
 
     if audio_path is None:
         raise ValueError("audio_path is required for endpointing benchmark")
@@ -661,7 +661,7 @@ def _bench_tts(
     text: str, repeat: int, mode: str, *, enable_gpu: bool
 ) -> dict[str, Any]:
     from types import SimpleNamespace
-    from jarvis.voz.tts import TextToSpeech
+    from jarvis.interface.saida.tts import TextToSpeech
 
     tts = TextToSpeech(SimpleNamespace(tts_mode=mode))  # type: ignore[arg-type]
     first_audio_values: list[float] = []
@@ -768,9 +768,9 @@ def _bench_eos_to_first_audio(
     Meta OURO: p95 < 1200ms
     """
     from jarvis.cerebro.config import load_config
-    from jarvis.entrada.stt import SpeechToText
-    from jarvis.voz.tts import TextToSpeech
-    from jarvis.voz.vad import VoiceActivityDetector, resolve_vad_aggressiveness
+    from jarvis.interface.entrada.stt import SpeechToText
+    from jarvis.interface.saida.tts import TextToSpeech
+    from jarvis.interface.entrada.vad import VoiceActivityDetector, resolve_vad_aggressiveness
 
     if audio_path is None:
         raise ValueError("audio_path is required for eos_to_first_audio benchmark")
@@ -1169,7 +1169,7 @@ def _bench_eos_to_first_audio(
 def _bench_speaker(
     audio_path: Path | None, repeat: int, *, resample: bool, enable_gpu: bool
 ) -> dict[str, Any]:
-    from jarvis.voz import speaker_verify
+    from jarvis.interface.entrada import speaker_verify
 
     if audio_path is None:
         raise ValueError("audio_path is required for speaker benchmark")

@@ -1,6 +1,6 @@
-# voz/adapters/stt_realtimestt.py
+# interface/entrada/adapters/stt_realtimestt.py
 
-- Caminho: `jarvis/voz/adapters/stt_realtimestt.py`
+- Caminho oficial: `jarvis/interface/entrada/adapters/stt_realtimestt.py`
 - Papel: carregar RealtimeSTT (pip ou clone local) e expor o recorder.
 - Onde entra no fluxo: usado pelo STT quando `JARVIS_STT_STREAMING=1` e backend `realtimestt`.
 - Atualizado em: 2026-01-14 (revisado com o codigo)

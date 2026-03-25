@@ -8,7 +8,7 @@ Objetivo: manter o backend RealtimeSTT disponivel (para STT streaming/latencia p
 - README upstream (referencia): `jarvis/third_party/realtimestt/README_UPSTREAM.md`
 
 ## Como o Jarvis usa
-- Adapter: `jarvis/voz/adapters/stt_realtimestt.py`
+- Adapter oficial: `jarvis/interface/entrada/adapters/stt_realtimestt.py`
   - Ordem: tenta `pip` (`import RealtimeSTT`), depois `jarvis/third_party/realtimestt`, depois o clone (fallback de transicao).
 - STT: `jarvis/interface/entrada/stt.py`
   - Habilitar: `JARVIS_STT_STREAMING=1`
