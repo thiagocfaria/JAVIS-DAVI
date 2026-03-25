@@ -48,7 +48,7 @@ def test_load_audio_resamples_to_16k(tmp_path: Path) -> None:
     assert abs(len(frames) - expected_len) <= 4
 
 
-def test_measure_includes_psutil_metrics_when_available(monkeypatch):
+def test_measure_includes_psutil_memory_metrics_when_available(monkeypatch):
     class DummyMem:
         rss = 123
         vms = 456
@@ -71,7 +71,8 @@ def test_measure_includes_psutil_metrics_when_available(monkeypatch):
     monkeypatch.setattr(bench_interface, "psutil", DummyPsutil())
     result = bench_interface._measure(lambda: None, repeat=1)
     assert result["psutil_available"] is True
-    assert result["psutil_cpu_percent"] == 12.5
+    assert "psutil_cpu_percent" not in result
+    assert "cpu_percent" in result
     assert result["psutil_rss_bytes"] == 123
     assert result["psutil_vms_bytes"] == 456
 
