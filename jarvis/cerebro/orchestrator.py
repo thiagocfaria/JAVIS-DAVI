@@ -1039,7 +1039,26 @@ class Orchestrator:
             "yes",
             "on",
         }
-        if tts_async and hasattr(self.tts, "speak_async"):
+        layered_voice = os.environ.get("JARVIS_VOICE_3PHASE", "1").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if self._voice_metrics_active and layered_voice and hasattr(self.tts, "emit_voice_layers"):
+            phase3_budget_ms = _env_int_clamped(
+                "JARVIS_TTS_PHASE3_BUDGET_MS", 2200, 0, 15000
+            )
+            phase1_emitted = self._voice_phase1_perf_ts is not None
+            emit = getattr(self.tts, "emit_voice_layers", None)
+            if callable(emit):
+                emit(
+                    text,
+                    phase1_emitted=phase1_emitted,
+                    allow_phase3=True,
+                    phase3_budget_ms=float(phase3_budget_ms),
+                )
+        elif tts_async and hasattr(self.tts, "speak_async"):
             self.tts.speak_async(text)
         else:
             self.tts.speak(text)
@@ -1083,7 +1102,7 @@ class Orchestrator:
             "yes",
             "on",
         }
-        phase1_enabled = os.environ.get("JARVIS_VOICE_PHASE1", "").strip().lower() in {
+        phase1_enabled = os.environ.get("JARVIS_VOICE_PHASE1", "1").strip().lower() in {
             "1",
             "true",
             "yes",
