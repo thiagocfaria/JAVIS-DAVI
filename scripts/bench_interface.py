@@ -202,21 +202,45 @@ def _bench_stt(
 
     stt = SpeechToText(load_config())
     last_text: str | None = None
+    backend_caps = None
+    backend_memory = None
+    if hasattr(stt, "get_backend_capabilities"):
+        try:
+            caps = stt.get_backend_capabilities()
+            backend_caps = {
+                "backend_id": getattr(caps, "backend_id", "unknown"),
+                "supports_sync": bool(getattr(caps, "supports_sync", False)),
+                "supports_streaming": bool(getattr(caps, "supports_streaming", False)),
+                "supports_partials": bool(getattr(caps, "supports_partials", False)),
+                "cpu_first": bool(getattr(caps, "cpu_first", False)),
+                "experimental": bool(getattr(caps, "experimental", False)),
+            }
+        except Exception:
+            backend_caps = None
+    if hasattr(stt, "get_backend_memory_cost_bytes"):
+        try:
+            backend_memory = stt.get_backend_memory_cost_bytes()
+        except Exception:
+            backend_memory = None
 
     if warmup:
         try:
-            get_model = getattr(stt, "_get_whisper_model", None)
-            if callable(get_model):
-                get_model(realtime=False)
-            transcribe = getattr(stt, "_transcribe_audio_bytes", None)
-            if callable(transcribe):
-                warm_bytes = frames[: min(len(frames), 16000 * 2)]
-                if warm_bytes:
-                    transcribe(
-                        warm_bytes,
-                        require_wake_word=False,
-                        skip_speech_check=True,
-                    )
+            warmup_backend = getattr(stt, "warmup_backend", None)
+            if callable(warmup_backend):
+                warmup_backend()
+            else:
+                get_model = getattr(stt, "_get_whisper_model", None)
+                if callable(get_model):
+                    get_model(realtime=False)
+                transcribe = getattr(stt, "_transcribe_audio_bytes", None)
+                if callable(transcribe):
+                    warm_bytes = frames[: min(len(frames), 16000 * 2)]
+                    if warm_bytes:
+                        transcribe(
+                            warm_bytes,
+                            require_wake_word=False,
+                            skip_speech_check=True,
+                        )
         except Exception:
             pass
 
@@ -234,6 +258,8 @@ def _bench_stt(
 
     result = _measure(run, repeat, enable_gpu=enable_gpu)
     result.update({"scenario": "stt", "audio": str(audio_path) if audio_path else "none"})
+    result["backend_capabilities"] = backend_caps
+    result["backend_memory_cost_bytes"] = backend_memory
     if print_text:
         result["transcribed_text_last"] = last_text
         result["require_wake_word"] = require_wake_word
@@ -361,6 +387,67 @@ def _bench_stt_realtimestt(
     if enable_gpu:
         result.update(_collect_gpu_metrics())
     return result
+
+
+def _bench_stt_backends(
+    audio_path: Path | None,
+    repeat: int,
+    *,
+    resample: bool,
+    enable_gpu: bool,
+    require_wake_word: bool,
+    print_text: bool,
+) -> dict[str, Any]:
+    """
+    Compara backend CPU-first e backend experimental sob mesmas condicoes:
+    cold + warm, mesmo audio/endpoint e mesma coleta de metricas.
+    """
+    cold_whisper = _bench_stt(
+        audio_path,
+        repeat,
+        resample=resample,
+        enable_gpu=enable_gpu,
+        require_wake_word=require_wake_word,
+        print_text=print_text,
+        warmup=False,
+    )
+    warm_whisper = _bench_stt(
+        audio_path,
+        repeat,
+        resample=resample,
+        enable_gpu=enable_gpu,
+        require_wake_word=require_wake_word,
+        print_text=print_text,
+        warmup=True,
+    )
+    cold_exp = _bench_stt_realtimestt(
+        audio_path,
+        repeat,
+        resample=resample,
+        enable_gpu=enable_gpu,
+    )
+    warm_exp = _bench_stt_realtimestt(
+        audio_path,
+        repeat,
+        resample=resample,
+        enable_gpu=enable_gpu,
+    )
+    warm_exp["warmup"] = True
+    cold_exp["warmup"] = False
+    return {
+        "scenario": "stt_backends",
+        "audio": str(audio_path) if audio_path else "none",
+        "conditions": {
+            "same_audio": True,
+            "same_endpointing_policy": True,
+            "same_metrics_collection": True,
+            "cold_and_warm": True,
+        },
+        "results": {
+            "whisper_cpu": {"cold": cold_whisper, "warm": warm_whisper},
+            "realtimestt_experimental": {"cold": cold_exp, "warm": warm_exp},
+        },
+    }
 
 
 def _bench_vad(
@@ -802,6 +889,7 @@ def main() -> int:
         choices=[
             "stt",
             "stt_realtimestt",
+            "stt_backends",
             "vad",
             "endpointing",
             "tts",
@@ -847,6 +935,7 @@ def main() -> int:
     if args.scenario in {
         "stt",
         "stt_realtimestt",
+        "stt_backends",
         "vad",
         "endpointing",
         "speaker",
@@ -873,6 +962,15 @@ def main() -> int:
     elif args.scenario == "stt_realtimestt":
         result = _bench_stt_realtimestt(
             audio_path, args.repeat, resample=args.resample, enable_gpu=args.gpu
+        )
+    elif args.scenario == "stt_backends":
+        result = _bench_stt_backends(
+            audio_path,
+            args.repeat,
+            resample=args.resample,
+            enable_gpu=args.gpu,
+            require_wake_word=bool(args.require_wake_word),
+            print_text=bool(args.print_text),
         )
     elif args.scenario == "vad":
         result = _bench_vad(

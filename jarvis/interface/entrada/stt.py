@@ -19,6 +19,11 @@ from fractions import Fraction
 from typing import Any, Callable, Literal, TYPE_CHECKING, TypeAlias, cast, overload
 
 from jarvis.cerebro.config import Config
+from .stt_backend import (
+    STTBackendCapabilities,
+    WhisperCPUBackend,
+    resolve_default_backend,
+)
 from ..audio.audio_utils import BYTES_PER_SAMPLE, SAMPLE_RATE, coerce_pcm_bytes
 from . import speaker_verify
 from .emocao import detect_emotion_async
@@ -384,6 +389,7 @@ class SpeechToText:
         self._vad_post_roll_ms = max(0, _env_int("JARVIS_VAD_POST_ROLL_MS", 200))
         self._vad_max_seconds = max(1, _env_int("JARVIS_VAD_MAX_SECONDS", 30))
         self._last_record_end_ts = 0.0
+        self._backend_id = resolve_default_backend()
         self._silero_deactivity_enabled = _env_bool("JARVIS_SILERO_DEACTIVITY", False)
         self._silero_sensitivity = min(
             1.0, max(0.0, _env_float("JARVIS_SILERO_SENSITIVITY", 0.6))
@@ -508,6 +514,11 @@ class SpeechToText:
             self._fast_profile = True
             self._model_size = self._command_model_size
             self._fallback_model_size = self._command_fallback_model_size
+        self._cpu_backend = WhisperCPUBackend(
+            transcribe_fn=self._transcribe_audio_bytes_contract,
+            warmup_fn=self._maybe_warmup_model,
+            model_size=self._model_size,
+        )
 
         language = os.environ.get("JARVIS_STT_LANGUAGE", "pt").strip()
         if language.lower() in {"auto", "none", ""}:
@@ -705,6 +716,15 @@ class SpeechToText:
 
     def get_last_metrics(self) -> dict[str, float | None]:
         return dict(self._last_metrics)
+
+    def get_backend_capabilities(self) -> STTBackendCapabilities:
+        return self._cpu_backend.capabilities()
+
+    def get_backend_memory_cost_bytes(self) -> int | None:
+        return self._cpu_backend.estimate_memory_cost_bytes()
+
+    def warmup_backend(self) -> None:
+        self._cpu_backend.warmup()
 
     def get_last_confidence(self) -> float:
         return float(self._last_confidence)
@@ -1992,14 +2012,13 @@ class SpeechToText:
         self._last_detected_language_prob = None
         use_realtime_model = bool(self._realtime_model_size) and on_partial is not None
         try:
-            if on_partial is not None or use_realtime_model:
-                text = self._transcribe_local(
-                    pcm_bytes,
-                    on_partial=on_partial,
-                    realtime=use_realtime_model,
-                )
-            else:
-                text = self._transcribe_local(pcm_bytes)
+            text = self._transcribe_audio_bytes_contract(
+                pcm_bytes,
+                require_wake_word=False,
+                skip_speech_check=True,
+                on_partial=on_partial,
+                realtime=use_realtime_model,
+            )
         except Exception as exc:
             self._debug(f"transcribe failed: {exc}")
             return ("", pcm_bytes) if return_audio else ""
@@ -2058,6 +2077,23 @@ class SpeechToText:
         if return_audio:
             return filtered_text, pcm_bytes
         return filtered_text
+
+    def _transcribe_audio_bytes_contract(
+        self,
+        audio_bytes: bytes,
+        *,
+        require_wake_word: bool | None,
+        skip_speech_check: bool,
+        on_partial: Callable[[str], None] | None,
+        realtime: bool = False,
+    ) -> str:
+        if on_partial is not None or realtime:
+            return self._transcribe_local(
+                audio_bytes,
+                on_partial=on_partial,
+                realtime=realtime,
+            )
+        return self._transcribe_local(audio_bytes)
 
     def _apply_command_bias(self, text: str) -> str:
         if not text:
