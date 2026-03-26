@@ -10,3 +10,6 @@ mypy>=1.8.0
 # Testing (already in requirements.txt but useful to have here too)
 pytest>=7.4
 pytest-cov>=4.1.0
+
+# Build Rust extensions (PyO3/maturin)
+maturin>=1.0,<2.0
