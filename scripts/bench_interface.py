@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import statistics
 import time
 import threading
@@ -32,6 +33,14 @@ except Exception:
     psutil = None
 
 
+ROOT = Path(__file__).resolve().parents[1]
+BENCH_AUDIO_DIR = ROOT / "Documentos" / "DOC_INTERFACE" / "bench_audio"
+FIXED_BENCH_SCHEMA_VERSION = "bench_interface.fixed_suite.v1"
+FIXED_BENCH_SUITE_NAME = "suite_minima_fixa"
+FIXED_STT_TEXT = "ola jarvis"
+FIXED_TTS_TEXT = "ok"
+
+
 def _env_int(key: str, default: int) -> int:
     value = os.environ.get(key)
     if value is None or value == "":
@@ -48,6 +57,23 @@ def _read_wav(path: Path) -> tuple[bytes, int, int]:
         samplerate = handle.getframerate()
         frames = handle.readframes(handle.getnframes())
     return frames, samplerate, channels
+
+
+def _audio_stats(path: Path) -> dict[str, Any]:
+    frames, samplerate, channels = _read_wav(path)
+    sample_width = 2
+    duration_s = (
+        (len(frames) / float(samplerate * channels * sample_width))
+        if samplerate > 0 and channels > 0
+        else 0.0
+    )
+    return {
+        "path": str(path),
+        "sample_rate_hz": samplerate,
+        "channels": channels,
+        "audio_size_bytes": len(frames),
+        "duration_s": duration_s,
+    }
 
 
 def _resample_audio(frames: bytes, src_sr: int, target_sr: int) -> bytes:
@@ -136,6 +162,27 @@ def _collect_gpu_metrics() -> dict[str, Any]:
         "gpu_mem_used_mb": mem_used,
         "gpu_mem_total_mb": mem_total,
     }
+
+
+def _resolve_stt_backend() -> str:
+    if (os.environ.get("JARVIS_STT_STREAMING") or "").strip() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        return "realtimestt"
+    return "faster_whisper"
+
+
+def _resolve_tts_backend(result: dict[str, Any]) -> str:
+    engine = result.get("tts_engine")
+    if isinstance(engine, str) and engine:
+        return engine
+    env_engine = (os.environ.get("JARVIS_TTS_ENGINE") or "").strip()
+    if env_engine:
+        return env_engine
+    return "unknown"
 
 
 def _measure(fn, repeat: int, *, enable_gpu: bool = False) -> dict[str, Any]:
@@ -599,6 +646,7 @@ def _bench_eos_to_first_audio(
     *,
     resample: bool,
     enable_gpu: bool,
+    warmup_stt: bool,
 ) -> dict[str, Any]:
     from jarvis.cerebro.config import load_config
     from jarvis.interface.entrada.stt import SpeechToText
@@ -634,23 +682,24 @@ def _bench_eos_to_first_audio(
     trimmed_ms_values: list[float] = []
     phase1_sources: list[str] = []
 
-    # Warm up STT model so repeat stats reflect "service already running"
-    # (avoids p95 being dominated by first model load).
-    try:
-        get_model = getattr(stt, "_get_model", None)
-        if callable(get_model):
-            get_model()
-        transcribe = getattr(stt, "_transcribe_audio_bytes", None)
-        if callable(transcribe):
-            warm_bytes = frames[: min(len(frames), vad.bytes_per_frame * 2)]
-            if warm_bytes:
-                transcribe(
-                    warm_bytes,
-                    require_wake_word=False,
-                    skip_speech_check=True,
-                )
-    except Exception:
-        pass
+    if warmup_stt:
+        # Warm up STT model so repeat stats reflect "service already running"
+        # (avoids p95 being dominated by first model load).
+        try:
+            get_model = getattr(stt, "_get_model", None)
+            if callable(get_model):
+                get_model()
+            transcribe = getattr(stt, "_transcribe_audio_bytes", None)
+            if callable(transcribe):
+                warm_bytes = frames[: min(len(frames), vad.bytes_per_frame * 2)]
+                if warm_bytes:
+                    transcribe(
+                        warm_bytes,
+                        require_wake_word=False,
+                        skip_speech_check=True,
+                    )
+        except Exception:
+            pass
 
     for _ in range(repeat):
         endpoint = _compute_endpointing(frames, vad, silence_ms=silence_ms)
@@ -743,7 +792,7 @@ def _bench_eos_to_first_audio(
             if endpoint_reached_values
             else None
         ),
-        "stt_warmed": True,
+        "stt_warmed": bool(warmup_stt),
     }
     if trimmed_ms_values:
         result["trimmed_audio_ms_p50"] = statistics.median(trimmed_ms_values)
@@ -778,6 +827,227 @@ def _bench_eos_to_first_audio(
     return result
 
 
+def _build_fixed_suite_record(
+    *,
+    scenario_id: str,
+    scenario_kind: str,
+    warm_state: str,
+    stt_backend: str,
+    tts_backend: str,
+    sample_rate_hz: int | None,
+    audio_size_bytes: int | None,
+    raw_result: dict[str, Any],
+    text: str | None = None,
+    audio_path: Path | None = None,
+) -> dict[str, Any]:
+    return {
+        "scenario_id": scenario_id,
+        "scenario_kind": scenario_kind,
+        "cold_or_warm": warm_state,
+        "backend_stt": stt_backend,
+        "backend_tts": tts_backend,
+        "sample_rate_hz": sample_rate_hz,
+        "audio_size_bytes": audio_size_bytes,
+        "cpu_time_s_avg": raw_result.get("cpu_time_s_avg"),
+        "rss_kb": raw_result.get("rss_kb"),
+        "ttfa_ms_p50": (
+            raw_result.get("tts_first_audio_ms_p50")
+            or raw_result.get("eos_to_first_audio_ms_p50")
+        ),
+        "eos_to_first_audio_ms_p50": raw_result.get("eos_to_first_audio_ms_p50"),
+        "latency_ms_p50": raw_result.get("latency_ms_p50"),
+        "latency_ms_p95": raw_result.get("latency_ms_p95"),
+        "text": text,
+        "audio_path": str(audio_path) if audio_path else None,
+        "result": raw_result,
+    }
+
+
+def _run_fixed_suite(repeat: int, *, resample: bool, enable_gpu: bool) -> dict[str, Any]:
+    bench_dir = BENCH_AUDIO_DIR
+    clean_audio = bench_dir / "voice_clean.wav"
+    noise_audio = bench_dir / "voice_noise.wav"
+    for audio_file in (clean_audio, noise_audio):
+        if not audio_file.exists():
+            raise ValueError(f"arquivo obrigatorio nao encontrado: {audio_file}")
+
+    clean_stats = _audio_stats(clean_audio)
+    noise_stats = _audio_stats(noise_audio)
+    stt_backend = _resolve_stt_backend()
+
+    stt_clean = _bench_stt(
+        clean_audio,
+        repeat,
+        resample=resample,
+        enable_gpu=enable_gpu,
+        require_wake_word=False,
+        print_text=False,
+        warmup=True,
+    )
+    stt_noise = _bench_stt(
+        noise_audio,
+        repeat,
+        resample=resample,
+        enable_gpu=enable_gpu,
+        require_wake_word=False,
+        print_text=False,
+        warmup=True,
+    )
+    tts_short = _bench_tts(FIXED_TTS_TEXT, repeat, "local", enable_gpu=enable_gpu)
+    e2e_warm = _bench_eos_to_first_audio(
+        clean_audio,
+        repeat,
+        FIXED_TTS_TEXT,
+        resample=resample,
+        enable_gpu=enable_gpu,
+        warmup_stt=True,
+    )
+    e2e_cold = _bench_eos_to_first_audio(
+        clean_audio,
+        1,
+        FIXED_TTS_TEXT,
+        resample=resample,
+        enable_gpu=enable_gpu,
+        warmup_stt=False,
+    )
+
+    suite_results = [
+        _build_fixed_suite_record(
+            scenario_id="audio_curto_limpo_stt",
+            scenario_kind="stt_short_clean",
+            warm_state="warm",
+            stt_backend=stt_backend,
+            tts_backend="n/a",
+            sample_rate_hz=int(clean_stats["sample_rate_hz"]),
+            audio_size_bytes=int(clean_stats["audio_size_bytes"]),
+            raw_result=stt_clean,
+            text=FIXED_STT_TEXT,
+            audio_path=clean_audio,
+        ),
+        _build_fixed_suite_record(
+            scenario_id="audio_curto_ruido_stt",
+            scenario_kind="stt_short_noise",
+            warm_state="warm",
+            stt_backend=stt_backend,
+            tts_backend="n/a",
+            sample_rate_hz=int(noise_stats["sample_rate_hz"]),
+            audio_size_bytes=int(noise_stats["audio_size_bytes"]),
+            raw_result=stt_noise,
+            text=FIXED_STT_TEXT,
+            audio_path=noise_audio,
+        ),
+        _build_fixed_suite_record(
+            scenario_id="texto_curto_tts",
+            scenario_kind="tts_short_text",
+            warm_state="warm",
+            stt_backend="n/a",
+            tts_backend=_resolve_tts_backend(tts_short),
+            sample_rate_hz=None,
+            audio_size_bytes=None,
+            raw_result=tts_short,
+            text=FIXED_TTS_TEXT,
+        ),
+        _build_fixed_suite_record(
+            scenario_id="fim_a_fim_offline_quente",
+            scenario_kind="e2e_offline",
+            warm_state="warm",
+            stt_backend=stt_backend,
+            tts_backend=_resolve_tts_backend(e2e_warm),
+            sample_rate_hz=int(clean_stats["sample_rate_hz"]),
+            audio_size_bytes=int(clean_stats["audio_size_bytes"]),
+            raw_result=e2e_warm,
+            text=FIXED_TTS_TEXT,
+            audio_path=clean_audio,
+        ),
+        _build_fixed_suite_record(
+            scenario_id="fim_a_fim_cold_start_controlado",
+            scenario_kind="e2e_offline",
+            warm_state="cold",
+            stt_backend=stt_backend,
+            tts_backend=_resolve_tts_backend(e2e_cold),
+            sample_rate_hz=int(clean_stats["sample_rate_hz"]),
+            audio_size_bytes=int(clean_stats["audio_size_bytes"]),
+            raw_result=e2e_cold,
+            text=FIXED_TTS_TEXT,
+            audio_path=clean_audio,
+        ),
+    ]
+    return {
+        "schema_version": FIXED_BENCH_SCHEMA_VERSION,
+        "suite_name": FIXED_BENCH_SUITE_NAME,
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "host": {"node": platform.node(), "platform": platform.platform()},
+        "repeat_default": repeat,
+        "results": suite_results,
+    }
+
+
+def _compare_fixed_suite(
+    baseline_path: Path, candidate_path: Path, *, reject_on_incompatible: bool = True
+) -> dict[str, Any]:
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+    errors: list[str] = []
+
+    if baseline.get("schema_version") != FIXED_BENCH_SCHEMA_VERSION:
+        errors.append(f"schema baseline invalido: {baseline.get('schema_version')}")
+    if candidate.get("schema_version") != FIXED_BENCH_SCHEMA_VERSION:
+        errors.append(f"schema candidate invalido: {candidate.get('schema_version')}")
+    if baseline.get("suite_name") != FIXED_BENCH_SUITE_NAME:
+        errors.append(f"suite baseline invalida: {baseline.get('suite_name')}")
+    if candidate.get("suite_name") != FIXED_BENCH_SUITE_NAME:
+        errors.append(f"suite candidate invalida: {candidate.get('suite_name')}")
+
+    base_rows = {row.get("scenario_id"): row for row in baseline.get("results", [])}
+    cand_rows = {row.get("scenario_id"): row for row in candidate.get("results", [])}
+    if set(base_rows) != set(cand_rows):
+        errors.append("cenarios diferentes entre baseline e candidate")
+
+    comparisons: list[dict[str, Any]] = []
+    for scenario_id, base_row in sorted(base_rows.items()):
+        cand_row = cand_rows.get(scenario_id)
+        if not cand_row:
+            continue
+        for key in (
+            "scenario_kind",
+            "backend_stt",
+            "backend_tts",
+            "cold_or_warm",
+            "sample_rate_hz",
+            "audio_size_bytes",
+        ):
+            if base_row.get(key) != cand_row.get(key):
+                errors.append(
+                    f"cenario {scenario_id} incompativel em {key}: "
+                    f"{base_row.get(key)} != {cand_row.get(key)}"
+                )
+        base_e2e = base_row.get("eos_to_first_audio_ms_p50")
+        cand_e2e = cand_row.get("eos_to_first_audio_ms_p50")
+        diff_pct = None
+        if isinstance(base_e2e, (int, float)) and isinstance(cand_e2e, (int, float)):
+            diff_pct = ((cand_e2e - base_e2e) / base_e2e * 100.0) if base_e2e else None
+        comparisons.append(
+            {
+                "scenario_id": scenario_id,
+                "baseline_eos_to_first_audio_ms_p50": base_e2e,
+                "candidate_eos_to_first_audio_ms_p50": cand_e2e,
+                "diff_pct": diff_pct,
+            }
+        )
+    compatible = not errors
+    report = {
+        "schema_version": "bench_interface.fixed_compare.v1",
+        "compatible": compatible,
+        "errors": errors,
+        "baseline": str(baseline_path),
+        "candidate": str(candidate_path),
+        "comparisons": comparisons,
+    }
+    if reject_on_incompatible and not compatible:
+        raise ValueError("comparacao rejeitada: " + "; ".join(errors))
+    return report
+
+
 def _bench_speaker(
     audio_path: Path | None, repeat: int, *, resample: bool, enable_gpu: bool
 ) -> dict[str, Any]:
@@ -808,6 +1078,8 @@ def main() -> int:
             "speaker",
             "eos_to_first_audio",
             "llm_plan",
+            "suite_minima_fixa",
+            "compare_suite_minima_fixa",
         ],
     )
     parser.add_argument("--audio", type=str, help="caminho para WAV 16kHz mono")
@@ -817,6 +1089,16 @@ def main() -> int:
         "--tts-mode", type=str, default="local", help="tts_mode (local/none)"
     )
     parser.add_argument("--json", type=str, help="salvar saida em JSON")
+    parser.add_argument(
+        "--baseline-json",
+        type=str,
+        help="baseline para comparar suite_minima_fixa",
+    )
+    parser.add_argument(
+        "--candidate-json",
+        type=str,
+        help="candidate para comparar suite_minima_fixa",
+    )
     parser.add_argument(
         "--print-text",
         action="store_true",
@@ -841,6 +1123,11 @@ def main() -> int:
         "--resample",
         action="store_true",
         help="reamostrar para 16 kHz quando o WAV nao estiver em 16 kHz",
+    )
+    parser.add_argument(
+        "--no-stt-warmup-e2e",
+        action="store_true",
+        help="para eos_to_first_audio: desativa warmup explicito de STT",
     )
     args = parser.parse_args()
 
@@ -893,15 +1180,36 @@ def main() -> int:
             args.text,
             resample=args.resample,
             enable_gpu=args.gpu,
+            warmup_stt=not bool(args.no_stt_warmup_e2e),
         )
     elif args.scenario == "llm_plan":
         result = _bench_llm_plan(args.text, args.repeat, enable_gpu=args.gpu)
+    elif args.scenario == "suite_minima_fixa":
+        result = _run_fixed_suite(args.repeat, resample=args.resample, enable_gpu=args.gpu)
+    elif args.scenario == "compare_suite_minima_fixa":
+        if not args.baseline_json or not args.candidate_json:
+            raise SystemExit(
+                "--baseline-json e --candidate-json sao obrigatorios para compare_suite_minima_fixa"
+            )
+        result = _compare_fixed_suite(
+            Path(args.baseline_json),
+            Path(args.candidate_json),
+            reject_on_incompatible=True,
+        )
     else:
         result = _bench_tts(args.text, args.repeat, args.tts_mode, enable_gpu=args.gpu)
 
+    if args.scenario == "suite_minima_fixa" and not args.json:
+        default_name = f"suite_minima_fixa.{time.strftime('%Y-%m-%d_%H%M%S', time.gmtime())}.json"
+        args.json = default_name
+
     output = json.dumps(result, ensure_ascii=True, indent=2)
     if args.json:
-        Path(args.json).write_text(output + "\n", encoding="utf-8")
+        output_path = Path(args.json)
+        if args.scenario == "suite_minima_fixa" and not output_path.is_absolute():
+            output_path = BENCH_AUDIO_DIR / output_path
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(output + "\n", encoding="utf-8")
     else:
         print(output)
     return 0
