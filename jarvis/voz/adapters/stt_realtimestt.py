@@ -5,6 +5,8 @@ import importlib
 import sys
 from typing import Any, Callable
 
+from jarvis.interface.entrada.stt_backend import STTBackendCapabilities
+
 _cached_module: Any | None = None
 _cached_cls: type | None = None
 _cached_error: str | None = None
@@ -98,3 +100,23 @@ def set_partial_callback(recorder: Any, callback: Callable[[str], None] | None) 
             recorder.on_realtime_transcription_update = callback
         except Exception:
             return
+
+
+def capabilities() -> STTBackendCapabilities:
+    return STTBackendCapabilities(
+        backend_id="realtimestt_experimental",
+        supports_sync=False,
+        supports_streaming=True,
+        supports_partials=True,
+        cpu_first=False,
+        experimental=True,
+    )
+
+
+def estimate_memory_cost_bytes() -> int:
+    return 320 * 1024 * 1024
+
+
+def warmup() -> bool:
+    """Disponibilidade simples para uniformizar contrato de backend."""
+    return is_available()
