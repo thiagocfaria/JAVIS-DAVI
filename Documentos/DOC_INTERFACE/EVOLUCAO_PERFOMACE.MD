@@ -20,6 +20,22 @@ em audios de 4s ou 30s). Sao metas de produto para orientar o futuro:
 | Excelente | 200 | abaixo do melhor reportado (meta agressiva) |
 
 ### Metas para fala (EoS -> primeiro audio do assistente)
+
+### Metas por modo de resposta (produto, 3 camadas)
+
+> Nao medir so por engine (Piper/espeak). Medir por **modo de resposta** no fluxo de voz:
+
+| Modo de resposta | Definicao | Metas p50 | Metas p95 | Metricas obrigatorias |
+| --- | --- | --- | --- | --- |
+| Fase 1: ack instantaneo | Earcon ou frase curtissima pre-gerada para confirmar que o turno foi recebido | `eos_to_phase1_ms <= 120` e `eos_to_ack_ms <= 250` | `eos_to_phase1_ms <= 250` e `eos_to_ack_ms <= 500` | `eos_to_phase1_ms`, `eos_to_ack_ms` |
+| Fase 2: resposta curta (baixa latencia) | Primeira resposta util curta (ex.: status, confirmacao, proximo passo) | `eos_to_first_audio_ms <= 900` | `eos_to_first_audio_ms <= 1600` | `eos_to_first_audio_ms`, `tts_first_audio_ms` |
+| Fase 3: resposta longa (voz neural) | Resposta completa quando houver budget de tempo | `tts_first_audio_ms <= 700` (warm) | `tts_first_audio_ms <= 1500` (warm) | `tts_first_audio_ms` + comparacao com budget de fase 3 |
+
+Regras de produto associadas:
+- Textos curtos e frequentes podem sair do cache local de audio.
+- Confirmacoes operacionais devem priorizar audio pre-aquecido (frase/earcon).
+- Respostas longas so podem ser emitidas depois da Fase 1.
+
 | Nivel | Meta (s) | Referencia usada |
 | --- | --- | --- |
 | Media | 2.0 | medias de assistentes de mercado (Siri ~2.0s) |

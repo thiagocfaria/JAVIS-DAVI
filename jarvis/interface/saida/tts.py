@@ -133,6 +133,17 @@ class TextToSpeech:
         self._cache_enabled = _env_bool("JARVIS_TTS_CACHE", False)
         self._cache_max_chars = max(0, _env_int("JARVIS_TTS_CACHE_MAX_CHARS", 120))
         self._cache_max_items = max(0, _env_int("JARVIS_TTS_CACHE_MAX_ITEMS", 32))
+        self._voice_layers_enabled = _env_bool("JARVIS_VOICE_3PHASE", True)
+        self._phase2_max_chars = max(24, _env_int("JARVIS_TTS_PHASE2_MAX_CHARS", 96))
+        self._phase3_budget_ms = max(0, _env_int("JARVIS_TTS_PHASE3_BUDGET_MS", 2200))
+        self._frequent_short_cache_enabled = _env_bool("JARVIS_TTS_FREQUENT_SHORT_CACHE", True)
+        self._frequent_short_max_chars = max(8, _env_int("JARVIS_TTS_FREQUENT_SHORT_MAX_CHARS", 64))
+        self._operational_confirmations = tuple(
+            p.strip()
+            for p in (_env_str("JARVIS_TTS_OPERATIONAL_CONFIRMATIONS", "ok|feito|concluido|confirmado|entendi|certo") or "").split("|")
+            if p.strip()
+        )
+        self._prewarmed_confirmation_raw: dict[str, bytes] = {}
         self._chunking_enabled = _env_bool("JARVIS_TTS_CHUNKING", False)
         self._chunk_max_chars = max(40, _env_int("JARVIS_TTS_CHUNK_MAX_CHARS", 160))
         self._auto_chunk_long_text = _env_bool("JARVIS_TTS_AUTO_CHUNK_LONG_TEXT", False)
@@ -210,6 +221,8 @@ class TextToSpeech:
                     self._ack_phrase_raw = self._synthesize_piper_raw(self._ack_phrase)
                 else:
                     threading.Thread(target=self._warmup_ack_phrase, daemon=True).start()
+        if self._operational_confirmations:
+            threading.Thread(target=self._warmup_operational_confirmations, daemon=True).start()
 
     def _debug(self, message: str) -> None:
         if self._debug_enabled:
@@ -1661,6 +1674,137 @@ class TextToSpeech:
                 sample_rate=22050,
                 on_audio_chunk=None,
             )
+
+    def _looks_operational_confirmation(self, text: str) -> bool:
+        cleaned = text.strip().lower()
+        if not cleaned:
+            return False
+        if len(cleaned) <= 24 and cleaned in {"ok", "certo", "entendi", "feito", "confirmado", "concluido"}:
+            return True
+        return any(token in cleaned for token in self._operational_confirmations)
+
+    def _phase2_text(self, text: str) -> str:
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return ""
+        if len(cleaned) <= self._phase2_max_chars:
+            return cleaned
+        first_sentence = re.split(r"(?<=[.!?])\s+", cleaned, maxsplit=1)[0].strip()
+        if first_sentence and len(first_sentence) <= self._phase2_max_chars:
+            return first_sentence
+        return cleaned[: self._phase2_max_chars].rstrip() + "…"
+
+    def _play_cached_short(self, text: str) -> bool:
+        if not self._frequent_short_cache_enabled:
+            return False
+        cleaned = text.strip()
+        if not cleaned or len(cleaned) > self._frequent_short_max_chars:
+            return False
+        cached = self._cache_get(cleaned)
+        if not cached:
+            return False
+        now = time.perf_counter()
+        self._last_tts_ms = 0.0
+        self._last_first_audio_ms = 0.0
+        self._last_first_audio_perf_ts = now
+        self._last_first_speech_ms = 0.0
+        self._last_first_speech_perf_ts = now
+        self._last_engine = "cache"
+        if self._volume <= 0.0:
+            self._last_play_ms = None
+            return True
+        aplay_cmd = self._build_aplay_cmd(22050)
+        return self._play_raw_audio(cached, aplay_cmd, False, None, sample_rate=22050)
+
+    def _warmup_operational_confirmations(self) -> None:
+        for phrase in self._operational_confirmations:
+            if phrase in self._prewarmed_confirmation_raw:
+                continue
+            try:
+                raw = self._synthesize_piper_raw(phrase)
+            except Exception:
+                raw = b""
+            if raw:
+                self._prewarmed_confirmation_raw[phrase] = raw
+
+    def _play_operational_confirmation(self, text: str) -> bool:
+        cleaned = text.strip().lower()
+        if not cleaned:
+            return False
+        selected: str | None = None
+        for phrase in self._operational_confirmations:
+            if phrase == cleaned or phrase in cleaned:
+                selected = phrase
+                break
+        if selected is None:
+            return False
+        raw = self._prewarmed_confirmation_raw.get(selected)
+        if not raw:
+            return False
+        now = time.perf_counter()
+        self._last_tts_ms = 0.0
+        self._last_first_audio_ms = 0.0
+        self._last_first_audio_perf_ts = now
+        self._last_first_speech_ms = 0.0
+        self._last_first_speech_perf_ts = now
+        self._last_ack_ms = 0.0
+        self._last_ack_perf_ts = now
+        self._last_ack_source = "operational_prewarm"
+        self._last_engine = "piper_prewarm"
+        if self._volume <= 0.0:
+            self._last_play_ms = None
+            return True
+        aplay_cmd = self._build_aplay_cmd(22050)
+        return self._play_raw_audio(raw, aplay_cmd, False, None, sample_rate=22050)
+
+    def emit_voice_layers(
+        self,
+        text: str,
+        *,
+        phase1_emitted: bool = False,
+        allow_phase3: bool = True,
+        phase3_budget_ms: float | None = None,
+    ) -> dict[str, bool | str]:
+        """Emit layered voice output: ack -> short -> long (optional)."""
+        emitted = {"phase1": False, "phase2": False, "phase3": False, "phase2_text": ""}
+        cleaned = (text or "").strip()
+        if self.config.tts_mode == "none" or not cleaned:
+            return emitted
+        if not self._voice_layers_enabled:
+            self.speak(cleaned)
+            emitted["phase2"] = True
+            return emitted
+
+        budget_ms = self._phase3_budget_ms if phase3_budget_ms is None else max(0.0, phase3_budget_ms)
+        started = time.perf_counter()
+
+        if not phase1_emitted:
+            self.play_phase1_ack()
+            emitted["phase1"] = True
+
+        phase2_text = self._phase2_text(cleaned)
+        emitted["phase2_text"] = phase2_text
+
+        if self._play_cached_short(phase2_text):
+            emitted["phase2"] = True
+        elif self._looks_operational_confirmation(phase2_text) and self._play_operational_confirmation(phase2_text):
+            emitted["phase2"] = True
+        else:
+            self.speak(phase2_text)
+            emitted["phase2"] = True
+
+        if not allow_phase3:
+            return emitted
+        if phase2_text == cleaned:
+            return emitted
+
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        if elapsed_ms > budget_ms:
+            return emitted
+
+        self.speak(cleaned)
+        emitted["phase3"] = True
+        return emitted
 
     def get_last_metrics(self) -> dict[str, float | None | str]:
         return {
