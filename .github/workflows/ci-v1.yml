@@ -1,0 +1,123 @@
+name: ci-v1
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "pyproject.toml"
+      - "pytest.ini"
+      - "rust/jarvis_audio/Cargo.toml"
+      - "rust/jarvis_vision/Cargo.toml"
+      - "rust/jarvis_vision/pyproject.toml"
+      - "scripts/build_rust_audio.sh"
+      - "scripts/build_rust_vision.sh"
+      - "scripts/run_smoke.py"
+      - "scripts/validate_interface.py"
+      - "jarvis/interface/**"
+      - "testes/**"
+      - ".github/workflows/ci-v1.yml"
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "pytest.ini"
+      - "rust/jarvis_audio/Cargo.toml"
+      - "rust/jarvis_vision/Cargo.toml"
+      - "rust/jarvis_vision/pyproject.toml"
+      - "scripts/build_rust_audio.sh"
+      - "scripts/build_rust_vision.sh"
+      - "scripts/run_smoke.py"
+      - "scripts/validate_interface.py"
+      - "jarvis/interface/**"
+      - "testes/**"
+      - ".github/workflows/ci-v1.yml"
+  workflow_dispatch:
+
+jobs:
+  contrato_api:
+    name: Contrato/API (lint + testes Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar ferramentas de lint e teste
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+
+      - name: Lint Python (ruff)
+        run: ruff check .
+
+      - name: Smoke de contratos públicos da interface
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest -q \
+            testes/test_protocolo_validar.py \
+            testes/test_validacao_plano.py
+
+      - name: Testes Python (rápidos)
+        env:
+          PYTHONPATH: .
+        run: pytest -q -m "not slow"
+
+  build_nativo:
+    name: Build nativo (audio + vision)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dependências nativas para vision
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr pkg-config
+
+      - name: Build rust/jarvis_audio
+        run: cargo build --manifest-path rust/jarvis_audio/Cargo.toml --locked --release
+
+      - name: Testes rust/jarvis_vision
+        run: cargo test --manifest-path rust/jarvis_vision/Cargo.toml --locked --all-targets
+
+      - name: Build via scripts (maturin)
+        run: |
+          bash scripts/build_rust_audio.sh
+          bash scripts/build_rust_vision.sh
+
+  smoke_local:
+    name: Smoke local
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Executar smoke local
+        env:
+          PYTHONPATH: .
+        run: python scripts/run_smoke.py
+
+      - name: Publicar artefatos de smoke
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-local-artifacts
+          path: artifacts/
+          if-no-files-found: warn
