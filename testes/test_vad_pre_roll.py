@@ -48,6 +48,7 @@ def test_pre_roll_returns_recent_silence_when_no_voice():
         pre_roll_frames=3,
         post_roll_frames=2,
         silence_frames=2,
+        empty_if_no_speech=False,
     )
 
     expected_frames = [

@@ -101,13 +101,15 @@ def main() -> int:
     # Initialize shortcut if enabled
     chat_shortcut: ChatShortcut | None = None
     if args.enable_shortcut:
-        chat_shortcut = ChatShortcut(
-            chat_command=config.chat_open_command or None,
-        )
+        # Prefer a dedicated command for the chat UI (not the 'open chat log' command).
+        chat_cmd = getattr(config, "chat_ui_command", None) or None
+        combo = getattr(config, "chat_shortcut_combo", "ctrl+shift+j")
+        chat_shortcut = ChatShortcut(chat_command=chat_cmd, shortcut_combo=combo)
         if chat_shortcut.start():
-            print("Atalho global ativado: Ctrl+Shift+J para abrir chat UI")
+            print(f"Atalho global ativado: {combo} para abrir a Chat UI")
         else:
-            print("Aviso: pynput não disponível. Atalho desabilitado.")
+            print("Aviso: atalho global indisponível (pynput ausente ou Wayland sem X11).")
+            print("Dica: configure um atalho do sistema para executar: python -m jarvis.entrada.chat_ui")
             chat_shortcut = None
 
     def drain_chat_inbox() -> None:

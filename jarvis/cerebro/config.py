@@ -213,7 +213,7 @@ def load_config() -> Config:
         stop_file_path=stop_file_path,
         chat_log_path=chat_log_path,
         chat_inbox_path=chat_inbox_path,
-        chat_open_cooldown_s=_env_int("JARVIS_CHAT_OPEN_COOLDOWN_S", 5),
+        chat_open_cooldown_s=_env_int("JARVIS_CHAT_OPEN_COOLDOWN_S", 60),
         procedures_max_total=_env_int("JARVIS_PROCEDURES_MAX_TOTAL", 300),
         procedures_max_per_tag=_env_int("JARVIS_PROCEDURES_MAX_PER_TAG", 20),
         procedures_ttl_days=_env_int("JARVIS_PROCEDURES_TTL_DAYS", 90),
@@ -232,7 +232,7 @@ def load_config() -> Config:
         auto_learn_procedures=_env_bool("JARVIS_AUTO_LEARN_PROCEDURES", True),
         block_external_sensitive=_env_bool("JARVIS_BLOCK_EXTERNAL_SENSITIVE", True),
         external_ask_on_sensitive=_env_bool("JARVIS_EXTERNAL_ASK_ON_SENSITIVE", True),
-        chat_auto_open=_env_bool("JARVIS_CHAT_AUTO_OPEN", True),
+        chat_auto_open=_env_bool("JARVIS_CHAT_AUTO_OPEN", False),
         chat_open_command=_env("JARVIS_CHAT_OPEN_COMMAND"),
 
         # STT

@@ -379,6 +379,17 @@ def _check_chat_shortcut() -> CheckResult:
             detail="pynput nao instalado (atalho desabilitado)",
             hint="pip install pynput para ativar atalho Ctrl+Shift+J.",
         )
+    # Wayland costuma bloquear captura global de teclado; XWayland (DISPLAY) às vezes funciona.
+    if deps.get("wayland") and not deps.get("x11"):
+        return CheckResult(
+            name="Atalho chat",
+            status="WARN",
+            detail="Wayland detectado: atalhos globais via pynput podem falhar",
+            hint=(
+                "Use X11/XWayland (DISPLAY) ou configure o atalho no seu ambiente (GNOME/KDE) para chamar: "
+                "python -m jarvis.entrada.chat_ui"
+            ),
+        )
     return CheckResult(
         name="Atalho chat",
         status="OK",

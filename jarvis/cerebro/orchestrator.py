@@ -14,18 +14,17 @@ This module:
 from __future__ import annotations
 
 import contextlib
+import os
 import re
 import time
 import uuid
-from typing import Callable
+from typing import Any, Callable, Union, cast
 
 from ..comunicacao.chat_log import ChatLog
+from ..entrada.audio_utils import BYTES_PER_SAMPLE, SAMPLE_RATE
+from ..entrada.followup import FollowUpSession
 from ..entrada.stt import SpeechToText
-from ..memoria.memory import (
-    HybridMemoryStore,
-    LocalMemoryCache,
-    build_memory_store,
-)
+from ..memoria.memory import build_memory_store
 from ..memoria.procedures import ProcedureStore
 from ..seguranca.kill_switch import stop_requested
 from ..seguranca.policy import PolicyKernel
@@ -38,6 +37,7 @@ from ..seguranca.sanitizacao import (
 from ..telemetria.telemetry import Telemetry
 from ..validacao.plano import validar_plano
 from ..validacao.validator import Validator
+from ..voz.adapters.speaker_resemblyzer import ResemblyzerSpeakerVerifier
 from ..voz.tts import TextToSpeech
 from .actions import Action, ActionPlan
 from .config import Config
@@ -54,7 +54,7 @@ except ImportError:
     try:
         from ..acoes.legacy import AutomationDriver
     except ImportError:
-        AutomationDriver = None
+        AutomationDriver = None  # type: ignore[assignment, misc]
 
 
 class LegacyAutomationWrapper:
@@ -122,12 +122,16 @@ class Orchestrator:
 
         # Initialize automation (separated desktop/web)
         if HAS_NEW_AUTOMATION:
-            self.executor = AutomationRouter(
-                session_type=config.session_type,
-                enable_web=True,
+            self.executor: Union[AutomationRouter, LegacyAutomationWrapper] = (
+                AutomationRouter(
+                    session_type=config.session_type,
+                    enable_web=True,
+                )
             )
         elif AutomationDriver:
-            self.executor = LegacyAutomationWrapper(AutomationDriver(config.session_type))
+            self.executor = LegacyAutomationWrapper(
+                AutomationDriver(config.session_type)
+            )
         else:
             raise RuntimeError("No automation driver available")
 
@@ -143,6 +147,14 @@ class Orchestrator:
 
         # Initialize STT (local)
         self.stt = SpeechToText(config)
+        self._followup = FollowUpSession()
+        self._debug_enabled = os.environ.get("JARVIS_DEBUG", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        self._speaker_verifier = ResemblyzerSpeakerVerifier()
 
         # Initialize procedures store
         self.procedures = ProcedureStore(
@@ -158,21 +170,29 @@ class Orchestrator:
         self.last_success: bool = False
         self.last_error: str | None = None
         self._stop_notified: bool = False
-        self._demo_recorder = None
+        self._demo_recorder: Any = (
+            None  # DemonstrationRecorder | None, but imported conditionally
+        )
         self._demo_recording_name: str | None = None
 
-    def handle_text(self, text: str) -> None:
+    def _debug(self, message: str) -> None:
+        if self._debug_enabled:
+            print(f"[orchestrator] {message}")
+
+    def handle_text(self, text: str) -> tuple[str, bool]:
         """Handle a text command."""
         if not text.strip():
-            return
+            return "empty", False
 
         if self._stop_active():
-            return
+            return "stopped", False
 
         command_id = uuid.uuid4().hex
         command_start_ts = time.time()
 
-        def _log_command_event(event_type: str, extra: dict[str, object] | None = None) -> None:
+        def _log_command_event(
+            event_type: str, extra: dict[str, object] | None = None
+        ) -> None:
             payload: dict[str, object] = {
                 "command_id": command_id,
                 "text": text,
@@ -182,7 +202,9 @@ class Orchestrator:
                 payload.update(extra)
             self.telemetry.log_event(event_type, payload)
 
-        def _log_command_end(status: str, duration: float, error: str | None = None) -> None:
+        def _log_command_end(
+            status: str, duration: float, error: str | None = None
+        ) -> None:
             self.telemetry.log_event(
                 "command.end",
                 {
@@ -197,6 +219,8 @@ class Orchestrator:
 
         _log_command_event("command.start", {"source": "text", "session": "local"})
 
+        status = "failed"
+        success = False
         try:
             status, success = self._process_command_flow(text, _log_command_event)
         except Exception as exc:
@@ -206,13 +230,15 @@ class Orchestrator:
             duration = time.time() - command_start_ts
             final_status = "success" if success else status
             _log_command_end(final_status, duration, self.last_error)
+        return status, success
 
     def run_s3_loop(self, instruction: str) -> bool:
         """Run Agent-S S3 loop for a GUI task."""
         if not instruction.strip():
             return False
-        from ..agent_s3.runner import S3Runner, build_s3_agent
         import platform as _platform
+
+        from ..agent_s3.runner import S3Runner, build_s3_agent
 
         s3_config = build_s3_agent(self.config)
         runner = S3Runner(
@@ -239,7 +265,10 @@ class Orchestrator:
         command_success = False
 
         def should_stop() -> bool:
-            return self.config.max_failures_per_command > 0 and failures >= self.config.max_failures_per_command
+            return (
+                self.config.max_failures_per_command > 0
+                and failures >= self.config.max_failures_per_command
+            )
 
         failures = 0
         attempts: list[dict[str, object]] = []
@@ -300,6 +329,10 @@ class Orchestrator:
             return command_status, command_success
 
         self.telemetry.log_event("command", {"text": text})
+        if self._route_intent(text):
+            command_status = "smalltalk"
+            command_success = True
+            return command_status, command_success
 
         procedure_match = self.procedures.match(text)
         if procedure_match:
@@ -309,10 +342,20 @@ class Orchestrator:
                 return command_status, command_success
             self.telemetry.log_event("procedure_failed", {"command": text})
 
+        rule_plan = self._rule_based_plan(text)
+        if rule_plan:
+            self.telemetry.log_event("plan_source", {"source": "rule"})
+            if try_plan(rule_plan, "rule", count_failure=False):
+                return command_status, command_success
+
         plan = self._plan_with_llm(text, self.llm_local, source="local")
         if plan is None:
             self._record_attempt(attempts, "local", False, self.last_error, None)
-        if plan and self._is_mock_fallback(plan) and not self._allow_mock_fallback(text):
+        if (
+            plan
+            and self._is_mock_fallback(plan)
+            and not self._allow_mock_fallback(text)
+        ):
             self.telemetry.log_event("local_fallback_skip", {"reason": "mock_fallback"})
             self.last_error = "mock_fallback_skipped"
             self._record_attempt(attempts, "local", False, self.last_error, plan)
@@ -325,7 +368,11 @@ class Orchestrator:
         external_allowed = (
             self._external_allowed(text) if self.config.browser_ai_enabled else False
         )
-        guidance = self._collect_external_guidance(text, attempts) if external_allowed else None
+        guidance = (
+            self._collect_external_guidance(text, attempts)
+            if external_allowed
+            else None
+        )
         if guidance:
             plan = self._try_parse_plan_from_text(guidance)
             if not plan:
@@ -341,8 +388,147 @@ class Orchestrator:
             self._say("Falhou varias vezes. Vou pedir sua ajuda para economizar.")
             self._log_pause("falhas_maximas", plan=self.last_plan, actions_executed=[])
 
-        self._handle_guidance_loop(text, try_plan, planner=self.llm_local, attempts=attempts)
+        self._handle_guidance_loop(
+            text, try_plan, planner=self.llm_local, attempts=attempts
+        )
         return command_status, command_success
+
+    def _route_intent(self, text: str) -> bool:
+        from .utils import normalize_text
+
+        normalized = normalize_text(text)
+        if not normalized:
+            return False
+        if self._contains_action_verb(normalized):
+            return False
+        if not self._looks_like_smalltalk(normalized):
+            return False
+
+        response = "Oi! Como posso ajudar?"
+        self._say(response)
+        try:
+            self.chat.append("jarvis", response, {"source": "intent_router"})
+        except Exception:
+            pass
+        return True
+
+    @staticmethod
+    def _contains_action_verb(text: str) -> bool:
+        verbs = {
+            "abrir",
+            "abre",
+            "abrindo",
+            "fechar",
+            "feche",
+            "clicar",
+            "clique",
+            "digitar",
+            "digite",
+            "escrever",
+            "escreva",
+            "pesquisar",
+            "pesquise",
+            "buscar",
+            "busque",
+            "procurar",
+            "procure",
+            "mostrar",
+            "mostre",
+            "criar",
+            "crie",
+            "apagar",
+            "apague",
+            "remover",
+            "remova",
+            "enviar",
+            "envie",
+            "baixar",
+            "baixe",
+            "instalar",
+            "instale",
+            "navegar",
+            "navegue",
+            "entrar",
+            "entre",
+            "abrir",
+            "open",
+            "click",
+            "type",
+            "search",
+            "scroll",
+        }
+        for verb in verbs:
+            if re.search(rf"\b{re.escape(verb)}\b", text):
+                return True
+        return False
+
+    @staticmethod
+    def _looks_like_smalltalk(text: str) -> bool:
+        greetings = {
+            "oi",
+            "ola",
+            "olá",
+            "e ai",
+            "e aí",
+            "eai",
+            "bom dia",
+            "boa tarde",
+            "boa noite",
+            "tudo bem",
+            "como vai",
+            "como voce ta",
+            "como voce esta",
+            "como você ta",
+            "como você está",
+            "fala",
+            "salve",
+        }
+        for phrase in greetings:
+            if phrase in text:
+                return True
+        if text in {"jarvis", "oi jarvis", "ola jarvis", "olá jarvis"}:
+            return True
+        return False
+
+    @staticmethod
+    def _has_any(text: str, words: set[str] | list[str]) -> bool:
+        for word in words:
+            if re.search(rf"\b{re.escape(word)}\b", text):
+                return True
+        return False
+
+    def _rule_based_plan(self, text: str) -> ActionPlan | None:
+        from .utils import normalize_text
+
+        t = normalize_text(text)
+
+        def has(*parts: str) -> bool:
+            return all(p in t for p in parts)
+
+        def has_any_prefix(prefixes: list[str]) -> bool:
+            return any(tok.startswith(pref) for tok in t.split() for pref in prefixes)
+
+        verb = any(v in t.split() for v in ["abrir", "abre", "abriu", "open"])
+
+        if verb and has_any_prefix(["naveg", "browser"]):
+            actions = [
+                Action(action_type="open_url", params={"url": "https://www.google.com"})
+            ]
+            return ActionPlan(actions=actions, risk_level="low", notes="rule_based:browser")
+
+        if verb and has_any_prefix(["youtub", "yt"]):
+            actions = [
+                Action(action_type="open_url", params={"url": "https://www.youtube.com"})
+            ]
+            return ActionPlan(actions=actions, risk_level="low", notes="rule_based:youtube")
+
+        if verb and ("chatgpt" in t or has("chat", "gpt")):
+            actions = [
+                Action(action_type="open_url", params={"url": "https://chatgpt.com"})
+            ]
+            return ActionPlan(actions=actions, risk_level="low", notes="rule_based:chatgpt")
+
+        return None
 
     def _execute_plan(self, plan: ActionPlan) -> bool:
         """Execute an action plan."""
@@ -471,7 +657,9 @@ class Orchestrator:
 
         if decision.requires_human:
             self.last_error = "requires_human"
-            self._say("Esta ação requer intervenção humana. Por favor, complete manualmente.")
+            self._say(
+                "Esta ação requer intervenção humana. Por favor, complete manualmente."
+            )
             self.telemetry.log_event("requires_human", {"reason": "2fa_captcha"})
             self._log_pause(
                 "requires_human",
@@ -490,7 +678,15 @@ class Orchestrator:
                 blocked_by=decision.blocked_by,
             )
 
-        if self.config.require_approval or decision.requires_confirmation:
+        skip_approval = (
+            plan.risk_level == "low"
+            and isinstance(plan.notes, str)
+            and plan.notes.startswith("rule_based")
+        )
+        needs_approval = decision.requires_confirmation or (
+            self.config.require_approval and not skip_approval
+        )
+        if needs_approval:
             approved = self._request_approval()
             if not approved:
                 self.last_error = "approval_denied"
@@ -501,17 +697,22 @@ class Orchestrator:
 
         return self._execute_plan(plan)
 
-    def _record_success(self, text: str, plan: ActionPlan, guidance: str | None = None) -> None:
+    def _record_success(
+        self, text: str, plan: ActionPlan, guidance: str | None = None
+    ) -> None:
         self.last_plan = plan
         self.last_command = text
         self.last_success = True
         self.last_error = None
-        payload = {"plan": plan.to_dict()}
+        payload_dict: dict[str, Any] = {"plan": plan.to_dict()}
         if guidance:
-            payload["guidance"] = guidance
+            payload_dict["guidance"] = guidance
+        payload: dict[str, object] = cast(dict[str, object], payload_dict)
         with contextlib.suppress(Exception):
             redacted_text, mem_meta = self._redact_for_memory(text, "episode")
-            sanitized_payload, payload_redactions = self._redact_payload_for_memory(payload)
+            sanitized_payload, payload_redactions = self._redact_payload_for_memory(
+                cast(dict[str, object], payload)
+            )
             memory_meta = dict(mem_meta)
             if payload_redactions:
                 memory_meta["payload_redactions"] = payload_redactions
@@ -579,6 +780,7 @@ class Orchestrator:
 
         if not voice_phrase and not key_phrase:
             from .utils import normalize_text
+
             print("Aprovação necessária. Digite 'ok' e pressione Enter: ")
             return normalize_text(input()) == "ok"
 
@@ -589,14 +791,48 @@ class Orchestrator:
 
         # Try voice recognition
         from .utils import normalize_text
-        
+
         if self.config.stt_mode != "none":
             try:
-                spoken = self.stt.transcribe_once(seconds=3)
-                if voice_phrase:
-                    spoken_ok = normalize_text(spoken) == normalize_text(voice_phrase)
-                    if spoken_ok:
-                        self.telemetry.log_event("voice_approval", {"match": True})
+                if voice_phrase and self._speaker_verifier.is_enabled():
+                    result = self.stt.transcribe_with_vad(
+                        max_seconds=4,
+                        return_audio=True,
+                        require_wake_word=False,
+                    )
+                    if isinstance(result, tuple):
+                        spoken, audio_bytes, speech_detected = result
+                    else:
+                        spoken, audio_bytes, speech_detected = result, b"", None
+                    if not audio_bytes or speech_detected is False:
+                        spoken_ok = False
+                    else:
+                        score, ok = self._speaker_verifier.verify_ok(
+                            audio_bytes, SAMPLE_RATE
+                        )
+                        if not ok:
+                            self._debug(
+                                f"voice approval speaker verification failed (score={score:.3f})"
+                            )
+                            spoken_ok = False
+                        else:
+                            spoken_ok = normalize_text(spoken) == normalize_text(
+                                voice_phrase
+                            )
+                            if spoken_ok:
+                                self.telemetry.log_event(
+                                    "voice_approval", {"match": True}
+                                )
+                else:
+                    spoken = self.stt.transcribe_once(
+                        seconds=3, require_wake_word=False
+                    )
+                    if voice_phrase:
+                        spoken_ok = normalize_text(spoken) == normalize_text(
+                            voice_phrase
+                        )
+                        if spoken_ok:
+                            self.telemetry.log_event("voice_approval", {"match": True})
             except Exception as e:
                 self.telemetry.log_event("voice_approval_error", {"error": str(e)})
                 spoken_ok = False
@@ -636,8 +872,48 @@ class Orchestrator:
         """Capture voice and handle as command."""
         try:
             # Use VAD if available
-            text = self.stt.transcribe_once(seconds=5)
-            self.handle_text(text)
+            require_wake = self._followup.should_require_wake_word(
+                self.stt.requires_wake_word()
+            )
+            result = self.stt.transcribe_with_vad(
+                max_seconds=5,
+                return_audio=True,
+                require_wake_word=require_wake,
+            )
+            if isinstance(result, tuple):
+                text, audio_bytes, speech_detected = result
+            else:
+                text, audio_bytes, speech_detected = result, b"", None
+            if not text:
+                return
+            verifier = self._speaker_verifier
+            if verifier.is_enabled():
+                if not verifier.is_available():
+                    self._debug(
+                        "speaker verification enabled but resemblyzer unavailable"
+                    )
+                elif (
+                    len(audio_bytes) >= (SAMPLE_RATE * BYTES_PER_SAMPLE)
+                    and speech_detected is not False
+                ):
+                    voiceprint = verifier.load_voiceprint(
+                        str(verifier.voiceprint_path())
+                    )
+                    if not voiceprint:
+                        self._debug("speaker verification enabled but no voiceprint")
+                        self._say("Cadastre sua voz com 'cadastrar voz'.")
+                        self._followup.reset()
+                        return
+                    score, ok = verifier.verify_ok(audio_bytes, SAMPLE_RATE)
+                    if not ok:
+                        self._debug(f"speaker verification failed (score={score:.3f})")
+                        self._followup.reset()
+                        return
+            status, success = self.handle_text(text)
+            if success:
+                self._followup.on_command_accepted(True)
+            else:
+                self._followup.reset()
         except Exception as e:
             self._say(f"Erro no reconhecimento de voz: {e}")
 
@@ -652,10 +928,14 @@ class Orchestrator:
             prompt_text = text
             return llm_client.plan(prompt_text)
         except Exception as exc:
-            self.telemetry.log_event("plan_error", {"error": str(exc), "source": source})
+            self.telemetry.log_event(
+                "plan_error", {"error": str(exc), "source": source}
+            )
             self.last_error = f"{source}_plan_error"
             if source == "browser":
-                self._say("Nao consegui entender a resposta da IA. Pode tentar de novo?")
+                self._say(
+                    "Nao consegui entender a resposta da IA. Pode tentar de novo?"
+                )
             elif source == "guidance":
                 self._say("Nao consegui transformar a explicacao em passos.")
             else:
@@ -705,7 +985,9 @@ class Orchestrator:
             ok = bool(attempt.get("ok", False))
             reason = str(attempt.get("reason", "")).strip()
             actions_raw = attempt.get("actions", 0)
-            actions = int(actions_raw) if isinstance(actions_raw, (int, float, str)) else 0
+            actions = (
+                int(actions_raw) if isinstance(actions_raw, (int, float, str)) else 0
+            )
             status = "ok" if ok else "falhou"
             detail_parts: list[str] = []
             if reason:
@@ -809,7 +1091,9 @@ class Orchestrator:
         if len(stripped.split()) <= 2:
             return True
         if re.match(
-            r"^(digitar|digite|escrever|escreva|type|write|colar|paste)\b", stripped, re.IGNORECASE
+            r"^(digitar|digite|escrever|escreva|type|write|colar|paste)\b",
+            stripped,
+            re.IGNORECASE,
         ):
             return True
         return (stripped.startswith('"') and stripped.endswith('"')) or (
@@ -831,11 +1115,18 @@ class Orchestrator:
         except Exception as exc:
             self.telemetry.log_event("learn_error", {"error": str(exc)})
 
-    def _store_procedure_memory(self, command: str, plan: ActionPlan, source: str) -> None:
+    def _store_procedure_memory(
+        self, command: str, plan: ActionPlan, source: str
+    ) -> None:
         with contextlib.suppress(Exception):
-            redacted_command, mem_meta = self._redact_for_memory(command, f"procedure:{source}")
-            payload = {"source": source, "plan": plan.to_dict()}
-            sanitized_payload, payload_redactions = self._redact_payload_for_memory(payload)
+            redacted_command, mem_meta = self._redact_for_memory(
+                command, f"procedure:{source}"
+            )
+            payload_dict: dict[str, Any] = {"source": source, "plan": plan.to_dict()}
+            payload: dict[str, object] = cast(dict[str, object], payload_dict)
+            sanitized_payload, payload_redactions = self._redact_payload_for_memory(
+                payload
+            )
             memory_meta = dict(mem_meta)
             if payload_redactions:
                 memory_meta["payload_redactions"] = payload_redactions
@@ -848,7 +1139,7 @@ class Orchestrator:
         print(prompt)
         if self.config.stt_mode != "none":
             try:
-                return self.stt.transcribe_once(seconds=5)
+                return self.stt.transcribe_once(seconds=5, require_wake_word=False)
             except Exception:
                 return input().strip()
         return input().strip()
@@ -869,11 +1160,15 @@ class Orchestrator:
             self._say("Removi instrucoes suspeitas e dados sensiveis da resposta.")
         if not result.text.strip():
             self.last_error = f"guidance_empty:{source}"
-            self._say("A resposta ficou vazia apos sanitizacao. Pode explicar de outro jeito?")
+            self._say(
+                "A resposta ficou vazia apos sanitizacao. Pode explicar de outro jeito?"
+            )
             return None
         return result.text
 
-    def _redact_for_memory(self, text: str, source: str) -> tuple[str, dict[str, object]]:
+    def _redact_for_memory(
+        self, text: str, source: str
+    ) -> tuple[str, dict[str, object]]:
         redacted, redactions = redact_text(text)
         classification = classify_text(text)
         if redactions or classification != "publico":
@@ -903,12 +1198,14 @@ class Orchestrator:
                     redactions.add(hit)
                 return redacted
             if isinstance(value, dict):
-                return {key: scrub(val) for key, val in value.items()}
+                return cast(
+                    dict[str, object], {key: scrub(val) for key, val in value.items()}
+                )
             if isinstance(value, list):
                 return [scrub(val) for val in value]
             return value
 
-        sanitized = scrub(payload)
+        sanitized = cast(dict[str, object], scrub(payload))
         return sanitized, sorted(redactions)
 
     @staticmethod
@@ -918,21 +1215,28 @@ class Orchestrator:
 
     def _start_demo_recording(self, name: str) -> None:
         if self._demo_recorder is not None:
-            self._say("Ja estou gravando uma demonstracao. Diga 'parar demonstracao' para finalizar.")
+            self._say(
+                "Ja estou gravando uma demonstracao. Diga 'parar demonstracao' para finalizar."
+            )
             return
         try:
             from ..aprendizado.recorder import DemonstrationRecorder
         except Exception as exc:
             self.last_error = f"demo_recorder_import_failed:{exc}"
-            self._say("Recorder nao disponivel. Instale o pynput para gravar demonstracoes.")
+            self._say(
+                "Recorder nao disponivel. Instale o pynput para gravar demonstracoes."
+            )
             return
         try:
             recordings_dir = self.config.data_dir / "recordings"
-            self._demo_recorder = DemonstrationRecorder(recordings_dir=recordings_dir)
-            self._demo_recorder.start_recording(name)
+            recorder = DemonstrationRecorder(recordings_dir=recordings_dir)
+            recorder.start_recording(name)
+            self._demo_recorder = recorder
             self._demo_recording_name = name
             self.telemetry.log_event("demo_start", {"name": name})
-            self._say(f"Gravando demonstracao '{name}'. Diga 'parar demonstracao' para finalizar.")
+            self._say(
+                f"Gravando demonstracao '{name}'. Diga 'parar demonstracao' para finalizar."
+            )
         except Exception as exc:
             self._demo_recorder = None
             self._demo_recording_name = None
@@ -966,10 +1270,14 @@ class Orchestrator:
             procedures_dir = self.config.data_dir / "procedures_learned"
             procedures_dir.mkdir(parents=True, exist_ok=True)
             safe_name = self._safe_filename(procedure.name)
-            procedure_path = procedures_dir / f"{safe_name}_{int(recording.start_time)}.json"
+            procedure_path = (
+                procedures_dir / f"{safe_name}_{int(recording.start_time)}.json"
+            )
             learner.save_procedure(procedure, procedure_path)
             self.procedures.add_from_command(procedure.name, procedure.to_action_plan())
-            self._store_procedure_memory(procedure.name, procedure.to_action_plan(), "demo_learned")
+            self._store_procedure_memory(
+                procedure.name, procedure.to_action_plan(), "demo_learned"
+            )
             self.telemetry.log_event(
                 "demo_learned",
                 {
@@ -986,13 +1294,16 @@ class Orchestrator:
     def _handle_meta_command(self, text: str) -> bool:
         """Handle meta commands (approve, save, etc.)."""
         from .utils import normalize_text
+
         lowered = normalize_text(text)
 
         # Approve last procedure
         if "aprovado" in lowered or lowered.startswith("aprovar"):
             if self.last_success and self.last_plan and self.last_command:
                 self.procedures.add_from_command(self.last_command, self.last_plan)
-                self._store_procedure_memory(self.last_command, self.last_plan, "user_approved")
+                self._store_procedure_memory(
+                    self.last_command, self.last_plan, "user_approved"
+                )
                 self._say("Procedimento salvo e aprovado.")
                 return True
             self._say("Nada para aprovar ainda.")
@@ -1005,6 +1316,43 @@ class Orchestrator:
 
         if lowered in ("abrir chat", "mostrar chat", "abrir conversa"):
             self.chat.open()
+            return True
+
+        if lowered in ("cadastrar voz", "registrar voz"):
+            verifier = self._speaker_verifier
+            if not verifier.is_available():
+                self._say("Verificacao de locutor indisponivel. Instale resemblyzer.")
+                return True
+            self._say("Certo. Fale normalmente para cadastrar sua voz.")
+            try:
+                result = self.stt.transcribe_with_vad(
+                    max_seconds=10,
+                    return_audio=True,
+                    require_wake_word=False,
+                )
+            except Exception as exc:
+                self._debug(f"voice enrollment failed: {exc}")
+                self._say("Falha ao gravar sua voz.")
+                return True
+            if isinstance(result, tuple):
+                _text, audio_bytes, speech_detected = result
+            else:
+                audio_bytes, speech_detected = b"", None
+            if not audio_bytes or speech_detected is False:
+                self._say("Nao captei voz suficiente para cadastrar.")
+                return True
+            if len(audio_bytes) < (SAMPLE_RATE * BYTES_PER_SAMPLE):
+                self._say("Fale por mais tempo para cadastrar sua voz.")
+                return True
+            embedding = verifier.enroll(audio_bytes, SAMPLE_RATE)
+            if embedding:
+                voice_path = getattr(verifier, "voiceprint_path", None)
+                if callable(voice_path):
+                    self._say(f"Voz cadastrada em {voice_path()}.")
+                else:
+                    self._say("Voz cadastrada.")
+            else:
+                self._say("Nao consegui cadastrar sua voz.")
             return True
 
         if lowered.startswith("remover regra"):
@@ -1047,14 +1395,18 @@ class Orchestrator:
             return True
 
         fixar_match = re.match(
-            r"^(fixar|memorizar|lembrar)\s+(?:memoria|memória)\s+(.+)$", text.strip(), re.IGNORECASE
+            r"^(fixar|memorizar|lembrar)\s+(?:memoria|memória)\s+(.+)$",
+            text.strip(),
+            re.IGNORECASE,
         )
         if fixar_match:
             memory_text = fixar_match.group(2).strip()
             if not memory_text:
                 self._say("Nada para fixar.")
                 return True
-            redacted_text, mem_meta = self._redact_for_memory(memory_text, "fixed_knowledge")
+            redacted_text, mem_meta = self._redact_for_memory(
+                memory_text, "fixed_knowledge"
+            )
             item_id = self.memory.add_fixed_knowledge(
                 redacted_text,
                 {"source": "user", "memory_meta": mem_meta},
@@ -1064,7 +1416,9 @@ class Orchestrator:
             return True
 
         esquecer_match = re.match(
-            r"^(esquecer|apagar)\s+(?:memoria|memória)\s+(.+)$", text.strip(), re.IGNORECASE
+            r"^(esquecer|apagar)\s+(?:memoria|memória)\s+(.+)$",
+            text.strip(),
+            re.IGNORECASE,
         )
         if esquecer_match:
             memory_text = esquecer_match.group(2).strip()
@@ -1089,7 +1443,9 @@ class Orchestrator:
                     {"path": str(self.config.stop_file_path)},
                 )
                 self._say("Kill switch ativo. Remova o arquivo STOP para continuar.")
-                self._log_pause("kill_switch", details={"path": str(self.config.stop_file_path)})
+                self._log_pause(
+                    "kill_switch", details={"path": str(self.config.stop_file_path)}
+                )
                 self._stop_notified = True
             return True
         self._stop_notified = False
@@ -1104,6 +1460,7 @@ class Orchestrator:
                 "Detectei dados sensiveis. Posso enviar para IA externa? (sim/nao)"
             )
             from .utils import normalize_text
+
             if normalize_text(answer).startswith("s"):
                 return True
         self.last_error = "external_blocked_sensitive"
@@ -1131,7 +1488,9 @@ class Orchestrator:
         }
         if details:
             summary["details"] = details
-        message = ("Parei. Motivo: {reason}. Feito ate aqui: {done}. Plano: {plan}.").format(
+        message = (
+            "Parei. Motivo: {reason}. Feito ate aqui: {done}. Plano: {plan}."
+        ).format(
             reason=reason,
             done=summary["executed_actions"] or "nada",
             plan=summary["plan_actions"] or "n/a",

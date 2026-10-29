@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import wave
 
@@ -65,8 +66,6 @@ def _make_stt() -> SpeechToText:
         chat_open_command=None,
         # STT settings
         stt_mode="local",
-        stt_model_size="tiny",
-        stt_audio_trim_backend="none",
         # TTS settings
         tts_mode="local",
         # Security
@@ -104,6 +103,8 @@ def _make_stt() -> SpeechToText:
         s3_code_workdir=None,
         s3_max_image_dim=1920,
     )
+    # STT accesses stt_model_size and stt_audio_trim_backend via getattr with defaults
+    # So we don't need to set them - SpeechToText will use defaults from env/config
     return SpeechToText(config)
 
 
