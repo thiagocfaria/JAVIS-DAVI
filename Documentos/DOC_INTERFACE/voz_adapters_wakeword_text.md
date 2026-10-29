@@ -3,7 +3,7 @@
 - Caminho: `jarvis/voz/adapters/wakeword_text.py`
 - Papel: adapter de wake word para fluxos baseados em texto.
 - Onde entra no fluxo: usado pelo STT/orquestrador para filtrar comandos.
-- Atualizado em: 2026-01-10 (revisado com o codigo)
+- Atualizado em: 2026-01-14 (revisado com o codigo)
 
 ## Responsabilidades
 - Manter a mesma interface de detectores de audio.
@@ -28,12 +28,16 @@
 
 ## Qualidade e limites
 - `detect()` sempre retorna False (nao detecta audio; este adapter e so para texto).
-- Wake word por audio existe como opcional via Porcupine (ver abaixo).
+- Wake word por audio existe como opcional (Porcupine ou OpenWakeWord).
 
 ## Wake word por audio (opcional)
-- Modulo: `jarvis/voz/adapters/wakeword_porcupine.py`.
-- Ativar: `JARVIS_WAKE_WORD_AUDIO=1` e `JARVIS_PORCUPINE_ACCESS_KEY`.
-- Quando ativo e `require_wake_word=True`, o STT usa o detector de audio antes do texto.
+- Modulos: `jarvis/voz/adapters/wakeword_porcupine.py` e `jarvis/voz/adapters/wakeword_openwakeword.py`.
+- Ativar: `JARVIS_WAKE_WORD_AUDIO=1`.
+- Backend: `JARVIS_WAKE_WORD_AUDIO_BACKEND=pvporcupine` (default) ou `openwakeword`.
+- Porcupine: exige `JARVIS_PORCUPINE_ACCESS_KEY` (ou `JARVIS_PORCUPINE_KEYWORD_PATH`).
+- OpenWakeWord: exige `JARVIS_OPENWAKEWORD_MODEL_PATHS` ou `JARVIS_OPENWAKEWORD_AUTO_DOWNLOAD=1`.
+- `JARVIS_WAKE_WORD_AUDIO_STRICT=1` bloqueia o comando se o audio nao detectar wake word.
+- Quando ativo e `require_wake_word=True`, o STT aplica o gate de audio antes de transcrever; se detectar, remove a wake word do texto.
 
 
 ## Performance (estimativa)
@@ -44,7 +48,7 @@
 - Sem logs.
 
 ## Problemas conhecidos (hoje)
-- Sem Porcupine configurado, continua dependente do texto transcrito.
+- Sem wake word por audio configurado, continua dependente do texto transcrito.
 
 ## Melhorias sugeridas
-- ~~Implementar detector real por audio quando houver lib.~~ (resolvido com Porcupine opcional)
+- (nenhuma pendente no momento)

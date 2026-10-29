@@ -114,16 +114,17 @@ Checklist (o que importar e onde substituir no Jarvis):
 7) [x] Normalizacao de audio (peak normalization)
 8) [x] Limite de latencia (allowed_latency_limit)
 9) [x] Early transcription on silence
-10) [x] Handle buffer overflow + buffer_size
+10) [x] Handle buffer overflow + max_buffer_seconds
 11) [x] Warmup do modelo
-12) [x] Fonte de audio externa (use_microphone=False)
-13) [x] Beam size e batch size (quality x latency)
+12) [ ] Fonte de audio externa (use_microphone=False) - nao implementado no Jarvis
+13) [x] Beam size e best_of (quality x latency)
 14) [x] VAD filter do faster-whisper
 15) [x] Prompt inicial e suppress_tokens
 16) [x] Silero deactivity detection (opcional)
+17) [x] Backend RealtimeSTT opcional (env `JARVIS_STT_STREAMING=1`)
 
 Checklist (o que NAO importar):
-1) [ ] PyAudio e audio_input.py
+1) [ ] Nao tornar PyAudio obrigatorio fora do modo streaming
 2) [ ] client/server WebSocket do RealtimeSTT
 3) [ ] Silero VAD obrigatorio
 4) [ ] Multiprocessing + KMP_DUPLICATE_LIB_OK
@@ -285,16 +286,16 @@ Checklist (como empacotar corretamente):
 ## Matriz de substituicao (Jarvis vs repo)
 | Funcionalidade | Jarvis atual | Repositorio(s) | Acao | Observacao |
 | --- | --- | --- | --- | --- |
-| UI/Chat | chat_log + UI simples | vercel-ai-chatbot | Hibrido | Manter log local + streaming na UI | 
-| Transporte audio | sounddevice local | livekit-agents | Hibrido | LiveKit remoto, sounddevice local | 
-| VAD/turn detection | webrtcvad (local) | livekit-agents + RealtimeSTT | Hibrido | Um VAD por fluxo; endpointing curto | 
-| Wake word | filtro por texto + Porcupine/OpenWakeWord (audio) | RealtimeSTT | Hibrido | Audio primeiro, texto como fallback | 
-| STT parcial | parciais via callback | RealtimeSTT | Adicionar | Parciais so atualizam UI | 
-| STT final | faster-whisper local | RealtimeSTT (backend) | Manter | Final sempre no Jarvis | 
-| TTS | Piper/espeak local | RealtimeTTS | Hibrido | Streaming + AEC + fallback local | 
-| Emoção | nao tem | SpeechBrain + openSMILE | Adicionar | Metadata apenas | 
-| Observabilidade | Telemetry | scripts/bench | Manter | Medir sem interferir | 
-| Desktop app | nao tem | Tauri | Adicionar | UI bundlada + sidecar | 
+| UI/Chat | chat_log + UI simples | vercel-ai-chatbot | Hibrido | Manter log local + streaming na UI |
+| Transporte audio | sounddevice local | livekit-agents | Hibrido | LiveKit remoto, sounddevice local |
+| VAD/turn detection | webrtcvad (local) | livekit-agents + RealtimeSTT | Hibrido | Um VAD por fluxo; endpointing curto |
+| Wake word | filtro por texto + Porcupine/OpenWakeWord (audio) | RealtimeSTT | Hibrido | Audio primeiro, texto como fallback |
+| STT parcial | parciais via callback | RealtimeSTT | Adicionar | Parciais so atualizam UI |
+| STT final | faster-whisper local | RealtimeSTT (backend) | Manter | Final sempre no Jarvis |
+| TTS | Piper/espeak local | RealtimeTTS | Hibrido | Streaming + AEC + fallback local |
+| Emoção | nao tem | SpeechBrain + openSMILE | Adicionar | Metadata apenas |
+| Observabilidade | Telemetry | scripts/bench | Manter | Medir sem interferir |
+| Desktop app | nao tem | Tauri | Adicionar | UI bundlada + sidecar |
 
 ## Repositorios (referencias e caminhos locais)
 - Vercel AI Chatbot: https://github.com/vercel/ai-chatbot

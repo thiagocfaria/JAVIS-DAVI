@@ -3,12 +3,13 @@
 - Caminho: `jarvis/entrada/app.py`
 - Papel: entrypoint da interface (CLI) para voz, texto, painel e preflight.
 - Onde entra no fluxo: recebe comandos e aciona o orquestrador (fora do escopo da interface).
-- Atualizado em: 2026-01-10 (revisado com o codigo e flags conferidas)
+- Atualizado em: 2026-01-14 (revisado com o codigo e flags conferidas)
 
 ## Responsabilidades
-- Parsear flags de fluxo (`--voice`, `--voice-loop`, `--loop`, `--gui-panel`, `--chat-ui`).
+- Parsear flags de fluxo (`--text`, `--voice`, `--voice-loop`, `--loop`, `--gui-panel`, `--chat-ui`).
 - Suportar rotas auxiliares (`--open-chat`, `--s3`) e modos (`--dry-run`).
 - Permitir preflight por perfil via `--preflight-profile` (voz/UI/desktop).
+- Permitir `--preflight-strict` para sair com erro quando houver FAIL.
 - Controlar pausa do voice-loop com `--voice-loop-sleep`.
 - Permitir override de device/SR via CLI (`--audio-device`, `--audio-capture-sr`).
 - Permitir ajustar o polling do follow-up no painel (`--gui-followup-poll-ms`).
@@ -40,6 +41,8 @@
 ## Comandos uteis
 - Preflight: `PYTHONPATH=. python -m jarvis.entrada.app --preflight`
 - Preflight por perfil (voz): `PYTHONPATH=. python -m jarvis.entrada.app --preflight --preflight-profile voice`
+- Preflight estrito: `PYTHONPATH=. python -m jarvis.entrada.app --preflight --preflight-strict`
+- Texto unico: `PYTHONPATH=. python -m jarvis.entrada.app --text "oi jarvis"`
 - Voz unica: `PYTHONPATH=. python -m jarvis.entrada.app --voice`
 - Voice loop: `PYTHONPATH=. python -m jarvis.entrada.app --voice-loop --voice-loop-sleep 0.5`
 - Voice loop com device/SR: `PYTHONPATH=. python -m jarvis.entrada.app --voice-loop --audio-device 3 --audio-capture-sr 44100`

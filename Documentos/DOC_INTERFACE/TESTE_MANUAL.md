@@ -23,7 +23,16 @@ Tempo de fala: 0s.
 Resultado esperado: relatorio com status OK/OK+WARN. Se aparecer "FAIL" para microfone/voz, este teste falha.
 Status: OK (2026-01-10)
 
-2) P1 - Voz unica (captura + STT + TTS)
+2) P1 - Benchmark automatico (voz real, silencio + ruido)
+Comando: `python scripts/auto_voice_bench.py --device 6 --with-noise --output-dir Documentos/DOC_INTERFACE/bench_audio --phrase "oi jarvis teste automatico" --seconds 4`
+Sinal para falar: quando aparecer "GRAVANDO agora!".
+O que falar: "oi jarvis teste automatico".
+Tempo de fala: 2 a 3s.
+Resultado esperado: cria 4 arquivos JSON em `Documentos/DOC_INTERFACE/bench_audio` e mostra "[ok] benchmarks concluidos".
+Observacao: este teste mede STT/VAD com audio real (nao testa resposta do TTS).
+Status: OK (2026-01-13 01:27)
+
+3) P1 - Voz unica (captura + STT + TTS)
 Comando: `PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice`
 Sinal para falar: assim que o comando rodar (nao precisa esperar mensagem).
 O que falar: "jarvis, oi".
@@ -32,7 +41,7 @@ Resultado esperado: aparece uma resposta no terminal e voce ouve a resposta fala
 Status: OK parcial (2026-01-10)
 Observacao: respondeu, mas demorou mais que o esperado. Provavel causa fora da interface pura (latencia de STT/TTS/LLM ou carga do sistema). Medir em `Documentos/DOC_INTERFACE/EVOLUCAO_PERFOMACE.MD` usando `scripts/bench_interface.py` e registrar para correcao futura em `Documentos/DOC_INTERFACE/CORRECOES_DOCINTERFACE.MD`.
 
-3) P1 - Wake word obrigatoria (nao ouvir sem "jarvis")
+4) P1 - Wake word obrigatoria (nao ouvir sem "jarvis")
 Comando: `JARVIS_REQUIRE_WAKE_WORD=1 PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice`
 Sinal para falar: assim que o comando rodar.
 O que falar: "abrir navegador" (sem dizer jarvis).
@@ -40,7 +49,7 @@ Tempo de fala: 2 a 4s.
 Resultado esperado: nenhum comando e aceito; nao deve aparecer resposta falada.
 Status: OK (2026-01-10)
 
-4) P1 - Wake word obrigatoria (ouvir com "jarvis")
+5) P1 - Wake word obrigatoria (ouvir com "jarvis")
 Comando: `JARVIS_REQUIRE_WAKE_WORD=1 PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice`
 Sinal para falar: assim que o comando rodar.
 O que falar: "jarvis, abrir navegador".
@@ -49,56 +58,64 @@ Resultado esperado: deve transcrever e responder. O foco aqui e apenas ouvir e t
 Status: FALHOU (2026-01-10) - sem resposta; TV ligada pode ter atrapalhado o VAD/ruido.
 Status: FALHOU (2026-01-10) - sem resposta mesmo com TV desligada.
 
-5) P1 - Follow-up (continuar sem repetir wake word)
+6) P1 - STT streaming (RealtimeSTT, inicio rapido)
+Comando: `JARVIS_STT_STREAMING=1 JARVIS_STT_STREAMING_BACKEND=realtimestt JARVIS_STT_STREAMING_FORCE_START=1 JARVIS_REQUIRE_WAKE_WORD=0 JARVIS_CHAT_AUTO_OPEN=0 PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice`
+Sinal para falar: assim que o comando rodar.
+O que falar: "oi".
+Tempo de fala: 2 a 3s.
+Resultado esperado: transcricao aparece e o TTS responde. Se `bytes=0` nos logs, falhou (provavel gate de audio).
+Status: OK (2026-01-12 09:03) - respondeu; ao encerrar com Ctrl+C apareceu aviso "Bad file descriptor" do RealtimeSTT (nao invalida o teste).
+
+7) P1 - Follow-up (continuar sem repetir wake word)
 Comando: `JARVIS_REQUIRE_WAKE_WORD=1 PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice-loop`
 Sinal para falar: quando aparecer "Jarvis MVP - voice loop (Ctrl+C para sair)".
 O que falar: primeiro "jarvis, status". Em seguida (em ate 20s) diga "status" sem jarvis.
 Tempo de fala: 2 a 4s por frase.
 Resultado esperado: a segunda frase tambem e aceita (porque o follow-up esta ativo). Se a segunda nao funcionar, falhou.
 
-6) P2 - Interface de texto (chat_ui)
+8) P2 - Interface de texto (chat_ui)
 Comando: `PYTHONPATH=. ./.venv/bin/python -m jarvis.app --chat-ui`
 Sinal para falar: nao precisa falar.
 O que fazer: digitar uma mensagem no campo da janela e enviar.
 Tempo: livre.
 Resultado esperado: a mensagem aparece no log/inbox sem erro.
 
-7) P2 - Painel flutuante (gui_panel)
+9) P2 - Painel flutuante (gui_panel)
 Comando: `PYTHONPATH=. ./.venv/bin/python -m jarvis.app --gui-panel`
 Sinal para falar: nao precisa falar.
 O que fazer: digitar um comando simples e enviar.
 Tempo: livre.
 Resultado esperado: o painel envia o texto para o Jarvis (sem travar).
 
-8) P2 - Atalho global do chat (Wayland/X11)
+10) P2 - Atalho global do chat (Wayland/X11)
 Comando: `PYTHONPATH=. ./.venv/bin/python -m jarvis.app --enable-shortcut --voice-loop`
 Sinal para falar: quando aparecer "Atalho global ativado: ctrl+shift+j ..." ou aviso de Wayland.
 O que fazer: pressione Ctrl+Shift+J.
 Tempo: 1s.
 Resultado esperado: a janela do chat abre. Se aparecer aviso de Wayland sem X11, este teste fica como "nao aplicavel".
 
-9) P2 - Wake word por audio (Porcupine)
+11) P2 - Wake word por audio (Porcupine)
 Comando: `JARVIS_WAKE_WORD_AUDIO=1 JARVIS_PORCUPINE_ACCESS_KEY=SEU_TOKEN PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice-loop`
 Sinal para falar: quando aparecer "Jarvis MVP - voice loop (Ctrl+C para sair)".
 O que falar: diga apenas "jarvis" e depois espere 1s. Depois diga "abrir navegador".
 Tempo de fala: 1 a 3s.
 Resultado esperado: o sistema so aceita o comando depois de ouvir a wake word no audio.
 
-10) P2 - Speaker verification (voz autorizada)
+12) P2 - Speaker verification (voz autorizada)
 Comando: `JARVIS_SPK_VERIFY=1 PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice-loop`
 Sinal para falar: quando aparecer "Jarvis MVP - voice loop (Ctrl+C para sair)".
 O que falar: diga "cadastrar voz" e fale por ~10s. Depois diga "jarvis, status".
 Tempo de fala: 10s no cadastro, 2 a 4s no comando.
 Resultado esperado: cadastro confirmado, e depois o comando e aceito para a mesma voz.
 
-11) P2 - Speaker verification (voz nao autorizada)
+13) P2 - Speaker verification (voz nao autorizada)
 Comando: `JARVIS_SPK_VERIFY=1 PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice-loop`
 Sinal para falar: quando aparecer "Jarvis MVP - voice loop (Ctrl+C para sair)".
 O que falar: uma outra pessoa tenta falar "jarvis, status".
 Tempo de fala: 2 a 4s.
 Resultado esperado: o comando deve ser ignorado (sem resposta).
 
-12) P3 - Device e reamostragem (microfone 44.1k/48k)
+14) P3 - Device e reamostragem (microfone 44.1k/48k)
 Comando: `JARVIS_AUDIO_DEVICE=3 JARVIS_AUDIO_CAPTURE_SR=44100 PYTHONPATH=. ./.venv/bin/python -m jarvis.app --voice`
 Sinal para falar: assim que o comando rodar.
 O que falar: "jarvis, oi".

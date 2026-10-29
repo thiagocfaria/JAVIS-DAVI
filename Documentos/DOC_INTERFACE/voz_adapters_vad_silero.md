@@ -12,7 +12,7 @@
 
 ## Entrada e saida
 - Entrada: `audio_i16` (PCM int16 mono 16 kHz).
-- Saida: `trimmed_bytes` + flag de fala (bool).
+- Saida: `trimmed_bytes` + flag de fala (`bool | None`).
 
 ## Configuracao (env)
 - `JARVIS_SILERO_DEACTIVITY=1` ativa o uso.
@@ -25,8 +25,9 @@
 - `onnxruntime` (opcional, quando `JARVIS_SILERO_USE_ONNX=1`).
 
 ## Limites
-- Requer audio em 16 kHz; se nao for, nao aplica o trim.
+- Requer audio em 16 kHz; se nao for, nao aplica o trim e retorna `None` como flag.
 - Se o modelo nao estiver no cache e `AUTO_DOWNLOAD=0`, nao roda.
+- Em falhas/indisponibilidade, retorna audio original e flag `None`.
 
 ## Testes relacionados
 - `testes/test_stt_silero_deactivity.py`

@@ -2,6 +2,12 @@
 
 Este documento lista todas as dependencias usadas pela interface de voz/texto, com o papel de cada uma e como instalar.
 
+## Politica de GPU (CPU-first)
+- O Jarvis deve funcionar 100% em CPU (modo padrao).
+- GPU e opcional: melhora latencia em modelos grandes, mas nao e requisito.
+- Em GPU fraca/antiga, manter CPU como default e usar modelos pequenos.
+- Registracao obrigatoria nos benchmarks: "GPU indisponivel -> CPU-only".
+
 ## Python (pip)
 - `sounddevice` - captura de audio do microfone.
   - Para que serve: grava o audio direto do dispositivo de entrada.
@@ -11,7 +17,7 @@ Este documento lista todas as dependencias usadas pela interface de voz/texto, c
   - Se a importacao travar, instale as libs acima e reinicie o processo.
 - `numpy` - buffer de audio e conversoes.
   - Para que serve: transformar PCM int16 em float32 e vice-versa.
-  - Como usa: `jarvis/entrada/stt.py` e `jarvis/voz/vad.py` para conversao de buffers e AEC simples.
+  - Como usa: `jarvis/entrada/stt.py` e `jarvis/voz/vad.py` para conversao de buffers e AEC/AGC/NS simples.
   - Instalar: `pip install numpy`
 - `scipy` - reamostragem (quando o microfone nao suporta 16 kHz).
   - Para que serve: reamostrar audio de 44.1k/48k para 16k.
@@ -25,6 +31,27 @@ Este documento lista todas as dependencias usadas pela interface de voz/texto, c
   - Para que serve: transcrever audio localmente sem API externa.
   - Como usa: `SpeechToText._transcribe_local` com `JARVIS_STT_MODEL` e `JARVIS_STT_LANGUAGE`.
   - Instalar: `pip install faster-whisper`
+- `RealtimeSTT` - STT streaming (opcional).
+  - Para que serve: transcricao em tempo real com callbacks parciais.
+  - Como usa: `JARVIS_STT_STREAMING=1` habilita o backend no `jarvis/entrada/stt.py`.
+  - Instalar: `pip install RealtimeSTT` (ou usar o clone em `jarvis/REPOSITORIOS_CLONAR/realtimestt`).
+- `pyaudio` - captura de audio para RealtimeSTT (opcional).
+  - Para que serve: entrada de microfone dentro do RealtimeSTT.
+  - Como usa: necessario quando `JARVIS_STT_STREAMING=1` e o streaming usa microfone.
+  - Instalar: `pip install pyaudio`
+  - Linux: pode exigir `portaudio19-dev` e `python3-dev`.
+- `halo` - spinner do RealtimeSTT (opcional, mas importado por padrao).
+  - Para que serve: animacao de estado durante captura/transcricao.
+  - Como usa: dependencia indireta do RealtimeSTT.
+  - Instalar: `pip install halo`
+- `websocket-client` - cliente websocket do RealtimeSTT (opcional).
+  - Para que serve: suporte ao modo client/server do RealtimeSTT.
+  - Como usa: dependencia indireta do RealtimeSTT.
+  - Instalar: `pip install websocket-client`
+- `torchaudio` - Silero VAD usado pelo RealtimeSTT.
+  - Para que serve: modelo de VAD usado internamente pelo RealtimeSTT.
+  - Como usa: necessario quando RealtimeSTT inicializa o Silero VAD.
+  - Instalar: `pip install torchaudio`
 - `resemblyzer` - speaker verification (opcional).
   - Para que serve: confirmar se a voz e do locutor autorizado.
   - Como usa: `JARVIS_SPK_VERIFY=1` + comando "cadastrar voz" para salvar voiceprint.
@@ -103,21 +130,29 @@ Este documento lista todas as dependencias usadas pela interface de voz/texto, c
   - Build: `scripts/build_rust_audio.sh`
 
 ## Variaveis de ambiente relevantes
-- `JARVIS_STT_MODE`, `JARVIS_TTS_MODE`
-- `JARVIS_STT_MODEL`, `JARVIS_STT_REALTIME_MODEL`, `JARVIS_STT_LANGUAGE`
+- `JARVIS_STT_MODE`, `JARVIS_TTS_MODE`, `JARVIS_STT_PROFILE`
+- `JARVIS_STT_STREAMING`, `JARVIS_STT_STREAMING_BACKEND`
+- `JARVIS_STT_STREAMING_FORCE_START`, `JARVIS_STT_STREAMING_MAX_SECONDS`
+- `JARVIS_STT_MODEL`, `JARVIS_STT_REALTIME_MODEL`, `JARVIS_STT_FALLBACK_MODEL`
+- `JARVIS_STT_LANGUAGE`, `JARVIS_STT_RETRY_AUTO_LANGUAGE`, `JARVIS_STT_RETRY_FALLBACK_MODEL`
 - `JARVIS_AUDIO_DEVICE`, `JARVIS_AUDIO_CAPTURE_SR`
-- `JARVIS_MIN_AUDIO_SECONDS`, `JARVIS_STT_MIN_AUDIO_MS`
+- `JARVIS_MIN_AUDIO_SECONDS`, `JARVIS_STT_MIN_AUDIO_MS`, `JARVIS_STT_MIN_PEAK`
 - `JARVIS_STT_MIN_GAP_SECONDS`, `JARVIS_STT_ALLOWED_LATENCY_MS`
 - `JARVIS_STT_EARLY_TRANSCRIBE_ON_SILENCE`, `JARVIS_STT_MAX_BUFFER_SECONDS`
 - `JARVIS_STT_NORMALIZE_AUDIO`, `JARVIS_STT_NORMALIZE_TARGET`, `JARVIS_STT_NORMALIZE_MAX_GAIN`
-- `JARVIS_VAD_SILENCE_MS`, `JARVIS_VAD_PRE_ROLL_MS`, `JARVIS_VAD_POST_ROLL_MS`, `JARVIS_VAD_MAX_SECONDS`
+- `JARVIS_STT_TRIM_VAD`, `JARVIS_FORCE_SPEECH_OK`
+- `JARVIS_AUDIO_TRIM_BACKEND`
 - `JARVIS_WHISPER_VAD_FILTER`, `JARVIS_STT_BEAM_SIZE`, `JARVIS_STT_BEST_OF`
 - `JARVIS_STT_TEMPERATURE`, `JARVIS_STT_INITIAL_PROMPT`, `JARVIS_STT_SUPPRESS_TOKENS`
-- `JARVIS_STT_WARMUP`, `JARVIS_STT_WARMUP_SECONDS`
+- `JARVIS_STT_WARMUP`, `JARVIS_STT_WARMUP_SECONDS`, `JARVIS_STT_METRICS`
+- `JARVIS_VAD_AGGRESSIVENESS`, `JARVIS_VAD_METRICS`
+- `JARVIS_VAD_STRATEGY` (webrtc|silero|whisper|realtimestt)
+- `JARVIS_VAD_SILENCE_MS`, `JARVIS_VAD_PRE_ROLL_MS`, `JARVIS_VAD_POST_ROLL_MS`, `JARVIS_VAD_MAX_SECONDS`
 - `JARVIS_PIPER_MODELS_DIR`, `JARVIS_PIPER_VOICE`
 - `JARVIS_SPK_VERIFY`, `JARVIS_SPK_THRESHOLD`, `JARVIS_CONFIG_DIR`
 - `JARVIS_SPK_VOICEPRINT_PASSPHRASE`
-- `JARVIS_WAKE_WORD_AUDIO`, `JARVIS_PORCUPINE_ACCESS_KEY`
+- `JARVIS_WAKE_WORD_AUDIO`, `JARVIS_WAKE_WORD_AUDIO_STRICT`
+- `JARVIS_PORCUPINE_ACCESS_KEY`
 - `JARVIS_PORCUPINE_KEYWORD_PATH`, `JARVIS_PORCUPINE_SENSITIVITY`
 - `JARVIS_WAKE_WORD_AUDIO_BACKEND`, `JARVIS_OPENWAKEWORD_MODEL_PATHS`
 - `JARVIS_OPENWAKEWORD_INFERENCE_FRAMEWORK`, `JARVIS_OPENWAKEWORD_SENSITIVITY`
@@ -125,6 +160,8 @@ Este documento lista todas as dependencias usadas pela interface de voz/texto, c
 - `JARVIS_SILERO_DEACTIVITY`, `JARVIS_SILERO_SENSITIVITY`
 - `JARVIS_SILERO_USE_ONNX`, `JARVIS_SILERO_AUTO_DOWNLOAD`
 - `JARVIS_AEC_BACKEND`, `JARVIS_AEC_REF_SECONDS`, `JARVIS_AEC_MAX_GAIN`
+- `JARVIS_AUDIO_AGC_TARGET_RMS`, `JARVIS_AUDIO_AGC_MAX_GAIN`
+- `JARVIS_AUDIO_NS_GATE_RMS`
 
 ## Comandos de verificacao rapida
 - Preflight: `PYTHONPATH=. python -m jarvis.entrada.app --preflight`
@@ -132,9 +169,7 @@ Este documento lista todas as dependencias usadas pela interface de voz/texto, c
 - TTS deps: `python -c "from jarvis.voz.tts import check_tts_deps; print(check_tts_deps())"`
 - Profiling (py-spy): `py-spy --version`
 
-## Status local (2026-01-10)
-- Python (venv) OK: `sounddevice`, `numpy`, `scipy`, `webrtcvad`, `faster-whisper`, `resemblyzer`, `cryptography`, `pynput`, `watchdog`, `psutil`, `pvporcupine`, `pytest`.
-- Python (venv) OK (perf): `py-spy`.
-- Sistema OK: `espeak-ng`, `aplay`, `python3-tk`, `nvidia-smi`, `libportaudio` (PortAudio).
-- Sistema pendente (opcional): `piper` (TTS neural).
-- Python pendente (opcional): `torch`/`onnxruntime` (Silero deactivity).
+## Status local (verificar antes de testar)
+- Rode preflight: `PYTHONPATH=. python -m jarvis.entrada.app --preflight --preflight-profile voice`
+- Rode o benchmark: `PYTHONPATH=. python scripts/bench_interface.py stt --audio Documentos/DOC_INTERFACE/bench_audio/voice_clean.wav --repeat 3 --resample`
+- Registre resultados em `Documentos/DOC_INTERFACE/TESTES_REALISADOS_INTERFACE.MD`.

@@ -18,6 +18,7 @@ import os
 import re
 import time
 import uuid
+import traceback
 from typing import Any, Callable, Union, cast
 
 from ..comunicacao.chat_log import ChatLog
@@ -34,6 +35,7 @@ from ..seguranca.sanitizacao import (
     redact_text,
     sanitize_external_text,
 )
+from ..telemetria.latency import RollingPercentiles
 from ..telemetria.telemetry import Telemetry
 from ..validacao.plano import validar_plano
 from ..validacao.validator import Validator
@@ -166,6 +168,18 @@ class Orchestrator:
             "on",
         }
         self._speaker_verifier = ResemblyzerSpeakerVerifier()
+        self._stage_percentiles = RollingPercentiles()
+        self._voice_metrics_active = False
+        self._voice_metrics_totals: dict[str, float] = {
+            "llm_ms": 0.0,
+            "tts_ms": 0.0,
+            "play_ms": 0.0,
+        }
+        self._voice_metrics_counts: dict[str, int] = {
+            "llm": 0,
+            "tts": 0,
+            "play": 0,
+        }
 
         # Initialize procedures store
         self.procedures = ProcedureStore(
@@ -189,6 +203,50 @@ class Orchestrator:
     def _debug(self, message: str) -> None:
         if self._debug_enabled:
             print(f"[orchestrator] {message}")
+
+    def _reset_voice_metrics(self) -> None:
+        self._voice_metrics_active = True
+        self._voice_metrics_totals = {
+            "llm_ms": 0.0,
+            "tts_ms": 0.0,
+            "play_ms": 0.0,
+        }
+        self._voice_metrics_counts = {
+            "llm": 0,
+            "tts": 0,
+            "play": 0,
+        }
+
+    def _log_voice_stage_metrics(self, stt_metrics: dict[str, float | None]) -> None:
+        llm_ms = (
+            self._voice_metrics_totals["llm_ms"]
+            if self._voice_metrics_counts["llm"] > 0
+            else None
+        )
+        tts_ms = (
+            self._voice_metrics_totals["tts_ms"]
+            if self._voice_metrics_counts["tts"] > 0
+            else None
+        )
+        play_ms = (
+            self._voice_metrics_totals["play_ms"]
+            if self._voice_metrics_counts["play"] > 0
+            else None
+        )
+        stage_values = {
+            "capture_ms": stt_metrics.get("capture_ms"),
+            "vad_ms": stt_metrics.get("vad_ms"),
+            "endpoint_ms": stt_metrics.get("endpoint_ms"),
+            "stt_ms": stt_metrics.get("stt_ms"),
+            "llm_ms": llm_ms,
+            "tts_ms": tts_ms,
+            "play_ms": play_ms,
+        }
+        for stage, value in stage_values.items():
+            self._stage_percentiles.record(stage, value)
+        payload = dict(stage_values)
+        payload["p95"] = self._stage_percentiles.snapshot(stage_values.keys())
+        self.telemetry.log_event("voice_stage_metrics", payload)
 
     def handle_text(self, text: str) -> tuple[str, bool]:
         """Handle a text command."""
@@ -878,9 +936,24 @@ class Orchestrator:
         """Output text via TTS and console."""
         print(text)
         self.tts.speak(text)
+        if not self._voice_metrics_active:
+            return
+        metrics = self.tts.get_last_metrics()
+        tts_ms = metrics.get("tts_ms")
+        if tts_ms is not None:
+            self._voice_metrics_totals["tts_ms"] += float(tts_ms)
+            self._voice_metrics_counts["tts"] += 1
+        play_ms = metrics.get("play_ms")
+        if play_ms is not None:
+            self._voice_metrics_totals["play_ms"] += float(play_ms)
+            self._voice_metrics_counts["play"] += 1
 
     def transcribe_and_handle(self) -> None:
         """Capture voice and handle as command."""
+        stt_metrics: dict[str, float | None] = {}
+        reset_metrics = getattr(self, "_reset_voice_metrics", None)
+        if callable(reset_metrics):
+            reset_metrics()
         try:
             # Use VAD if available
             require_wake = self._followup.should_require_wake_word(
@@ -892,6 +965,9 @@ class Orchestrator:
                 return_audio=True,
                 require_wake_word=require_wake,
             )
+            get_stt_metrics = getattr(self.stt, "get_last_metrics", None)
+            if callable(get_stt_metrics):
+                stt_metrics = get_stt_metrics()
             if isinstance(result, tuple):
                 text, audio_bytes, speech_detected = result
             else:
@@ -927,7 +1003,21 @@ class Orchestrator:
             else:
                 self._followup.reset()
         except Exception as e:
+            if self._debug_enabled:
+                print(traceback.format_exc())
             self._say(f"Erro no reconhecimento de voz: {e}")
+        finally:
+            get_stt_metrics = getattr(self.stt, "get_last_metrics", None)
+            if not stt_metrics and callable(get_stt_metrics):
+                stt_metrics = get_stt_metrics()
+            if hasattr(self, "_voice_metrics_active"):
+                try:
+                    self._voice_metrics_active = False
+                except Exception:
+                    pass
+            log_metrics = getattr(self, "_log_voice_stage_metrics", None)
+            if callable(log_metrics):
+                log_metrics(stt_metrics)
 
     def _plan_with_llm(
         self,
@@ -936,6 +1026,7 @@ class Orchestrator:
         source: str,
     ) -> ActionPlan | None:
         """Generate action plan using a specific LLM client."""
+        start_ts = time.perf_counter()
         try:
             prompt_text = text
             return llm_client.plan(prompt_text)
@@ -953,6 +1044,11 @@ class Orchestrator:
             else:
                 self._say("Nao consegui gerar um plano local. Vou tentar outra forma.")
             return None
+        finally:
+            if self._voice_metrics_active:
+                llm_ms = (time.perf_counter() - start_ts) * 1000.0
+                self._voice_metrics_totals["llm_ms"] += float(llm_ms)
+                self._voice_metrics_counts["llm"] += 1
 
     def _try_parse_plan_from_text(self, text: str) -> ActionPlan | None:
         try:

@@ -497,12 +497,19 @@ class StreamingVAD:
             "yes",
             "on",
         }
+        self._last_metrics: dict[str, float | None] = {
+            "vad_ms": None,
+            "endpoint_ms": None,
+        }
 
     def _log_metrics(self, label: str, **values: object) -> None:
         if not self._metrics_enabled:
             return
         parts = [f"{key}={value}" for key, value in values.items()]
         print(f"[vad-metrics] {label} " + " ".join(parts))
+
+    def get_last_metrics(self) -> dict[str, float | None]:
+        return dict(self._last_metrics)
 
     def _process_frame(self, frame_bytes: bytes) -> bytes:
         if hasattr(self.vad, "preprocess_frame"):
@@ -536,6 +543,7 @@ class StreamingVAD:
         if max_seconds is not None:
             max_frames_limit = min(self.max_frames, max(1, int((max_seconds * 1000) / self.frame_ms)))
         start_ts = time.perf_counter()
+        stop_reason: str | None = None
 
         def callback(indata, frames, time_info, status):
             nonlocal silence_count, speech_detected, frame_count
@@ -572,8 +580,10 @@ class StreamingVAD:
             while True:
                 time.sleep(0.05)
                 if speech_detected and silence_count >= self.silence_frames:
+                    stop_reason = "silence"
                     break
                 if frame_count >= max_frames_limit:
+                    stop_reason = "max_frames"
                     break
 
         audio_bytes = self._assemble_frames(
@@ -584,12 +594,22 @@ class StreamingVAD:
             empty_if_no_speech=empty_if_no_speech,
         )
 
+        duration_ms = (time.perf_counter() - start_ts) * 1000.0
+        endpoint_ms: float | None = None
+        if stop_reason == "silence" and speech_detected:
+            endpoint_ms = float(silence_count * self.frame_ms)
+
+        self._last_metrics = {
+            "vad_ms": float(duration_ms),
+            "endpoint_ms": endpoint_ms,
+        }
+
         speech_frames = sum(1 for _, is_speech in frame_events if is_speech)
         self._log_metrics(
             "streaming",
             frames=frame_count,
             speech_frames=speech_frames,
-            duration_ms=int((time.perf_counter() - start_ts) * 1000.0),
+            duration_ms=int(duration_ms),
             speech=bool(speech_detected),
         )
 
@@ -672,6 +692,7 @@ class StreamingVAD:
         int16_data = (audio.flatten() * 32767).astype(np.int16)
         audio_bytes = int16_data.tobytes()
 
+        analysis_start = time.perf_counter()
         processed_frames: list[bytes] = []
         speech_frames = 0
         total_frames = 0
@@ -685,10 +706,15 @@ class StreamingVAD:
             if self._is_speech_processed(processed):
                 speech_frames += 1
             total_frames += 1
+        analysis_ms = (time.perf_counter() - analysis_start) * 1000.0
 
         speech_detected = speech_frames > (total_frames * 0.1)  # 10% threshold
         if processed_frames:
             audio_bytes = b"".join(processed_frames)[: len(audio_bytes)]
+        self._last_metrics = {
+            "vad_ms": float(analysis_ms),
+            "endpoint_ms": None,
+        }
         self._log_metrics(
             "fixed",
             frames=total_frames,

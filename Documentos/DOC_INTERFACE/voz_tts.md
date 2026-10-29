@@ -3,11 +3,12 @@
 - Caminho: `jarvis/voz/tts.py`
 - Papel: TTS local (Piper) com fallback para espeak-ng.
 - Onde entra no fluxo: saida de voz (fala do Jarvis).
-- Atualizado em: 2026-01-10 (revisado com o codigo)
+- Atualizado em: 2026-01-14 (revisado com o codigo)
 
 ## Responsabilidades
 - Resolver modelo Piper e executar pipeline `piper | aplay`.
-- Procurar modelo em `JARVIS_PIPER_MODELS_DIR`, `~/.local/share/piper`, `/usr/share/piper-voices`.
+- Procurar modelo em `JARVIS_PIPER_MODELS_DIR`, `~/.local/share/piper-models`, `~/.local/share/piper`,
+  `/usr/share/piper-voices`, `/usr/local/share/piper-voices`.
 - Fallback para espeak-ng.
 - Modo silencioso (`tts_mode=none`).
 
@@ -51,6 +52,7 @@
 
 ## Observabilidade
 - Logs opcionais via `JARVIS_DEBUG=1` (erros e fallback piper->espeak).
+- `TextToSpeech.get_last_metrics()` retorna `tts_ms` e `play_ms` da ultima fala.
 
 ## Problemas conhecidos (hoje)
 - (nenhum no momento)

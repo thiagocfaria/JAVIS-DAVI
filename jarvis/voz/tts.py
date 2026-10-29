@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import audioop
 from pathlib import Path
 from typing import Optional
@@ -52,6 +53,8 @@ class TextToSpeech:
         self._piper_model: str | None = None
         self._debug_enabled = _env_bool("JARVIS_DEBUG", False)
         self._speak_lock = threading.Lock()
+        self._last_tts_ms: float | None = None
+        self._last_play_ms: float | None = None
         self._volume_override = _env_float_optional("JARVIS_TTS_VOLUME")
         if self._volume_override is None:
             self._volume = 1.0
@@ -105,10 +108,17 @@ class TextToSpeech:
         Tries Piper first, falls back to espeak-ng.
         """
         if self.config.tts_mode == "none":
+            self._last_tts_ms = None
+            self._last_play_ms = None
             return
 
         if not text or not text.strip():
+            self._last_tts_ms = None
+            self._last_play_ms = None
             return
+
+        self._last_tts_ms = None
+        self._last_play_ms = None
 
         with self._speak_lock:
             # Try Piper first
@@ -162,6 +172,7 @@ class TextToSpeech:
 
             if not aec_enabled and (self._volume_is_default or self._volume == 1.0):
                 # Run piper | aplay pipeline
+                tts_start = time.perf_counter()
                 piper_proc = subprocess.Popen(
                     piper_cmd,
                     stdin=subprocess.PIPE,
@@ -169,6 +180,7 @@ class TextToSpeech:
                     stderr=subprocess.DEVNULL,
                 )
 
+                play_start = time.perf_counter()
                 aplay_proc = subprocess.Popen(
                     aplay_cmd,
                     stdin=piper_proc.stdout,
@@ -182,11 +194,14 @@ class TextToSpeech:
 
                 # Wait for completion (with timeout)
                 piper_rc = piper_proc.wait(timeout=30)
+                self._last_tts_ms = (time.perf_counter() - tts_start) * 1000.0
                 aplay_rc = aplay_proc.wait(timeout=30)
+                self._last_play_ms = (time.perf_counter() - play_start) * 1000.0
                 if piper_rc != 0 or aplay_rc != 0:
                     self._debug(f"piper/aplay retornaram codigo {piper_rc}/{aplay_rc}")
                 return True
 
+            tts_start = time.perf_counter()
             piper_proc = subprocess.Popen(
                 piper_cmd,
                 stdin=subprocess.PIPE,
@@ -200,10 +215,12 @@ class TextToSpeech:
             if piper_proc.stdout is not None:
                 raw_audio = piper_proc.stdout.read()
             piper_rc = piper_proc.wait(timeout=30)
+            self._last_tts_ms = (time.perf_counter() - tts_start) * 1000.0
             if piper_rc != 0:
                 self._debug(f"piper retornou codigo {piper_rc}")
 
             if self._volume <= 0.0:
+                self._last_play_ms = None
                 return True
 
             scaled_audio = self._scale_audio(raw_audio)
@@ -212,6 +229,7 @@ class TextToSpeech:
                     aec_module.push_playback_reference(scaled_audio, 22050)
                 except Exception:
                     pass
+            play_start = time.perf_counter()
             aplay_proc = subprocess.Popen(
                 aplay_cmd,
                 stdin=subprocess.PIPE,
@@ -222,6 +240,7 @@ class TextToSpeech:
                 aplay_proc.stdin.write(scaled_audio)
                 aplay_proc.stdin.close()
             aplay_rc = aplay_proc.wait(timeout=30)
+            self._last_play_ms = (time.perf_counter() - play_start) * 1000.0
             if aplay_rc != 0:
                 self._debug(f"aplay retornou codigo {aplay_rc}")
             return True
@@ -281,12 +300,15 @@ class TextToSpeech:
             cmd.extend(["-a", str(amplitude)])
         cmd.append(text)
         try:
+            start_ts = time.perf_counter()
             subprocess.Popen(
                 cmd,
                 start_new_session=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            self._last_tts_ms = (time.perf_counter() - start_ts) * 1000.0
+            self._last_play_ms = None
         except Exception as exc:
             self._debug(f"espeak falhou: {exc}")
 
@@ -298,6 +320,12 @@ class TextToSpeech:
         """
         thread = threading.Thread(target=self.speak, args=(text,), daemon=True)
         thread.start()
+
+    def get_last_metrics(self) -> dict[str, float | None]:
+        return {
+            "tts_ms": self._last_tts_ms,
+            "play_ms": self._last_play_ms,
+        }
 
     def get_available_engines(self) -> list[str]:
         """Get list of available TTS engines."""

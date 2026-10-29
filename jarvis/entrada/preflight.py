@@ -338,6 +338,23 @@ def _check_stt(config: Config) -> CheckResult:
             name="STT", status="WARN", detail=f"modo desconhecido: {mode}"
         )
 
+    streaming_enabled = _env_bool("JARVIS_STT_STREAMING", False)
+    if streaming_enabled and result.status != "FAIL":
+        if not deps.get("realtimestt"):
+            return CheckResult(
+                name="STT",
+                status="WARN",
+                detail=f"{result.detail}; streaming ativo, RealtimeSTT ausente",
+                hint="pip install RealtimeSTT ou use JARVIS_STT_STREAMING=0",
+            )
+        if not deps.get("pyaudio"):
+            return CheckResult(
+                name="STT",
+                status="WARN",
+                detail=f"{result.detail}; streaming ativo, pyaudio ausente",
+                hint="pip install pyaudio ou use JARVIS_STT_STREAMING=0",
+            )
+
     if not probe_enabled or result.status == "FAIL":
         return result
 

@@ -31,6 +31,16 @@ except Exception:
     psutil = None
 
 
+def _env_int(key: str, default: int) -> int:
+    value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 def _read_wav(path: Path) -> tuple[bytes, int, int]:
     with wave.open(str(path), "rb") as handle:
         channels = handle.getnchannels()
@@ -213,6 +223,118 @@ def _bench_vad(
     return result
 
 
+def _compute_endpointing(
+    audio_bytes: bytes,
+    vad,
+    *,
+    silence_ms: int,
+) -> dict[str, Any]:
+    frame_ms = int(getattr(vad, "frame_duration_ms", 30))
+    if frame_ms <= 0:
+        frame_ms = 30
+    silence_frames = max(1, int(silence_ms / frame_ms))
+    speech_detected = False
+    silence_count = 0
+    speech_frames = 0
+    total_frames = 0
+    last_voiced_idx: int | None = None
+    endpoint_idx: int | None = None
+
+    for idx, frame in enumerate(vad.frames_from_audio(audio_bytes)):
+        processed = vad.preprocess_frame(frame)
+        is_speech = vad.is_speech_preprocessed(processed)
+        total_frames += 1
+        if is_speech:
+            speech_frames += 1
+            speech_detected = True
+            silence_count = 0
+            last_voiced_idx = idx
+        elif speech_detected:
+            silence_count += 1
+            if silence_count >= silence_frames:
+                endpoint_idx = idx
+                break
+
+    if not speech_detected or last_voiced_idx is None:
+        return {
+            "speech_detected": False,
+            "endpoint_reached": False,
+            "endpoint_ms": None,
+            "frame_ms": frame_ms,
+            "silence_ms": silence_ms,
+            "silence_frames": silence_frames,
+            "speech_frames": speech_frames,
+            "total_frames": total_frames,
+        }
+
+    endpoint_reached = endpoint_idx is not None
+    if endpoint_idx is None:
+        endpoint_idx = max(0, total_frames - 1)
+    endpoint_ms = max(0, (endpoint_idx - last_voiced_idx) * frame_ms)
+
+    return {
+        "speech_detected": True,
+        "endpoint_reached": endpoint_reached,
+        "endpoint_ms": endpoint_ms,
+        "frame_ms": frame_ms,
+        "silence_ms": silence_ms,
+        "silence_frames": silence_frames,
+        "speech_frames": speech_frames,
+        "total_frames": total_frames,
+    }
+
+
+def _bench_endpointing(
+    audio_path: Path, repeat: int, *, resample: bool, enable_gpu: bool
+) -> dict[str, Any]:
+    from jarvis.voz.vad import VoiceActivityDetector, resolve_vad_aggressiveness
+
+    frames, samplerate, channels = _load_audio(
+        audio_path, 16000, resample=resample
+    )
+
+    silence_ms = max(0, _env_int("JARVIS_VAD_SILENCE_MS", 400))
+    vad = VoiceActivityDetector(
+        aggressiveness=resolve_vad_aggressiveness(2),
+        sample_rate=16000,
+        frame_duration_ms=30,
+    )
+    results: list[dict[str, Any]] = []
+
+    def run() -> None:
+        results.append(_compute_endpointing(frames, vad, silence_ms=silence_ms))
+
+    result = _measure(run, repeat, enable_gpu=enable_gpu)
+    endpoint_values = [
+        item["endpoint_ms"]
+        for item in results
+        if item.get("endpoint_ms") is not None
+    ]
+    speech_detected = any(item.get("speech_detected") for item in results)
+    endpoint_reached = all(item.get("endpoint_reached") for item in results) if results else False
+    if endpoint_values:
+        result["endpoint_ms_avg"] = statistics.mean(endpoint_values)
+        result["endpoint_ms_p50"] = statistics.median(endpoint_values)
+        result["endpoint_ms_p95"] = statistics.quantiles(endpoint_values, n=20)[-1] if len(endpoint_values) >= 2 else endpoint_values[0]
+    else:
+        result["endpoint_ms_avg"] = None
+        result["endpoint_ms_p50"] = None
+        result["endpoint_ms_p95"] = None
+
+    result.update(
+        {
+            "scenario": "endpointing",
+            "audio": str(audio_path),
+            "speech_detected": speech_detected,
+            "endpoint_reached": endpoint_reached,
+            "frame_ms": results[0]["frame_ms"] if results else 30,
+            "silence_ms": silence_ms,
+            "silence_frames": results[0]["silence_frames"] if results else 0,
+        }
+    )
+    return result
+
+
 def _bench_tts(
     text: str, repeat: int, mode: str, *, enable_gpu: bool
 ) -> dict[str, Any]:
@@ -248,7 +370,7 @@ def _bench_speaker(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Benchmark da interface de voz")
-    parser.add_argument("scenario", choices=["stt", "vad", "tts", "speaker"])
+    parser.add_argument("scenario", choices=["stt", "vad", "endpointing", "tts", "speaker"])
     parser.add_argument("--audio", type=str, help="caminho para WAV 16kHz mono")
     parser.add_argument("--text", type=str, default="ola jarvis", help="texto para TTS")
     parser.add_argument("--repeat", type=int, default=5, help="repeticoes")
@@ -266,7 +388,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.scenario in {"stt", "vad", "speaker"}:
+    if args.scenario in {"stt", "vad", "endpointing", "speaker"}:
         if not args.audio:
             raise SystemExit("--audio e obrigatorio para este scenario")
         audio_path = Path(args.audio)
@@ -281,6 +403,10 @@ def main() -> int:
         )
     elif args.scenario == "vad":
         result = _bench_vad(  # type: ignore[arg-type]
+            audio_path, args.repeat, resample=args.resample, enable_gpu=args.gpu
+        )
+    elif args.scenario == "endpointing":
+        result = _bench_endpointing(  # type: ignore[arg-type]
             audio_path, args.repeat, resample=args.resample, enable_gpu=args.gpu
         )
     elif args.scenario == "speaker":

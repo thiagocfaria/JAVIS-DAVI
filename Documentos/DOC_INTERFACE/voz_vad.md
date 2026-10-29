@@ -19,6 +19,7 @@
 ## Configuracao
 - Parametros no init: aggressiveness, sample_rate, silence_duration, pre/post-roll, device.
 - Defaults do StreamingVAD: sample_rate=16000, frame=30ms, silence=800ms, max=30s, pre=200ms, post=200ms.
+- Env opcional: `JARVIS_VAD_STRATEGY=webrtc|silero|whisper|realtimestt` (se nao for `webrtc`, o STT nao usa StreamingVAD).
 - Env opcional: `JARVIS_VAD_METRICS=1` para logar frames/duracao.
 - Env opcional: `JARVIS_VAD_AGGRESSIVENESS=0..3` (default 2) para ajustar sensibilidade.
 - Env opcional: `JARVIS_VAD_SILENCE_MS`, `JARVIS_VAD_PRE_ROLL_MS`, `JARVIS_VAD_POST_ROLL_MS`, `JARVIS_VAD_MAX_SECONDS` (ajusta o StreamingVAD).
@@ -60,6 +61,7 @@
 
 ## Observabilidade
 - Metrics via `JARVIS_VAD_METRICS=1` (frames e duracao).
+- `StreamingVAD.get_last_metrics()` retorna `vad_ms` e `endpoint_ms` da ultima captura.
 - Sem log proprio; erros viram excecao.
 
 ## Problemas conhecidos (hoje)

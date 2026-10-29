@@ -133,6 +133,7 @@ class Config:
 
     # STT settings
     stt_mode: str  # local, auto, none
+    stt_audio_trim_backend: str
 
     # TTS settings
     tts_mode: str  # piper, espeak, none
@@ -237,6 +238,7 @@ def load_config() -> Config:
 
         # STT
         stt_mode=stt_mode,
+        stt_audio_trim_backend=_env("JARVIS_AUDIO_TRIM_BACKEND", "none"),
 
         # TTS
         tts_mode=_env("JARVIS_TTS_MODE", "local"),

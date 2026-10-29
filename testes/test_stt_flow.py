@@ -69,6 +69,7 @@ def _make_stt(tmp_path: Path) -> SpeechToText:
         chat_open_command=None,
         # STT settings
         stt_mode="local",
+        stt_audio_trim_backend="none",
         # TTS settings
         tts_mode="local",
         # Security

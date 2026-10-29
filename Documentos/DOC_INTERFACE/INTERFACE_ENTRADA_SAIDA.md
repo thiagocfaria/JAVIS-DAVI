@@ -1,6 +1,7 @@
 # Interface entrada/saida (documento unico)
 
 Este documento e a fonte principal da interface de entrada/saida do Jarvis. Ele resume o fluxo, os contratos e aponta para os docs individuais de cada modulo.
+Atualizado em: 2026-01-14.
 
 ## Escopo desta interface
 - Entrada: captura de voz, VAD, STT, wake word, follow-up e entrada por UI/arquivo.
@@ -10,8 +11,8 @@ Este documento e a fonte principal da interface de entrada/saida do Jarvis. Ele 
 
 ## Visao geral do fluxo
 1) Voz entra via microfone (sounddevice) e vira PCM int16 16k.
-2) VAD corta silencio; opcionalmente Silero melhora fim de fala e trim Rust remove bordas.
-3) STT local transcreve para texto.
+2) VAD corta silencio (endpointing); opcionalmente Silero melhora fim de fala e trim Rust remove bordas.
+3) STT local transcreve para texto (opcional: RealtimeSTT para streaming/parciais).
 4) Texto segue para o orquestrador (fora deste escopo).
 5) Saida: texto no log/UI e voz via TTS local.
 6) UI/atalho/arquivo tambem injetam texto no fluxo.
@@ -27,12 +28,14 @@ Este documento e a fonte principal da interface de entrada/saida do Jarvis. Ele 
 - Audio sempre em PCM int16 little-endian, mono, 16 kHz.
 - Nunca passar lista direto para WAV/trim: use `coerce_pcm_bytes`.
 - VAD espera frames de 10/20/30 ms no mesmo formato.
+- WAV so aparece no fallback do STT (arquivo temporario) e nos benchmarks; o fluxo preferencial e PCM bruto.
 
 ## Performance e latencia (como medir)
 - STT e TTS sao as partes mais pesadas; VAD e leve/moderado.
-- Medir CPU/RAM: use `/usr/bin/time -v <comando>` + `top`/`htop`.
-- Medir latencia: capture timestamps no log e compare inicio/fim do comando.
-- GPU: so relevante se algum engine usar GPU (nao e o caso no fluxo padrao).
+- Medir latencia: use `scripts/bench_interface.py` (STT/VAD/endpointing/TTS).
+- Medir voz real: use `scripts/auto_voice_bench.py` (gera WAV + JSON).
+- Resultados ficam em `Documentos/DOC_INTERFACE/bench_audio` e `Documentos/DOC_INTERFACE/bench_history.json`.
+- GPU so e relevante quando o backend usar GPU (padrao e CPU).
 
 ## Limites de gravacao (env)
 - `JARVIS_VOICE_MAX_SECONDS` (padrao 30, clamp 3..120) - limite do comando de voz.
@@ -46,7 +49,10 @@ Este documento e a fonte principal da interface de entrada/saida do Jarvis. Ele 
 - [voz/adapters/vad_silero.py](./voz_adapters_vad_silero.md)
 - [entrada/followup.py](./entrada_followup.md)
 - [voz/adapters/wakeword_text.py](./voz_adapters_wakeword_text.md)
+- [voz/adapters/wakeword_porcupine.py](./voz_adapters_wakeword_porcupine.md)
+- [voz/adapters/wakeword_openwakeword.py](./voz_adapters_wakeword_openwakeword.md)
 - [voz/adapters/base.py](./voz_adapters_base.md)
+- [voz/adapters/stt_realtimestt.py](./voz_adapters_stt_realtimestt.md)
 
 ### Entrada (texto/UI)
 - [entrada/app.py](./entrada_app.md)
@@ -68,12 +74,20 @@ Este documento e a fonte principal da interface de entrada/saida do Jarvis. Ele 
 
 ## Dependencias e testes
 - [Dependencias da interface](./DEPENDENCIAS_INTERFACE.md)
-- [Testes da interface](./TESTES_INTERFACE.md)
+- [Testes automatizados](./TESTES_INTERFACE.md)
+- [Testes manuais (roteiro)](./TESTE_MANUAL.md)
+- [Testes realizados (registro)](./TESTES_REALISADOS_INTERFACE.MD)
+- [Benchmark/diagnostico](./benchmark_interface.md)
+- [Evolucao de performance](./EVOLUCAO_PERFOMACE.MD)
 
 ## Observabilidade e debug
 - Logs locais: `~/.jarvis/chat.log` e `~/.jarvis/events.jsonl`.
+- Telemetria de voz: evento `voice_stage_metrics` em `events.jsonl` com `capture_ms`, `vad_ms`, `endpoint_ms`, `stt_ms`, `llm_ms`, `tts_ms`, `play_ms` e `p95` (rolling, ultimas ~200 amostras).
+- Alguns campos podem vir `null` quando a etapa nao ocorre (ex.: sem fala, STT streaming).
 - Debug basico: `JARVIS_DEBUG=1` (STT, speaker verify, orchestrator).
+- Metrics: `JARVIS_STT_METRICS=1`, `JARVIS_VAD_METRICS=1`.
 
 ## Como manter este documento
 - Sempre que um modulo entrar/sair da interface, atualize a lista acima.
 - Cada modulo deve ter um doc proprio com: contratos, deps, testes e comandos.
+- Benchmarks e resultados devem ser registrados em `bench_history.json` + `TESTES_REALISADOS_INTERFACE.MD`.

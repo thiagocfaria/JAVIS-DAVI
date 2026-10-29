@@ -3,7 +3,7 @@
 - Caminho: `jarvis/voz/adapters/wakeword_openwakeword.py`
 - Papel: detector de wake word por audio (PCM int16 16 kHz) usando OpenWakeWord.
 - Onde entra no fluxo: usado pelo STT quando `JARVIS_WAKE_WORD_AUDIO=1` e backend `openwakeword`.
-- Atualizado em: 2026-01-11 (revisado com o codigo)
+- Atualizado em: 2026-01-14 (revisado com o codigo)
 
 ## Responsabilidades
 - Validar audio PCM int16 (tamanho par, 16 kHz).
@@ -21,6 +21,7 @@
 - `JARVIS_OPENWAKEWORD_INFERENCE_FRAMEWORK` (`onnx` ou `tflite`).
 - `JARVIS_OPENWAKEWORD_SENSITIVITY` (0.0-1.0).
 - `JARVIS_OPENWAKEWORD_AUTO_DOWNLOAD=1` (baixa modelos padrao).
+- `JARVIS_WAKE_WORD_AUDIO_STRICT=1` bloqueia o comando se o audio nao detectar wake word.
 - `JARVIS_WAKE_WORD` (referencia textual; o modelo define a palavra real).
 
 ## Dependencias diretas

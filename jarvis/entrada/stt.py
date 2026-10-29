@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+import threading
 import time
 import wave
 from array import array
@@ -226,17 +227,29 @@ class SpeechToText:
         self.config = config
         self._local_model: WhisperModel | None = None
         self._realtime_model: WhisperModel | None = None
+        self._fallback_models: dict[str, WhisperModel] = {}
         self._vad: VoiceActivityDetector | None = None
         self._streaming_vad: Any | None = None
 
         self._debug_enabled = _env_bool("JARVIS_DEBUG", False)
         self._metrics_enabled = _env_bool("JARVIS_STT_METRICS", False)
+        self._last_metrics: dict[str, float | None] = {}
+        self._last_vad_metrics: dict[str, float | None] = {}
+        self._reset_last_metrics()
+        self._stt_profile = (_env_str_optional("JARVIS_STT_PROFILE") or "").strip().lower()
+        self._fast_profile = self._stt_profile in {
+            "fast",
+            "low_latency",
+            "low-latency",
+            "turbo",
+        }
         self._require_wake_word = _env_bool("JARVIS_REQUIRE_WAKE_WORD", False)
         self._wake_word = os.environ.get("JARVIS_WAKE_WORD", "jarvis").strip()
         self._wake_word_audio_enabled = _env_bool("JARVIS_WAKE_WORD_AUDIO", False)
         self._wake_word_audio_backend = (
             _env_str_optional("JARVIS_WAKE_WORD_AUDIO_BACKEND") or "pvporcupine"
         ).strip().lower()
+        self._wake_word_audio_strict = _env_bool("JARVIS_WAKE_WORD_AUDIO_STRICT", True)
         self._wake_word_detector = None
         self._min_audio_ms = max(0, _env_int("JARVIS_STT_MIN_AUDIO_MS", 300))
         self._min_audio_seconds = max(0.0, _env_float("JARVIS_MIN_AUDIO_SECONDS", 1.2))
@@ -267,6 +280,18 @@ class SpeechToText:
         self._allowed_latency_ms = max(
             0.0, _env_float("JARVIS_STT_ALLOWED_LATENCY_MS", 0.0)
         )
+        self._stt_streaming_enabled = _env_bool("JARVIS_STT_STREAMING", False)
+        self._stt_streaming_backend = (
+            _env_str_optional("JARVIS_STT_STREAMING_BACKEND") or "realtimestt"
+        ).strip().lower()
+        self._realtimestt_recorder: Any | None = None
+        self._realtimestt_failed = False
+        self._realtimestt_force_start = _env_bool(
+            "JARVIS_STT_STREAMING_FORCE_START", True
+        )
+        self._streaming_max_seconds = max(
+            0, _env_int("JARVIS_STT_STREAMING_MAX_SECONDS", 6)
+        )
         self._normalize_audio = _env_bool("JARVIS_STT_NORMALIZE_AUDIO", False)
         self._normalize_target = min(
             1.0, max(0.1, _env_float("JARVIS_STT_NORMALIZE_TARGET", 0.98))
@@ -274,7 +299,7 @@ class SpeechToText:
         self._normalize_max_gain = max(
             1.0, _env_float("JARVIS_STT_NORMALIZE_MAX_GAIN", 4.0)
         )
-        self._vad_silence_ms = max(0, _env_int("JARVIS_VAD_SILENCE_MS", 800))
+        self._vad_silence_ms = max(0, _env_int("JARVIS_VAD_SILENCE_MS", 400))
         self._vad_pre_roll_ms = max(0, _env_int("JARVIS_VAD_PRE_ROLL_MS", 200))
         self._vad_post_roll_ms = max(0, _env_int("JARVIS_VAD_POST_ROLL_MS", 200))
         self._vad_max_seconds = max(1, _env_int("JARVIS_VAD_MAX_SECONDS", 30))
@@ -288,12 +313,39 @@ class SpeechToText:
         self._silero_use_onnx = _env_bool("JARVIS_SILERO_USE_ONNX", False)
         self._silero_auto_download = _env_bool("JARVIS_SILERO_AUTO_DOWNLOAD", False)
         self._silero_detector = None
+        self._vad_strategy = (_env_str_optional("JARVIS_VAD_STRATEGY") or "").strip().lower()
+        self._webrtc_vad_enabled = True
+
+        if self._fast_profile:
+            if os.environ.get("JARVIS_STT_MIN_AUDIO_MS") is None:
+                self._min_audio_ms = max(0, 200)
+            if os.environ.get("JARVIS_MIN_AUDIO_SECONDS") is None:
+                self._min_audio_seconds = max(0.0, 0.6)
+            if os.environ.get("JARVIS_WHISPER_VAD_FILTER") is None:
+                self._whisper_vad_filter = True
+            if self._whisper_beam_size is None:
+                self._whisper_beam_size = 1
+            if self._whisper_best_of is None:
+                self._whisper_best_of = 1
+            if self._whisper_temperature is None:
+                self._whisper_temperature = 0.0
+            if os.environ.get("JARVIS_VAD_SILENCE_MS") is None:
+                self._vad_silence_ms = max(0, 250)
+            if os.environ.get("JARVIS_VAD_PRE_ROLL_MS") is None:
+                self._vad_pre_roll_ms = max(0, 120)
+            if os.environ.get("JARVIS_VAD_POST_ROLL_MS") is None:
+                self._vad_post_roll_ms = max(0, 120)
+
+        self._apply_vad_strategy()
 
         model_size = getattr(config, "stt_model_size", None) or os.environ.get(
-            "JARVIS_STT_MODEL", "small"
+            "JARVIS_STT_MODEL"
         )
+        if not model_size:
+            model_size = "tiny" if self._fast_profile else "small"
         self._model_size = str(model_size)
         self._realtime_model_size = _env_str_optional("JARVIS_STT_REALTIME_MODEL")
+        self._fallback_model_size = _env_str_optional("JARVIS_STT_FALLBACK_MODEL") or "tiny"
 
         language = os.environ.get("JARVIS_STT_LANGUAGE", "pt").strip()
         if language.lower() in {"auto", "none", ""}:
@@ -301,7 +353,7 @@ class SpeechToText:
         else:
             self._language = language
 
-        if check_vad_available():
+        if self._webrtc_vad_enabled and check_vad_available():
             try:
                 from ..voz.vad import StreamingVAD, VoiceActivityDetector
 
@@ -390,11 +442,88 @@ class SpeechToText:
         if self._debug_enabled:
             print(f"[stt] {message}")
 
+    def _apply_wake_word_audio_gate(
+        self, require: bool, audio_bytes: bytes
+    ) -> bool | None:
+        if not require:
+            return None
+        if not self._wake_word_audio_enabled:
+            return None
+        if self._wake_word_detector is None:
+            return None
+        if not audio_bytes:
+            return None
+        try:
+            detected = self._wake_word_detector.detect(audio_bytes, SAMPLE_RATE)
+        except Exception as exc:
+            self._debug(f"wake word audio detect failed: {exc}")
+            return None
+        if detected is True:
+            return True
+        if detected is False and self._wake_word_audio_strict:
+            return False
+        return None
+
+    def _apply_vad_strategy(self) -> None:
+        if not self._vad_strategy:
+            return
+        strategy = self._vad_strategy.replace("-", "").replace("_", "")
+        mapping = {
+            "webrtc": "webrtc",
+            "webrtcvad": "webrtc",
+            "silero": "silero",
+            "whisper": "whisper",
+            "realtimestt": "realtimestt",
+            "realtime": "realtimestt",
+            "rtstt": "realtimestt",
+        }
+        resolved = mapping.get(strategy)
+        if not resolved:
+            self._debug(f"vad strategy invalida: {self._vad_strategy}")
+            return
+        self._vad_strategy = resolved
+        self._webrtc_vad_enabled = resolved == "webrtc"
+        if resolved == "webrtc":
+            self._silero_deactivity_enabled = False
+            self._whisper_vad_filter = False
+            return
+        if resolved == "silero":
+            self._silero_deactivity_enabled = True
+            self._whisper_vad_filter = False
+            return
+        if resolved == "whisper":
+            self._silero_deactivity_enabled = False
+            self._whisper_vad_filter = True
+            return
+        if resolved == "realtimestt":
+            self._silero_deactivity_enabled = False
+            self._whisper_vad_filter = False
+            self._stt_streaming_enabled = True
+            self._stt_streaming_backend = "realtimestt"
+
     def _log_metrics(self, label: str, **values: object) -> None:
         if not self._metrics_enabled:
             return
         parts = [f"{key}={value}" for key, value in values.items()]
         print(f"[stt-metrics] {label} " + " ".join(parts))
+
+    def _reset_last_metrics(self) -> None:
+        self._last_metrics = {
+            "capture_ms": None,
+            "vad_ms": None,
+            "endpoint_ms": None,
+            "stt_ms": None,
+        }
+        self._last_vad_metrics = {}
+
+    def _apply_vad_metrics(self) -> None:
+        if not self._last_vad_metrics:
+            return
+        self._last_metrics["vad_ms"] = self._last_vad_metrics.get("vad_ms")
+        self._last_metrics["endpoint_ms"] = self._last_vad_metrics.get("endpoint_ms")
+
+    def get_last_metrics(self) -> dict[str, float | None]:
+        return dict(self._last_metrics)
 
     def _should_skip_for_gap(self) -> bool:
         if self._min_gap_seconds <= 0:
@@ -411,6 +540,239 @@ class SpeechToText:
     def _mark_record_end(self) -> None:
         if self._min_gap_seconds > 0:
             self._last_record_end_ts = time.monotonic()
+
+    def _use_realtimestt(self) -> bool:
+        if not self._stt_streaming_enabled:
+            return False
+        return self._stt_streaming_backend in {"realtimestt", "rtstt", "realtime"}
+
+    def _get_realtimestt_recorder(
+        self,
+        *,
+        on_partial: Callable[[str], None] | None,
+    ) -> Any | None:
+        if not self._use_realtimestt() or self._realtimestt_failed:
+            return None
+        try:
+            from ..voz.adapters import stt_realtimestt
+        except Exception as exc:
+            self._debug(f"realtimestt import failed: {exc}")
+            self._realtimestt_failed = True
+            return None
+        if not stt_realtimestt.is_available():
+            err = stt_realtimestt.last_error()
+            if err:
+                self._debug(f"realtimestt indisponivel: {err}")
+            return None
+        if self._realtimestt_recorder is not None:
+            stt_realtimestt.set_partial_callback(
+                self._realtimestt_recorder, on_partial
+            )
+            return self._realtimestt_recorder
+
+        vad_aggr = (
+            resolve_vad_aggressiveness(2)
+            if callable(resolve_vad_aggressiveness)
+            else 2
+        )
+        post_silence = max(0.2, self._vad_silence_ms / 1000.0)
+        pre_roll = max(0.0, self._vad_pre_roll_ms / 1000.0)
+        min_len = max(0.0, self._min_audio_ms / 1000.0)
+        early_ms = 0
+        if self._early_transcribe_on_silence:
+            early_ms = max(180, int(self._vad_silence_ms * 0.45))
+            if early_ms >= self._vad_silence_ms:
+                early_ms = max(0, int(self._vad_silence_ms) - 100)
+
+        realtime_model = self._realtime_model_size or ""
+        use_main_realtime = not bool(realtime_model)
+        if not realtime_model:
+            realtime_model = "tiny"
+
+        try:
+            self._realtimestt_recorder = stt_realtimestt.build_recorder(
+                model=self._model_size,
+                language=self._language or "",
+                device="cpu",
+                input_device_index=self._audio_device,
+                enable_realtime_transcription=bool(on_partial),
+                use_main_model_for_realtime=use_main_realtime,
+                realtime_model_type=realtime_model,
+                on_realtime_transcription_update=on_partial,
+                webrtc_sensitivity=vad_aggr,
+                post_speech_silence_duration=post_silence,
+                min_length_of_recording=min_len,
+                min_gap_between_recordings=self._min_gap_seconds,
+                pre_recording_buffer_duration=pre_roll,
+                silero_deactivity_detection=self._silero_deactivity_enabled,
+                silero_sensitivity=self._silero_sensitivity,
+                silero_use_onnx=self._silero_use_onnx,
+                early_transcription_on_silence=early_ms,
+                faster_whisper_vad_filter=self._whisper_vad_filter,
+                normalize_audio=self._normalize_audio,
+                debug_mode=self._debug_enabled,
+                handle_buffer_overflow=True,
+            )
+            return self._realtimestt_recorder
+        except Exception as exc:
+            self._debug(f"realtimestt init failed: {exc}")
+            self._realtimestt_recorder = None
+            self._realtimestt_failed = True
+            return None
+
+    def _realtimestt_text(self, recorder: Any, max_seconds: int) -> str:
+        if recorder is None:
+            return ""
+        result: dict[str, Any] = {"text": "", "error": None}
+
+        def _runner() -> None:
+            try:
+                result["text"] = recorder.text()
+            except Exception as exc:
+                result["error"] = exc
+
+        thread = threading.Thread(target=_runner, daemon=True)
+        thread.start()
+        timeout = None
+        if max_seconds and max_seconds > 0:
+            timeout = max_seconds
+        thread.join(timeout=timeout)
+        if thread.is_alive():
+            try:
+                recorder.abort()
+            except Exception as exc:
+                self._debug(f"realtimestt abort failed: {exc}")
+            thread.join(timeout=0.2)
+            return ""
+        if result["error"] is not None:
+            raise result["error"]
+        return str(result.get("text") or "")
+
+    def _maybe_force_realtimestt_start(self, recorder: Any) -> None:
+        if not self._realtimestt_force_start or recorder is None:
+            return
+        if bool(getattr(recorder, "is_recording", False)):
+            return
+        if not hasattr(recorder, "start"):
+            return
+        try:
+            recorder.start()
+        except Exception as exc:
+            self._debug(f"realtimestt start failed: {exc}")
+
+    def _realtimestt_audio_bytes(self, recorder: Any) -> bytes:
+        if recorder is None:
+            return b""
+        audio = getattr(recorder, "last_transcription_bytes", None)
+        if audio is None:
+            return b""
+        if np is not None:
+            try:
+                arr = np.asarray(audio)
+                if arr.dtype != np.int16:
+                    if arr.dtype in {np.float32, np.float64}:
+                        arr = np.clip(arr, -1.0, 1.0) * 32767.0
+                    arr = arr.astype(np.int16)
+                return arr.tobytes()
+            except Exception:
+                pass
+        if isinstance(audio, (bytes, bytearray, memoryview)):
+            return bytes(audio)
+        try:
+            return coerce_pcm_bytes(audio)
+        except Exception:
+            return b""
+
+    def _transcribe_with_realtimestt(
+        self,
+        max_seconds: int,
+        *,
+        return_audio: bool,
+        require_wake_word: bool | None,
+        on_partial: Callable[[str], None] | None,
+    ) -> tuple[str, bytes, bool | None] | None:
+        recorder = self._get_realtimestt_recorder(on_partial=on_partial)
+        if recorder is None:
+            return None
+
+        self._maybe_force_realtimestt_start(recorder)
+        # Impoe limite de tempo no streaming (safety)
+        max_seconds = min(max_seconds, self._streaming_max_seconds) if self._streaming_max_seconds else max_seconds
+        start_ts = time.perf_counter()
+        try:
+            text = self._realtimestt_text(recorder, max_seconds)
+        except Exception as exc:
+            self._debug(f"realtimestt text failed: {exc}")
+            return None
+        finally:
+            try:
+                if hasattr(recorder, "shutdown"):
+                    recorder.shutdown()
+            except Exception as exc:
+                self._debug(f"realtimestt shutdown failed: {exc}")
+
+        total_ms = (time.perf_counter() - start_ts) * 1000.0
+        self._mark_record_end()
+        self._last_metrics["capture_ms"] = float(total_ms)
+        self._last_metrics["vad_ms"] = None
+        self._last_metrics["endpoint_ms"] = None
+        self._last_metrics["stt_ms"] = None
+
+        audio_bytes = self._realtimestt_audio_bytes(recorder)
+        audio_bytes = self._cap_audio_bytes(audio_bytes)
+        speech_detected = bool(text.strip()) if text else False
+
+        if not text.strip():
+            self._log_metrics(
+                "with_vad_realtimestt",
+                record_ms=int(total_ms),
+                transcribe_ms=0,
+                bytes=len(audio_bytes),
+                speech=speech_detected,
+            )
+            return "", audio_bytes, speech_detected
+
+        if self._allowed_latency_ms and total_ms > self._allowed_latency_ms:
+            self._debug(
+                f"realtimestt latency {total_ms:.1f}ms acima do limite"
+            )
+            return "", audio_bytes, speech_detected
+
+        require = (
+            self._require_wake_word if require_wake_word is None else require_wake_word
+        )
+        text_require_wake = require
+        gate = self._apply_wake_word_audio_gate(require, audio_bytes)
+        if gate is False:
+            self._log_metrics(
+                "with_vad_realtimestt",
+                record_ms=int(total_ms),
+                transcribe_ms=0,
+                bytes=len(audio_bytes),
+                speech=speech_detected,
+            )
+            return "", audio_bytes, speech_detected
+        if gate is True:
+            text_require_wake = False
+
+        filtered = apply_wake_word_filter(
+            text,
+            wake_word=self._wake_word,
+            require=text_require_wake,
+        ).strip()
+
+        self._log_metrics(
+            "with_vad_realtimestt",
+            record_ms=int(total_ms),
+            transcribe_ms=0,
+            bytes=len(audio_bytes),
+            speech=speech_detected,
+        )
+
+        if not filtered:
+            return "", audio_bytes, speech_detected
+
+        return filtered, audio_bytes, speech_detected
 
     def _maybe_normalize_for_stt(self, pcm_bytes: bytes) -> bytes:
         if not self._normalize_audio or np is None:
@@ -500,6 +862,64 @@ class SpeechToText:
                 compute_type="int8",
             )
         return self._local_model
+
+    def _get_fallback_model(self, model_size: str) -> WhisperModel | None:
+        if not model_size:
+            return None
+        if WhisperModel is None:
+            return None
+        cached = self._fallback_models.get(model_size)
+        if cached is not None:
+            return cached
+        try:
+            model = WhisperModel(
+                model_size,
+                device="cpu",
+                compute_type="int8",
+            )
+        except Exception as exc:
+            self._debug(f"fallback model init failed: {exc}")
+            return None
+        self._fallback_models[model_size] = model
+        return model
+
+    def _transcribe_with_model(
+        self, audio_bytes: bytes, model: WhisperModel
+    ) -> str:
+        kwargs = self._build_whisper_kwargs()
+        if np is not None:
+            try:
+                samples = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32)
+                if samples.size:
+                    samples /= 32768.0
+                segments, _info = model.transcribe(samples, **kwargs)
+                parts: list[str] = []
+                for seg in segments:
+                    chunk = seg.text.strip()
+                    if not chunk:
+                        continue
+                    parts.append(chunk)
+                return " ".join(parts).strip()
+            except Exception as exc:
+                self._debug(f"fallback in-memory failed: {exc}")
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            wav_path = tmp.name
+            self._write_wav(wav_path, audio_bytes, SAMPLE_RATE)
+        try:
+            segments, _info = model.transcribe(wav_path, **kwargs)
+            parts: list[str] = []
+            for seg in segments:
+                chunk = seg.text.strip()
+                if not chunk:
+                    continue
+                parts.append(chunk)
+            return " ".join(parts).strip()
+        finally:
+            try:
+                os.unlink(wav_path)
+            except Exception:
+                pass
     def _debug_capture(
         self,
         device: int | None,
@@ -614,6 +1034,7 @@ class SpeechToText:
             Transcribed text or empty string.
         """
         mode = getattr(self.config, "stt_mode", "local")
+        self._reset_last_metrics()
         if mode == "none":
             return ""
         if self._should_skip_for_gap():
@@ -629,11 +1050,15 @@ class SpeechToText:
         finally:
             self._mark_record_end()
 
+        self._last_metrics["capture_ms"] = float(record_ms)
+        self._apply_vad_metrics()
+
         start_transcribe = time.perf_counter()
         result = self._transcribe_audio_bytes(
             audio_bytes, require_wake_word=require_wake_word
         )
         transcribe_ms = (time.perf_counter() - start_transcribe) * 1000.0
+        self._last_metrics["stt_ms"] = float(transcribe_ms)
         self._log_metrics(
             "once",
             record_ms=int(record_ms),
@@ -685,15 +1110,36 @@ class SpeechToText:
         If on_partial is provided, it receives incremental text during decoding.
         """
         mode = getattr(self.config, "stt_mode", "local")
+        self._reset_last_metrics()
         if mode == "none":
             return ("", b"", None) if return_audio else ""
         if self._should_skip_for_gap():
             return ("", b"", None) if return_audio else ""
 
+        realtime_result = self._transcribe_with_realtimestt(
+            max_seconds,
+            return_audio=return_audio,
+            require_wake_word=require_wake_word,
+            on_partial=on_partial,
+        )
+        if realtime_result is not None:
+            text, audio_bytes, speech_detected = realtime_result
+            return (
+                (text, audio_bytes, speech_detected)
+                if return_audio
+                else text
+            )
+
         start_record = time.perf_counter()
-        audio_bytes, speech_detected = self._record_until_silence(max_seconds)
+        record_result = self._record_until_silence(max_seconds)
+        if record_result is None:
+            self._debug("record_until_silence retornou None; ignorando")
+            return ("", b"", None) if return_audio else ""
+        audio_bytes, speech_detected = record_result
         record_ms = (time.perf_counter() - start_record) * 1000.0
         self._mark_record_end()
+        self._last_metrics["capture_ms"] = float(record_ms)
+        self._apply_vad_metrics()
         if not audio_bytes:
             self._log_metrics(
                 "with_vad",
@@ -703,6 +1149,8 @@ class SpeechToText:
                 speech=speech_detected,
             )
             return ("", b"", speech_detected) if return_audio else ""
+        if speech_detected is False and _env_bool("JARVIS_FORCE_SPEECH_OK", False):
+            speech_detected = True
         if speech_detected is False:
             self._log_metrics(
                 "with_vad",
@@ -733,35 +1181,38 @@ class SpeechToText:
                 else ""
             )
 
+        if _env_bool("JARVIS_STT_TRIM_VAD", True):
+            trimmed_bytes, trimmed_ok = self._trim_with_vad_python(audio_bytes)
+            if trimmed_ok:
+                audio_bytes = trimmed_bytes
+
         require = (
             self._require_wake_word if require_wake_word is None else require_wake_word
         )
         text_require_wake = require
-        if (
-            require
-            and self._wake_word_audio_enabled
-            and self._wake_word_detector is not None
-        ):
-            try:
-                detected = self._wake_word_detector.detect(audio_bytes, SAMPLE_RATE)
-            except Exception as exc:
-                self._debug(f"wake word audio detect failed: {exc}")
-                detected = None
-            if detected is False:
-                self._log_metrics(
-                    "with_vad",
-                    record_ms=int(record_ms),
-                    transcribe_ms=0,
-                    bytes=len(audio_bytes),
-                    speech=speech_detected,
-                )
-                return ("", audio_bytes, speech_detected) if return_audio else ""
-            if detected is True:
-                text_require_wake = False
+        gate = self._apply_wake_word_audio_gate(require, audio_bytes)
+        if gate is False:
+            self._log_metrics(
+                "with_vad",
+                record_ms=int(record_ms),
+                transcribe_ms=0,
+                bytes=len(audio_bytes),
+                speech=speech_detected,
+            )
+            return ("", audio_bytes, speech_detected) if return_audio else ""
+        if gate is True:
+            text_require_wake = False
 
         # If VAD is unavailable or failed, optionally try Rust trim to detect speech.
         if speech_detected is None and not self._vad and jarvis_audio is not None:
-            audio_bytes, rust_speech = self._trim_with_rust(audio_bytes, force=True)
+            trim_result = self._trim_with_rust(audio_bytes, force=True)
+            if (
+                not isinstance(trim_result, tuple)
+                or len(trim_result) != 2
+            ):
+                self._debug("rust trim returned invalid result")
+                trim_result = (audio_bytes, None)
+            audio_bytes, rust_speech = trim_result
             if rust_speech is False:
                 self._log_metrics(
                     "with_vad",
@@ -783,6 +1234,7 @@ class SpeechToText:
                 on_partial=on_partial,
             )
             transcribe_ms = (time.perf_counter() - start_transcribe) * 1000.0
+            self._last_metrics["stt_ms"] = float(transcribe_ms)
             self._log_metrics(
                 "with_vad",
                 record_ms=int(record_ms),
@@ -796,7 +1248,10 @@ class SpeechToText:
                 )
                 return ("", audio_bytes, rust_speech) if return_audio else ""
             if return_audio:
-                text, final_bytes = result  # type: ignore[misc]
+                if isinstance(result, tuple):
+                    text, final_bytes = result  # type: ignore[misc]
+                else:
+                    text, final_bytes = str(result or ""), audio_bytes
                 return text, final_bytes, rust_speech
             return result  # type: ignore[return-value]
 
@@ -810,6 +1265,7 @@ class SpeechToText:
             on_partial=on_partial,
         )
         transcribe_ms = (time.perf_counter() - start_transcribe) * 1000.0
+        self._last_metrics["stt_ms"] = float(transcribe_ms)
         self._log_metrics(
             "with_vad",
             record_ms=int(record_ms),
@@ -823,18 +1279,18 @@ class SpeechToText:
             )
             return ("", audio_bytes, speech_detected) if return_audio else ""
         if return_audio:
-            text, final_bytes = result  # type: ignore[misc]
+            if isinstance(result, tuple):
+                text, final_bytes = result  # type: ignore[misc]
+            else:
+                text, final_bytes = str(result or ""), audio_bytes
             return text, final_bytes, speech_detected
         return result  # type: ignore[return-value]
 
     def _record_until_silence(self, max_seconds: int) -> tuple[bytes, bool | None]:
+        self._last_vad_metrics = {}
         device, capture_sr, device_name = self._resolve_capture_config()
-        use_streaming = (
-            self._streaming_vad is not None
-            and capture_sr == SAMPLE_RATE
-            and device is None
-        )
-        if not use_streaming:
+        streaming_vad = self._get_streaming_vad_for_capture(capture_sr, device)
+        if streaming_vad is None:
             audio_bytes, speech_detected = self._record_fixed_duration_compat(
                 max_seconds,
                 capture_sr=capture_sr,
@@ -849,21 +1305,31 @@ class SpeechToText:
 
         try:
             try:
-                result = self._streaming_vad.record_until_silence(
+                result = streaming_vad.record_until_silence(
                     max_seconds=max_seconds,
                     return_speech_flag=True,
                     empty_if_no_speech=True,
                 )
             except TypeError:
-                result = self._streaming_vad.record_until_silence(
+                result = streaming_vad.record_until_silence(
                     max_seconds=max_seconds
                 )
             audio_bytes, speech_detected = self._split_record_result(result)
             audio_bytes = self._cap_audio_bytes(audio_bytes)
+            audio_bytes = self._resample_pcm_bytes(
+                audio_bytes, capture_sr, SAMPLE_RATE
+            )
             audio_bytes, speech_detected = self._maybe_apply_silero_deactivity(
                 audio_bytes, speech_detected
             )
-            self._debug_capture(device, device_name, capture_sr, SAMPLE_RATE, False)
+            if hasattr(streaming_vad, "get_last_metrics"):
+                try:
+                    self._last_vad_metrics = streaming_vad.get_last_metrics()
+                except Exception as exc:
+                    self._debug(f"vad metrics failed: {exc}")
+            self._debug_capture(
+                device, device_name, capture_sr, SAMPLE_RATE, capture_sr != SAMPLE_RATE
+            )
             return audio_bytes, speech_detected
         except Exception as exc:
             self._debug(f"record_until_silence failed: {exc}")
@@ -899,14 +1365,14 @@ class SpeechToText:
         Uses VAD if available to stop when speech ends.
         """
         device, capture_sr, device_name = self._resolve_capture_config()
-        use_streaming = (
-            self._streaming_vad is not None
-            and capture_sr == SAMPLE_RATE
-            and device is None
+        streaming_vad = (
+            self._get_streaming_vad_for_capture(capture_sr, device)
+            if device is None
+            else None
         )
-        if use_streaming:
+        if streaming_vad is not None:
             try:
-                result = self._streaming_vad.record_until_silence(max_seconds=seconds)
+                result = streaming_vad.record_until_silence(max_seconds=seconds)
                 audio = result
                 if (
                     isinstance(result, tuple)
@@ -932,8 +1398,13 @@ class SpeechToText:
                     self._debug(f"audio coerce failed: {exc}")
                     audio_bytes = b""
                 audio_bytes = self._cap_audio_bytes(audio_bytes)
+                audio_bytes = self._resample_pcm_bytes(
+                    audio_bytes, capture_sr, SAMPLE_RATE
+                )
 
-                self._debug_capture(device, device_name, capture_sr, SAMPLE_RATE, False)
+                self._debug_capture(
+                    device, device_name, capture_sr, SAMPLE_RATE, capture_sr != SAMPLE_RATE
+                )
                 min_bytes = int(
                     self._min_audio_seconds * SAMPLE_RATE * BYTES_PER_SAMPLE
                 )
@@ -991,21 +1462,31 @@ class SpeechToText:
         device: int | None = None,
         device_name: str | None = None,
     ) -> tuple[bytes, bool]:
+        self._last_vad_metrics = {}
         if capture_sr is None or device_name is None:
             device, capture_sr, device_name = self._resolve_capture_config()
 
-        use_streaming = (
-            self._streaming_vad is not None
-            and capture_sr == SAMPLE_RATE
-            and device is None
-        )
-        if use_streaming and hasattr(self._streaming_vad, "record_fixed_duration"):
+        streaming_vad = self._get_streaming_vad_for_capture(capture_sr, device)
+        if (
+            streaming_vad is not None
+            and hasattr(streaming_vad, "record_fixed_duration")
+        ):
             try:
                 audio_bytes, speech_detected = (
-                    self._streaming_vad.record_fixed_duration(seconds)
+                    streaming_vad.record_fixed_duration(seconds)
                 )
-                self._debug_capture(device, device_name, capture_sr, SAMPLE_RATE, False)
-                return coerce_pcm_bytes(audio_bytes), bool(speech_detected)
+                audio_bytes = self._resample_pcm_bytes(
+                    coerce_pcm_bytes(audio_bytes), capture_sr, SAMPLE_RATE
+                )
+                if hasattr(streaming_vad, "get_last_metrics"):
+                    try:
+                        self._last_vad_metrics = streaming_vad.get_last_metrics()
+                    except Exception as exc:
+                        self._debug(f"vad metrics failed: {exc}")
+                self._debug_capture(
+                    device, device_name, capture_sr, SAMPLE_RATE, capture_sr != SAMPLE_RATE
+                )
+                return audio_bytes, bool(speech_detected)
             except Exception as exc:
                 self._debug(f"record_fixed_duration failed: {exc}")
 
@@ -1049,8 +1530,78 @@ class SpeechToText:
             SAMPLE_RATE,
             samplerate != SAMPLE_RATE,
         )
+        vad_start = time.perf_counter()
         speech_detected = self.check_speech_present(audio_bytes)
+        vad_ms = (time.perf_counter() - vad_start) * 1000.0
+        self._last_vad_metrics = {
+            "vad_ms": float(vad_ms),
+            "endpoint_ms": None,
+        }
         return audio_bytes, speech_detected
+
+    def _get_streaming_vad_for_capture(
+        self, capture_sr: int, device: int | None
+    ) -> Any | None:
+        if not self._webrtc_vad_enabled:
+            return None
+        if self._streaming_vad is None:
+            return None
+        if device is not None and device != self._audio_device:
+            return None
+        if capture_sr == SAMPLE_RATE:
+            return self._streaming_vad
+        if np is None or resample_poly is None:
+            return None
+        supported_rates = getattr(
+            VoiceActivityDetector, "SUPPORTED_RATES", (8000, 16000, 32000, 48000)
+        )
+        if capture_sr not in supported_rates:
+            return None
+        try:
+            vad_aggr = (
+                resolve_vad_aggressiveness(2)
+                if callable(resolve_vad_aggressiveness)
+                else 2
+            )
+            return StreamingVAD(
+                aggressiveness=vad_aggr,
+                sample_rate=capture_sr,
+                silence_duration_ms=self._vad_silence_ms,
+                max_duration_s=self._vad_max_seconds,
+                pre_roll_ms=self._vad_pre_roll_ms,
+                post_roll_ms=self._vad_post_roll_ms,
+                device=device,
+            )
+        except Exception as exc:
+            self._debug(f"streaming vad (sr={capture_sr}) init failed: {exc}")
+            return None
+
+    def _resample_pcm_bytes(
+        self,
+        audio_bytes: bytes,
+        capture_sr: int,
+        target_sr: int,
+    ) -> bytes:
+        if capture_sr == target_sr:
+            return audio_bytes
+        if np is None or resample_poly is None:
+            self._debug("resample required but scipy/numpy missing")
+            return b""
+        if not audio_bytes:
+            return audio_bytes
+        try:
+            samples = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32)
+            if samples.size:
+                samples /= 32768.0
+            resampled = resample_audio_float(samples, capture_sr, target_sr).astype(
+                np.float32
+            )
+            resampled = np.clip(resampled, -1.0, 1.0)
+            int16_data = (resampled * 32767.0).astype(np.int16)
+            return int16_data.tobytes()
+        except Exception as exc:
+            self._debug(f"resample bytes failed: {exc}")
+            return b""
 
     def _transcribe_audio_bytes(
         self,
@@ -1074,7 +1625,14 @@ class SpeechToText:
 
         rust_speech: bool | None = None
         if not skip_rust_trim:
-            pcm_bytes, rust_speech = self._trim_with_rust(pcm_bytes, force=False)
+            trim_result = self._trim_with_rust(pcm_bytes, force=False)
+            if (
+                not isinstance(trim_result, tuple)
+                or len(trim_result) != 2
+            ):
+                self._debug("rust trim returned invalid result")
+                trim_result = (pcm_bytes, None)
+            pcm_bytes, rust_speech = trim_result
             if rust_speech is False:
                 return ("", b"") if return_audio else ""
             if rust_speech is True:
@@ -1103,7 +1661,35 @@ class SpeechToText:
             self._debug(f"transcribe failed: {exc}")
             return ("", pcm_bytes) if return_audio else ""
 
+        if not text and self._language and _env_bool("JARVIS_STT_RETRY_AUTO_LANGUAGE", True):
+            saved_language = self._language
+            self._language = None
+            try:
+                text = self._transcribe_local(pcm_bytes)
+                if text:
+                    self._debug("retry auto-language produced text")
+            except Exception as exc:
+                self._debug(f"retry auto-language failed: {exc}")
+            finally:
+                self._language = saved_language
+
+        if self._debug_enabled:
+            self._debug(f"transcribed_text_raw={text!r}")
+
         text = text.strip()
+        if not text and self._fallback_model_size and _env_bool(
+            "JARVIS_STT_RETRY_FALLBACK_MODEL", True
+        ):
+            fallback_model = self._get_fallback_model(self._fallback_model_size)
+            if fallback_model is not None:
+                try:
+                    text = self._transcribe_with_model(pcm_bytes, fallback_model)
+                    if text:
+                        self._debug(
+                            f"fallback model '{self._fallback_model_size}' produced text"
+                        )
+                except Exception as exc:
+                    self._debug(f"fallback model failed: {exc}")
         if not text:
             return ("", pcm_bytes) if return_audio else ""
 
@@ -1145,6 +1731,37 @@ class SpeechToText:
         except Exception as exc:
             self._debug(f"rust trim failed: {exc}")
             return audio_bytes, None
+
+    def _trim_with_vad_python(self, audio_bytes: bytes) -> tuple[bytes, bool]:
+        if self._vad is None:
+            return audio_bytes, False
+        if not audio_bytes:
+            return audio_bytes, False
+        try:
+            frames = list(self._vad.frames_from_audio(audio_bytes))
+        except Exception as exc:
+            self._debug(f"vad trim failed: {exc}")
+            return audio_bytes, False
+        if not frames:
+            return audio_bytes, False
+        speech_indices: list[int] = []
+        for idx, frame in enumerate(frames):
+            try:
+                if self._vad.is_speech(frame):
+                    speech_indices.append(idx)
+            except Exception as exc:
+                self._debug(f"vad is_speech failed: {exc}")
+                return audio_bytes, False
+        if not speech_indices:
+            return audio_bytes, False
+
+        frame_ms = getattr(self._vad, "frame_duration_ms", 30)
+        pre_frames = int(self._vad_pre_roll_ms / max(1, frame_ms))
+        post_frames = int(self._vad_post_roll_ms / max(1, frame_ms))
+        start_idx = max(0, speech_indices[0] - pre_frames)
+        end_idx = min(len(frames), speech_indices[-1] + post_frames + 1)
+        trimmed = b"".join(frames[start_idx:end_idx])
+        return trimmed or audio_bytes, True
 
     def _transcribe_local(
         self,
@@ -1228,6 +1845,16 @@ class SpeechToText:
 
         Uses VAD if available, otherwise optional Rust check.
         """
+        # Escape hatch: se quiser forçar o fluxo a seguir mesmo quando o VAD não detecta
+        # voz (ex.: ambiente ruidoso ou VAD “surdinho”), basta setar JARVIS_FORCE_SPEECH_OK=1.
+        if os.environ.get("JARVIS_FORCE_SPEECH_OK", "").strip() in {
+            "1",
+            "true",
+            "on",
+            "yes",
+        }:
+            return True
+
         try:
             pcm_bytes = coerce_pcm_bytes(audio_bytes)
         except Exception:
@@ -1236,9 +1863,7 @@ class SpeechToText:
             return False
 
         if self._vad is None:
-            if jarvis_audio is not None and hasattr(
-                jarvis_audio, "check_speech_present"
-            ):
+            if jarvis_audio is not None and hasattr(jarvis_audio, "check_speech_present"):
                 try:
                     return bool(
                         jarvis_audio.check_speech_present(pcm_bytes, SAMPLE_RATE, 20)
@@ -1263,12 +1888,26 @@ class SpeechToText:
 def check_stt_deps() -> dict:
     """Check STT dependencies."""
     sd_module = _ensure_sounddevice()
+    try:
+        import pyaudio  # type: ignore
+
+        pyaudio_available = True
+    except Exception:
+        pyaudio_available = False
+    try:
+        from ..voz.adapters import stt_realtimestt
+
+        realtimestt_available = stt_realtimestt.is_available()
+    except Exception:
+        realtimestt_available = False
     return {
         "sounddevice": sd_module is not None,
         "numpy": np is not None,
         "scipy": resample_poly is not None,
         "faster_whisper": WhisperModel is not None,
         "webrtcvad": check_vad_available() if callable(check_vad_available) else False,
+        "pyaudio": pyaudio_available,
+        "realtimestt": realtimestt_available,
     }
 
 

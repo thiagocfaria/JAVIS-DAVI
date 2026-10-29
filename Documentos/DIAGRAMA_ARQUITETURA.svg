@@ -255,7 +255,7 @@
   <text x="198" y="582" class="tiny">pvporcupine/openwakeword (wake word audio)</text>
   <text x="198" y="592" class="tiny">py-spy + psutil + nvidia-smi (perf)</text>
 
-  <rect x="190" y="602" width="345" height="270" class="box-input card"/>
+  <rect x="190" y="602" width="345" height="300" class="box-input card"/>
   <text x="198" y="616" class="tiny-strong">Testes da interface (entrada/saida)</text>
   <text x="198" y="632" class="tiny">test_preflight_* - headless/perfis/probe/atalho</text>
   <text x="198" y="643" class="tiny">test_audio_utils.py - PCM/bytes</text>
@@ -279,12 +279,13 @@
   <text x="198" y="841" class="tiny">test_voice_max_seconds_env.py - max_seconds</text>
   <text x="198" y="852" class="tiny">test_tts_interface.py - TTS piper/espeak</text>
   <text x="198" y="863" class="tiny">test_bench_interface.py + scripts/bench_interface.py - lat/CPU/RAM</text>
-  <text x="198" y="863" class="tiny">pytest -q testes/ (suite completa)</text>
-  <rect x="190" y="876" width="345" height="80" class="box-input card"/>
-  <text x="198" y="890" class="tiny-strong">Performance atual (bench 2026-01-10)</text>
-  <text x="198" y="904" class="tiny">Lat (30s): STT 13.6s | Spk 0.64s | VAD 4.6ms | TTS 2.4ms</text>
-  <text x="198" y="918" class="tiny">RSS: STT 1.25GB | VAD 0.61GB | Spk 0.76GB | TTS 0.10GB</text>
-  <text x="198" y="932" class="tiny">Disk 50-200MB (+log 1-10MB) | ver EVOLUCAO_PERFOMACE.MD</text>
+  <text x="198" y="874" class="tiny">scripts/auto_voice_bench.py - voz real (silencio + ruido)</text>
+  <text x="198" y="885" class="tiny">pytest -q testes/ (suite completa)</text>
+  <rect x="190" y="910" width="345" height="80" class="box-input card"/>
+  <text x="198" y="924" class="tiny-strong">Performance atual (bench 2026-01-12)</text>
+  <text x="198" y="938" class="tiny">Lat (voz 4s): STT 5.7-8.6s | VAD ~1ms</text>
+  <text x="198" y="952" class="tiny">RSS: ver EVOLUCAO_PERFOMACE.MD</text>
+  <text x="198" y="966" class="tiny">Disk 50-200MB (+log 1-10MB)</text>
   <!-- setas internas da interface -->
   <line x1="272" y1="212" x2="272" y2="216" class="arrow-interface"/>
   <line x1="272" y1="244" x2="272" y2="248" class="arrow-interface"/>
