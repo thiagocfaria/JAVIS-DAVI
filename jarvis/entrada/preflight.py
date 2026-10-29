@@ -11,11 +11,9 @@ from ..acoes.web import check_playwright_deps
 from ..aprendizado.recorder import check_recorder_deps
 from ..cerebro.config import Config
 from ..entrada.shortcut import check_shortcut_deps
-from ..entrada import stt as stt_module
 from ..entrada.stt import check_stt_deps
 from ..validacao.validator import check_validator_deps
-from ..voz.adapters import vad_silero, wakeword_openwakeword, wakeword_porcupine
-from ..voz.tts import TextToSpeech, check_tts_deps
+from ..voz.tts import check_tts_deps
 
 
 @dataclass(frozen=True)
@@ -43,8 +41,7 @@ class PreflightReport:
         }
 
 
-def run_preflight(config: Config, profile: str | None = None) -> PreflightReport:
-    profiles = _resolve_profiles(profile)
+def run_preflight(config: Config) -> PreflightReport:
     checks: list[CheckResult] = []
 
     # Python version
@@ -77,39 +74,29 @@ def run_preflight(config: Config, profile: str | None = None) -> PreflightReport
     # LLM (local only)
     checks.append(_check_local_llm(config))
 
-    if "voice" in profiles:
-        # STT deps
-        checks.append(_check_stt(config))
+    # STT deps
+    checks.append(_check_stt(config))
 
-        wake_check = _check_wake_word_audio()
-        if wake_check is not None:
-            checks.append(wake_check)
-        silero_check = _check_silero_deactivity()
-        if silero_check is not None:
-            checks.append(silero_check)
+    # TTS deps
+    checks.append(_check_tts(config))
 
-        # TTS deps
-        checks.append(_check_tts(config))
+    # Desktop automation drivers
+    checks.append(_check_desktop_drivers(config))
 
-    if "desktop" in profiles:
-        # Desktop automation drivers
-        checks.append(_check_desktop_drivers(config))
+    # Web automation
+    checks.append(_check_web_automation())
 
-        # Web automation
-        checks.append(_check_web_automation())
+    # OCR / validator
+    checks.append(_check_validator())
 
-        # OCR / validator
-        checks.append(_check_validator())
+    # Recorder deps (optional)
+    checks.append(_check_recorder())
 
-        # Recorder deps (optional)
-        checks.append(_check_recorder())
+    # Chat UI (optional)
+    checks.append(_check_chat_ui())
 
-    if "ui" in profiles:
-        # Chat UI (optional)
-        checks.append(_check_chat_ui())
-
-        # Chat shortcut (optional)
-        checks.append(_check_chat_shortcut())
+    # Chat shortcut (optional)
+    checks.append(_check_chat_shortcut())
 
     return PreflightReport(checks=checks)
 
@@ -125,105 +112,6 @@ def format_report(report: PreflightReport) -> str:
         f"Resumo: {counts['ok']} OK, {counts['warn']} aviso(s), {counts['fail']} falha(s)"
     )
     return "\n".join(lines)
-
-
-def _resolve_profiles(profile: str | None = None) -> set[str]:
-    raw = profile
-    if raw is None:
-        raw = os.environ.get("JARVIS_PREFLIGHT_PROFILE", "")
-    raw = str(raw or "").strip().lower()
-
-    valid = {"voice", "ui", "desktop"}
-    if not raw or raw in {"full", "all", "default"}:
-        return set(valid)
-
-    parts: list[str] = []
-    for chunk in raw.split(","):
-        parts.extend(piece for piece in chunk.split() if piece)
-
-    selected = {part for part in parts if part in valid}
-    return selected or set(valid)
-
-
-def _env_bool(key: str, default: bool = False) -> bool:
-    value = os.environ.get(key)
-    if value is None or value == "":
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _env_float(key: str, default: float) -> float:
-    value = os.environ.get(key)
-    if value is None or value == "":
-        return default
-    try:
-        return float(value)
-    except ValueError:
-        return default
-
-
-def _env_int_optional(key: str) -> int | None:
-    value = os.environ.get(key)
-    if value is None or value == "":
-        return None
-    try:
-        return int(value)
-    except ValueError:
-        return None
-
-
-def _probe_stt_capture(seconds: float) -> tuple[bool, str, int | None]:
-    sd = stt_module.sd
-    if sd is None:
-        return False, "indisponivel", None
-    device = _env_int_optional("JARVIS_AUDIO_DEVICE")
-    capture_sr = _env_int_optional("JARVIS_AUDIO_CAPTURE_SR")
-    device_label = "default"
-    device_name = ""
-    if capture_sr is None:
-        try:
-            info = sd.query_devices(device, "input")
-            default_sr = info.get("default_samplerate")
-            capture_sr = int(default_sr) if default_sr else stt_module.SAMPLE_RATE
-            device_name = str(info.get("name") or "").strip()
-        except Exception:
-            capture_sr = stt_module.SAMPLE_RATE
-    else:
-        try:
-            info = sd.query_devices(device, "input")
-            device_name = str(info.get("name") or "").strip()
-        except Exception:
-            device_name = ""
-
-    if device is not None:
-        device_label = f"{device} ({device_name})" if device_name else str(device)
-    else:
-        device_label = f"default ({device_name})" if device_name else "default"
-    samplerate = int(capture_sr)
-    try:
-        frames = max(1, int(seconds * samplerate))
-        audio = sd.rec(
-            frames,
-            samplerate=samplerate,
-            channels=1,
-            dtype="float32",
-            device=device,
-        )
-        sd.wait()
-        size = int(getattr(audio, "size", 0))
-        if size == 0 and hasattr(audio, "__len__"):
-            size = len(audio)
-        return size > 0, device_label, samplerate
-    except Exception:
-        return False, device_label, samplerate
-
-
-def _probe_tts_play(config: Config) -> bool:
-    try:
-        TextToSpeech(config).speak("teste de audio")
-        return True
-    except Exception:
-        return False
 
 
 def _check_data_dir(data_dir: Path) -> CheckResult:
@@ -278,9 +166,6 @@ def _check_stt(config: Config) -> CheckResult:
 
     has_audio = deps.get("sounddevice") and deps.get("numpy")
     has_local = has_audio and deps.get("faster_whisper")
-    has_resample = bool(deps.get("scipy"))
-    probe_enabled = _env_bool("JARVIS_PREFLIGHT_PROBE", False)
-    probe_seconds = max(0.05, _env_float("JARVIS_PREFLIGHT_PROBE_SECONDS", 0.2))
 
     if mode == "none":
         return CheckResult(
@@ -306,135 +191,24 @@ def _check_stt(config: Config) -> CheckResult:
                 detail="local sem faster-whisper",
                 hint="pip install faster-whisper",
             )
-        if not has_resample:
-            result = CheckResult(
-                name="STT",
-                status="WARN",
-                detail="scipy ausente; reamostragem pode falhar em devices != 16 kHz",
-                hint="pip install scipy",
-            )
-        else:
-            result = CheckResult(name="STT", status="OK", detail="local ativo")
-    elif mode == "auto":
+        return CheckResult(name="STT", status="OK", detail="local ativo")
+
+    if mode == "auto":
         if has_local:
-            if not has_resample:
-                result = CheckResult(
-                    name="STT",
-                    status="WARN",
-                    detail="scipy ausente; reamostragem pode falhar em devices != 16 kHz",
-                    hint="pip install scipy",
-                )
-            else:
-                result = CheckResult(name="STT", status="OK", detail="auto (local)")
-        else:
-            result = CheckResult(
-                name="STT",
-                status="FAIL",
-                detail="auto sem local",
-                hint="Instale faster-whisper.",
-            )
-    else:
-        result = CheckResult(
-            name="STT", status="WARN", detail=f"modo desconhecido: {mode}"
-        )
-
-    if not probe_enabled or result.status == "FAIL":
-        return result
-
-    probe_ok, device_label, capture_sr = _probe_stt_capture(probe_seconds)
-    sr_label = f"{capture_sr}Hz" if capture_sr else "desconhecido"
-    probe_detail = f"device={device_label}, sr={sr_label}"
-
-    if not probe_ok:
-        detail = f"{result.detail}; captura falhou no preflight ({probe_detail})"
-        hint = result.hint or "Verifique microfone/dispositivo ou desative JARVIS_PREFLIGHT_PROBE."
-        return CheckResult(name="STT", status="WARN", detail=detail, hint=hint)
-
-    if result.status == "OK":
+            return CheckResult(name="STT", status="OK", detail="auto (local)")
         return CheckResult(
             name="STT",
-            status="OK",
-            detail=f"{result.detail} (captura ok; {probe_detail})",
+            status="FAIL",
+            detail="auto sem local",
+            hint="Instale faster-whisper.",
         )
 
-    return CheckResult(
-        name="STT",
-        status=result.status,
-        detail=f"{result.detail} (captura ok; {probe_detail})",
-        hint=result.hint,
-    )
-
-
-def _check_wake_word_audio() -> CheckResult | None:
-    if not _env_bool("JARVIS_WAKE_WORD_AUDIO", False):
-        return None
-    backend = os.environ.get("JARVIS_WAKE_WORD_AUDIO_BACKEND", "pvporcupine").strip().lower()
-    if backend in {"oww", "openwakeword", "openwakewords"}:
-        if not wakeword_openwakeword.is_available():
-            return CheckResult(
-                name="Wake word (audio)",
-                status="WARN",
-                detail="wake word por audio ativo, mas openwakeword ausente",
-                hint="pip install openwakeword e configure JARVIS_OPENWAKEWORD_MODEL_PATHS",
-            )
-        model_paths = os.environ.get("JARVIS_OPENWAKEWORD_MODEL_PATHS", "").strip()
-        auto_download = _env_bool("JARVIS_OPENWAKEWORD_AUTO_DOWNLOAD", False)
-        if not model_paths and not auto_download:
-            return CheckResult(
-                name="Wake word (audio)",
-                status="WARN",
-                detail="openwakeword disponivel, mas sem modelos configurados",
-                hint="Defina JARVIS_OPENWAKEWORD_MODEL_PATHS ou JARVIS_OPENWAKEWORD_AUTO_DOWNLOAD=1",
-            )
-        return CheckResult(
-            name="Wake word (audio)",
-            status="OK",
-            detail="openwakeword disponivel",
-        )
-
-    if not wakeword_porcupine.is_available():
-        return CheckResult(
-            name="Wake word (audio)",
-            status="WARN",
-            detail="wake word por audio ativo, mas pvporcupine ausente",
-            hint="pip install pvporcupine e configure JARVIS_PORCUPINE_ACCESS_KEY",
-        )
-    return CheckResult(
-        name="Wake word (audio)",
-        status="OK",
-        detail="pvporcupine disponivel",
-    )
-
-
-def _check_silero_deactivity() -> CheckResult | None:
-    if not _env_bool("JARVIS_SILERO_DEACTIVITY", False):
-        return None
-    if not vad_silero.is_available():
-        return CheckResult(
-            name="Silero deactivity",
-            status="WARN",
-            detail="silero deactivity ativo, mas torch/numpy ausentes",
-            hint="Instale torch e numpy, ou desative JARVIS_SILERO_DEACTIVITY.",
-        )
-    auto_download = _env_bool("JARVIS_SILERO_AUTO_DOWNLOAD", False)
-    if not auto_download and not vad_silero.has_cached_model():
-        return CheckResult(
-            name="Silero deactivity",
-            status="WARN",
-            detail="silero ativo, mas modelo nao encontrado no cache",
-            hint="Defina JARVIS_SILERO_AUTO_DOWNLOAD=1 para baixar o modelo.",
-        )
-    return CheckResult(
-        name="Silero deactivity",
-        status="OK",
-        detail="silero disponivel",
-    )
+    return CheckResult(name="STT", status="WARN", detail=f"modo desconhecido: {mode}")
 
 
 def _check_tts(config: Config) -> CheckResult:
     deps = check_tts_deps()
     mode = config.tts_mode
-    probe_enabled = _env_bool("JARVIS_PREFLIGHT_PROBE", False)
 
     if mode == "none":
         return CheckResult(
@@ -444,9 +218,7 @@ def _check_tts(config: Config) -> CheckResult:
             hint="Defina JARVIS_TTS_MODE=local para voz.",
         )
 
-    has_piper = bool(deps.get("piper"))
-    has_espeak = bool(deps.get("espeak-ng"))
-    has_engine = has_piper or has_espeak
+    has_engine = deps.get("piper") or deps.get("espeak-ng")
     if not has_engine:
         return CheckResult(
             name="TTS",
@@ -455,43 +227,7 @@ def _check_tts(config: Config) -> CheckResult:
             hint="Instale piper ou espeak-ng.",
         )
 
-    result: CheckResult
-    if has_piper:
-        try:
-            piper_ok = TextToSpeech(config)._find_piper_model() is not None
-        except Exception:
-            piper_ok = False
-        if not piper_ok:
-            detail = "piper instalado, mas sem modelo local"
-            if has_espeak:
-                detail += " (espeak disponivel)"
-            result = CheckResult(
-                name="TTS",
-                status="WARN",
-                detail=detail,
-                hint="Baixe um modelo Piper ou use espeak-ng.",
-            )
-        else:
-            result = CheckResult(name="TTS", status="OK", detail="engine local disponivel")
-    else:
-        result = CheckResult(name="TTS", status="OK", detail="engine local disponivel")
-
-    if not probe_enabled or not has_engine:
-        return result
-
-    if not _probe_tts_play(config):
-        detail = f"{result.detail}; falha ao tocar audio no preflight"
-        hint = result.hint or "Verifique TTS/alsa ou desative JARVIS_PREFLIGHT_PROBE."
-        return CheckResult(name="TTS", status="WARN", detail=detail, hint=hint)
-
-    if result.status == "OK":
-        return CheckResult(
-            name="TTS",
-            status="OK",
-            detail=f"{result.detail} (audio ok)",
-        )
-
-    return result
+    return CheckResult(name="TTS", status="OK", detail="engine local disponivel")
 
 
 def _check_desktop_drivers(config: Config) -> CheckResult:
@@ -547,19 +283,11 @@ def _is_headless_env(tools: dict) -> bool:
         return True
 
     session_type = str(tools.get("session_type") or "").strip().lower()
-    if session_type in {"", "unknown"}:
-        env_session = os.environ.get("XDG_SESSION_TYPE", "").strip().lower()
-        if env_session:
-            session_type = env_session
     if session_type in {"tty", "headless"}:
         return True
 
     has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-    if os.environ.get("CI") and not has_display:
-        return True
     if not has_display and session_type in {"", "unknown"}:
-        return True
-    if session_type in {"x11", "wayland"} and not has_display:
         return True
 
     return False
@@ -644,18 +372,7 @@ def _check_chat_ui() -> CheckResult:
 def _check_chat_shortcut() -> CheckResult:
     """Check if dependencies for global keyboard shortcut are available."""
     deps = check_shortcut_deps()
-    file_trigger = bool(deps.get("file_trigger"))
     if not deps.get("pynput"):
-        if file_trigger:
-            return CheckResult(
-                name="Atalho chat",
-                status="OK",
-                detail="atalho via arquivo configurado (pynput ausente)",
-                hint=(
-                    "Configure um atalho do sistema para executar: "
-                    "touch $JARVIS_CHAT_SHORTCUT_FILE"
-                ),
-            )
         return CheckResult(
             name="Atalho chat",
             status="WARN",
@@ -664,16 +381,6 @@ def _check_chat_shortcut() -> CheckResult:
         )
     # Wayland costuma bloquear captura global de teclado; XWayland (DISPLAY) às vezes funciona.
     if deps.get("wayland") and not deps.get("x11"):
-        if file_trigger:
-            return CheckResult(
-                name="Atalho chat",
-                status="OK",
-                detail="Wayland detectado; usando atalho via arquivo",
-                hint=(
-                    "Configure um atalho do sistema para executar: "
-                    "touch $JARVIS_CHAT_SHORTCUT_FILE"
-                ),
-            )
         return CheckResult(
             name="Atalho chat",
             status="WARN",

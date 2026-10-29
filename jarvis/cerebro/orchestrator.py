@@ -44,17 +44,6 @@ from .config import Config
 from .llm import BudgetedLLMClient, LLMClient, _safe_json_loads, build_local_llm_client
 from .orcamento import OrcamentoDiario
 
-# Config helpers (keep local to orchestrator).
-def _env_int_clamped(key: str, default: int, min_value: int, max_value: int) -> int:
-    raw = os.environ.get(key)
-    if raw is None or raw == "":
-        return default
-    try:
-        value = int(raw)
-    except ValueError:
-        return default
-    return max(min_value, min(value, max_value))
-
 # Try to import new automation module
 try:
     from ..acoes import AutomationRouter
@@ -886,9 +875,8 @@ class Orchestrator:
             require_wake = self._followup.should_require_wake_word(
                 self.stt.requires_wake_word()
             )
-            voice_seconds = _env_int_clamped("JARVIS_VOICE_MAX_SECONDS", 30, 3, 120)
             result = self.stt.transcribe_with_vad(
-                max_seconds=voice_seconds,
+                max_seconds=5,
                 return_audio=True,
                 require_wake_word=require_wake,
             )
@@ -1335,16 +1323,10 @@ class Orchestrator:
             if not verifier.is_available():
                 self._say("Verificacao de locutor indisponivel. Instale resemblyzer.")
                 return True
-            self._say(
-                "Certo. Vou gravar sua voz por alguns segundos. "
-                "Quando terminar, vou pedir confirmacao."
-            )
+            self._say("Certo. Fale normalmente para cadastrar sua voz.")
             try:
-                enroll_seconds = _env_int_clamped(
-                    "JARVIS_VOICE_ENROLL_MAX_SECONDS", 12, 5, 60
-                )
                 result = self.stt.transcribe_with_vad(
-                    max_seconds=enroll_seconds,
+                    max_seconds=10,
                     return_audio=True,
                     require_wake_word=False,
                 )
@@ -1361,11 +1343,6 @@ class Orchestrator:
                 return True
             if len(audio_bytes) < (SAMPLE_RATE * BYTES_PER_SAMPLE):
                 self._say("Fale por mais tempo para cadastrar sua voz.")
-                return True
-            confirm = self._prompt_user("Confirmar cadastro de voz? (sim/nao)")
-            confirm_text = normalize_text(confirm)
-            if not confirm_text.startswith("s") and confirm_text != "ok":
-                self._say("Cadastro cancelado.")
                 return True
             embedding = verifier.enroll(audio_bytes, SAMPLE_RATE)
             if embedding:
