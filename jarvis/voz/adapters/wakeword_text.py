@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from jarvis.entrada.stt import apply_wake_word_filter
 
-from .base import SampleRate, WakeWordDetector
+from .base import WakeWordDetector
 
 
 class TextWakeWordDetector(WakeWordDetector):
@@ -12,7 +12,7 @@ class TextWakeWordDetector(WakeWordDetector):
     This keeps the same interface as audio detectors, but does not detect on audio.
     """
 
-    def detect(self, audio_i16: bytes, sample_rate: SampleRate) -> bool:
+    def detect(self, audio_i16: bytes, sample_rate: int) -> bool:
         return False
 
     def filter_text(

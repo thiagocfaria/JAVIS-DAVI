@@ -6,11 +6,8 @@ Uses Resemblyzer to create a voiceprint and compare via cosine similarity.
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import json
 import os
-from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -20,16 +17,6 @@ try:
 except Exception:
     np = None
     VoiceEncoder = None
-
-try:
-    from scipy.signal import resample_poly  # type: ignore
-except Exception:
-    resample_poly = None
-
-try:
-    from cryptography.fernet import Fernet  # type: ignore
-except Exception:
-    Fernet = None
 
 
 def _env_bool(key: str, default: bool) -> bool:
@@ -77,50 +64,7 @@ def _voiceprint_path() -> Path:
     return _config_dir() / "voiceprint.json"
 
 
-def _voiceprint_passphrase() -> str:
-    return os.environ.get("JARVIS_SPK_VOICEPRINT_PASSPHRASE", "").strip()
-
-
-def _build_fernet(passphrase: str):
-    if not passphrase or Fernet is None:
-        return None
-    key = hashlib.sha256(passphrase.encode("utf-8")).digest()
-    return Fernet(base64.urlsafe_b64encode(key))
-
-
-def _encrypt_payload(payload: dict[str, object], passphrase: str) -> dict[str, object] | None:
-    fernet = _build_fernet(passphrase)
-    if fernet is None:
-        return None
-    try:
-        raw = json.dumps(payload, ensure_ascii=True).encode("utf-8")
-        token = fernet.encrypt(raw)
-        return {"encrypted": True, "ciphertext": token.decode("utf-8")}
-    except Exception as exc:
-        _debug(f"encrypt failed: {exc}")
-        return None
-
-
-def _decrypt_payload(data: dict[str, object], passphrase: str) -> dict[str, object] | None:
-    fernet = _build_fernet(passphrase)
-    if fernet is None:
-        return None
-    ciphertext = data.get("ciphertext")
-    if not isinstance(ciphertext, str) or not ciphertext:
-        return None
-    try:
-        raw = fernet.decrypt(ciphertext.encode("utf-8"))
-        parsed = json.loads(raw.decode("utf-8"))
-        return parsed if isinstance(parsed, dict) else None
-    except Exception as exc:
-        _debug(f"decrypt failed: {exc}")
-        return None
-
-
 _encoder: VoiceEncoder | None = None
-_voiceprint_cache: list[float] | None = None
-_voiceprint_mtime: float | None = None
-_TARGET_SAMPLE_RATE = 16000
 
 
 def _get_encoder() -> VoiceEncoder:
@@ -141,30 +85,6 @@ def _pcm16_to_float(audio_bytes: bytes) -> Any:
     return samples / 32768.0
 
 
-def _resample_float(audio: Any, source_sr: int, target_sr: int) -> Any:
-    if source_sr == target_sr:
-        return audio
-    if resample_poly is None or np is None:
-        _debug("resample unavailable; using original sample rate")
-        return audio
-    ratio = Fraction(target_sr, source_sr).limit_denominator(1000)
-    try:
-        resampled = resample_poly(audio, ratio.numerator, ratio.denominator)
-        return resampled.astype(np.float32, copy=False)
-    except Exception as exc:
-        _debug(f"resample failed: {exc}")
-        return audio
-
-
-def _prepare_audio(audio_bytes: bytes, sample_rate: int) -> Any:
-    wav = _pcm16_to_float(audio_bytes)
-    if getattr(wav, "size", 0) == 0:
-        return wav
-    if sample_rate != _TARGET_SAMPLE_RATE:
-        wav = _resample_float(wav, sample_rate, _TARGET_SAMPLE_RATE)
-    return wav
-
-
 def _cosine_similarity(a: Any, b: Any) -> float:
     if np is None:
         return 0.0
@@ -175,40 +95,18 @@ def _cosine_similarity(a: Any, b: Any) -> float:
 
 
 def _load_voiceprint() -> list[float] | None:
-    global _voiceprint_cache, _voiceprint_mtime
     path = _voiceprint_path()
     if not path.exists():
-        _voiceprint_cache = None
-        _voiceprint_mtime = None
         return None
-    mtime: float | None
-    try:
-        mtime = path.stat().st_mtime
-    except Exception:
-        mtime = None
-    if _voiceprint_cache is not None and _voiceprint_mtime == mtime:
-        return _voiceprint_cache
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return None
-    if isinstance(data, dict) and data.get("encrypted"):
-        passphrase = _voiceprint_passphrase()
-        if not passphrase:
-            _debug("voiceprint encrypted but passphrase missing")
-            return None
-        decrypted = _decrypt_payload(data, passphrase)
-        if not decrypted:
-            _debug("voiceprint decrypt failed")
-            return None
-        data = decrypted
     embedding = data.get("embedding") if isinstance(data, dict) else None
     if not isinstance(embedding, list) or not embedding:
         return None
     try:
-        _voiceprint_cache = [float(x) for x in embedding]
-        _voiceprint_mtime = mtime
-        return _voiceprint_cache
+        return [float(x) for x in embedding]
     except Exception:
         return None
 
@@ -221,32 +119,14 @@ def voiceprint_path() -> Path:
     return _voiceprint_path()
 
 
-def _save_voiceprint(embedding: list[float]) -> bool:
-    global _voiceprint_cache, _voiceprint_mtime
+def _save_voiceprint(embedding: list[float]) -> None:
     path = _voiceprint_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"embedding": embedding}
-    passphrase = _voiceprint_passphrase()
-    if passphrase:
-        encrypted = _encrypt_payload(payload, passphrase)
-        if encrypted is None:
-            _debug("voiceprint encryption unavailable; not saving")
-            return False
-        payload = encrypted
     path.write_text(json.dumps(payload, ensure_ascii=True), encoding="utf-8")
-    _voiceprint_cache = embedding
-    try:
-        _voiceprint_mtime = path.stat().st_mtime
-    except Exception:
-        _voiceprint_mtime = None
-    return True
 
 
-def load_voiceprint() -> list[float] | None:
-    return _load_voiceprint()
-
-
-def enroll_speaker(audio_bytes: bytes, sample_rate: int = _TARGET_SAMPLE_RATE) -> list[float] | None:
+def enroll_speaker(audio_bytes: bytes) -> list[float] | None:
     """
     Create and persist a voiceprint from audio bytes.
 
@@ -256,21 +136,20 @@ def enroll_speaker(audio_bytes: bytes, sample_rate: int = _TARGET_SAMPLE_RATE) -
         _debug("resemblyzer unavailable; enrollment skipped")
         return None
     try:
-        wav = _prepare_audio(audio_bytes, sample_rate)
+        wav = _pcm16_to_float(audio_bytes)
         if wav.size == 0:
             return None
         encoder = _get_encoder()
         embedding = encoder.embed_utterance(wav)
         embedding_list = [float(x) for x in embedding.tolist()]
-        if not _save_voiceprint(embedding_list):
-            return None
+        _save_voiceprint(embedding_list)
         return embedding_list
     except Exception as exc:
         _debug(f"enroll failed: {exc}")
         return None
 
 
-def verify_speaker(audio_bytes: bytes, sample_rate: int = _TARGET_SAMPLE_RATE) -> tuple[float, bool]:
+def verify_speaker(audio_bytes: bytes) -> tuple[float, bool]:
     """
     Verify if the audio matches the enrolled speaker.
 
@@ -285,14 +164,8 @@ def verify_speaker(audio_bytes: bytes, sample_rate: int = _TARGET_SAMPLE_RATE) -
     if not voiceprint:
         _debug("no voiceprint found; verification failed")
         return 0.0, False
-    min_ms = _env_float("JARVIS_SPK_MIN_AUDIO_MS", 1000.0)
-    if min_ms > 0 and sample_rate > 0:
-        duration_ms = (len(audio_bytes) / 2.0) / float(sample_rate) * 1000.0
-        if duration_ms < min_ms:
-            _debug("audio curto; verificacao falhou (abaixo do minimo)")
-            return 0.0, False
     try:
-        wav = _prepare_audio(audio_bytes, sample_rate)
+        wav = _pcm16_to_float(audio_bytes)
         if wav.size == 0:
             return 0.0, False
         encoder = _get_encoder()

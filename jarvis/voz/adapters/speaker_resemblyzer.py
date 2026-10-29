@@ -6,7 +6,7 @@ from typing import Any
 
 from jarvis.voz import speaker_verify
 
-from .base import SampleRate, SpeakerVerifier, validate_audio_i16
+from .base import SpeakerVerifier
 
 
 class ResemblyzerSpeakerVerifier(SpeakerVerifier):
@@ -20,12 +20,8 @@ class ResemblyzerSpeakerVerifier(SpeakerVerifier):
         return speaker_verify.voiceprint_path()
 
     def load_voiceprint(self, path: str) -> dict | None:
-        default_path = str(self.voiceprint_path())
-        if not path or path == default_path:
-            embedding = speaker_verify.load_voiceprint()
-            if not embedding:
-                return None
-            return {"embedding": embedding}
+        if not path:
+            path = str(self.voiceprint_path())
         try:
             data: Any = json.loads(Path(path).read_text(encoding="utf-8"))
         except Exception:
@@ -37,23 +33,12 @@ class ResemblyzerSpeakerVerifier(SpeakerVerifier):
             return None
         return data
 
-    def verify(self, audio_i16: bytes, sample_rate: SampleRate) -> float:
-        error = validate_audio_i16(audio_i16, sample_rate)
-        if error:
-            return 0.0
-        score, _ok = speaker_verify.verify_speaker(audio_i16, sample_rate)
+    def verify(self, audio_i16: bytes, sample_rate: int) -> float:
+        score, _ok = speaker_verify.verify_speaker(audio_i16)
         return score
 
-    def verify_ok(
-        self, audio_i16: bytes, sample_rate: SampleRate
-    ) -> tuple[float, bool]:
-        error = validate_audio_i16(audio_i16, sample_rate)
-        if error:
-            return 0.0, False
-        return speaker_verify.verify_speaker(audio_i16, sample_rate)
+    def verify_ok(self, audio_i16: bytes, sample_rate: int) -> tuple[float, bool]:
+        return speaker_verify.verify_speaker(audio_i16)
 
-    def enroll(self, audio_i16: bytes, sample_rate: SampleRate) -> list[float] | None:
-        error = validate_audio_i16(audio_i16, sample_rate)
-        if error:
-            return None
-        return speaker_verify.enroll_speaker(audio_i16, sample_rate)
+    def enroll(self, audio_i16: bytes, sample_rate: int) -> list[float] | None:
+        return speaker_verify.enroll_speaker(audio_i16)
